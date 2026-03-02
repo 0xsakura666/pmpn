@@ -41,11 +41,7 @@ const PAGE_SIZE = 10;
 const CACHE_KEY = "pmpn_markets_cache";
 const CACHE_TTL = 5 * 60 * 1000;
 
-const CORS_PROXIES = [
-  (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-];
+const PROXY_URL = "https://api.codetabs.com/v1/proxy/?quest=";
 
 interface CacheData {
   markets: Market[];
@@ -174,30 +170,31 @@ export default function Home() {
 
   const fetchFromProxy = useCallback(async (): Promise<Market[]> => {
     const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false";
+    const proxyUrl = PROXY_URL + encodeURIComponent(apiUrl);
     
-    const tryProxy = async (makeProxy: (url: string) => string, retries = 2): Promise<Market[] | null> => {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const proxyUrl = makeProxy(apiUrl);
-          const res = await fetchWithTimeout(proxyUrl, 18000);
-          if (!res.ok) continue;
-          const events = await res.json();
-          if (!Array.isArray(events) || events.length === 0) continue;
-          const markets = processEvents(events);
-          if (markets.length > 0) return markets;
-        } catch {
-          await new Promise(r => setTimeout(r, 500 * (i + 1)));
-        }
-      }
-      return null;
-    };
-
-    // 并行尝试所有代理，取第一个成功的
-    const results = await Promise.all(CORS_PROXIES.map(p => tryProxy(p)));
-    const validResult = results.find(r => r && r.length > 0);
-    if (validResult) return validResult;
+    console.log("[Fetch] Requesting via proxy...");
+    const res = await fetchWithTimeout(proxyUrl, 25000);
     
-    throw new Error("All proxies failed");
+    if (!res.ok) {
+      console.error("[Fetch] Proxy returned:", res.status);
+      throw new Error(`Proxy error: ${res.status}`);
+    }
+    
+    const events = await res.json();
+    console.log("[Fetch] Got events:", events?.length || 0);
+    
+    if (!Array.isArray(events) || events.length === 0) {
+      throw new Error("No events data");
+    }
+    
+    const markets = processEvents(events);
+    console.log("[Fetch] Processed markets:", markets.length);
+    
+    if (markets.length === 0) {
+      throw new Error("No markets processed");
+    }
+    
+    return markets;
   }, [processEvents]);
 
   const fetchMarkets = useCallback(async (useCache = true) => {
@@ -228,25 +225,22 @@ export default function Home() {
     setError(null);
     
     try {
-      let freshMarkets = await fetchFromApi().catch(() => null);
-      if (!freshMarkets || freshMarkets.length === 0) {
-        freshMarkets = await fetchFromProxy().catch(() => null);
-      }
-      if (freshMarkets && freshMarkets.length > 0) {
+      console.log("[Markets] Starting fetch...");
+      const freshMarkets = await fetchFromProxy();
+      console.log("[Markets] Got markets:", freshMarkets.length);
+      
+      if (freshMarkets.length > 0) {
         setMarkets(freshMarkets);
         setCache(freshMarkets);
       } else {
         throw new Error("No data");
       }
     } catch (err) {
-      console.error("Failed to fetch:", err);
+      console.error("[Markets] Failed:", err);
       const fallback = getFallbackMarkets();
-      if (fallback.length > 0) {
-        setMarkets(fallback);
-        setError(null);
-      } else {
+      setMarkets(fallback);
+      if (fallback.length === 0) {
         setError("无法连接到 Polymarket API，请检查网络或稍后重试");
-        setMarkets([]);
       }
     } finally {
       setLoading(false);
