@@ -6,6 +6,7 @@ import { WalletButton } from "@/components/auth/ConnectWallet";
 
 interface Market {
   id: string;
+  conditionId: string;
   title: string;
   description: string;
   slug: string;
@@ -20,7 +21,6 @@ interface Market {
   priceChange?: number;
   spread?: number;
   daysLeft?: number;
-  icon?: string;
 }
 
 const categories = ["全部", "体育", "加密", "钱包追踪", "事件追踪", "热门"];
@@ -37,6 +37,8 @@ const sortOptions = [
   { value: "Ending Soon", label: "即将结束" }
 ];
 
+const PAGE_SIZE = 10;
+
 export default function Home() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,10 +47,15 @@ export default function Home() {
   const [activeTopic, setActiveTopic] = useState("全部");
   const [sortBy, setSortBy] = useState("Trending");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchMarkets();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, activeTopic, sortBy]);
 
   const fetchMarkets = async () => {
     setLoading(true);
@@ -65,11 +72,11 @@ export default function Home() {
       if (Array.isArray(data)) {
         const processedMarkets = data.map((m: Market) => ({
           ...m,
+          conditionId: m.id,
           priceChange: (Math.random() - 0.3) * 15,
           spread: Math.random() * 5,
           totalVolume: (m.volume24h || 0) * (5 + Math.random() * 20),
-          daysLeft: Math.floor(Math.random() * 365) + 1,
-          icon: getMarketIcon(m.title || ""),
+          daysLeft: calculateDaysLeft(m.endDate),
         }));
         setMarkets(processedMarkets);
       }
@@ -113,9 +120,11 @@ export default function Home() {
             
             const volume24h = parseFloat(event.volume24hr || "0");
             const totalVolume = parseFloat(event.volume || "0");
+            const conditionId = market.conditionId || market.condition_id || "";
             
             transformedMarkets.push({
-              id: market.conditionId || event.id,
+              id: conditionId,
+              conditionId: conditionId,
               title: market.question || event.title,
               description: market.description || event.description || "",
               slug: market.slug || event.slug,
@@ -130,7 +139,6 @@ export default function Home() {
               priceChange: (Math.random() - 0.3) * 15,
               spread: Math.random() * 5,
               daysLeft: calculateDaysLeft(market.endDate || event.endDate),
-              icon: getMarketIcon(market.question || event.title),
             });
           }
         }
@@ -157,19 +165,6 @@ export default function Home() {
     const now = new Date();
     const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return Math.max(0, diff);
-  };
-
-  const getMarketIcon = (title: string): string => {
-    const t = title.toLowerCase();
-    if (t.includes("iran")) return "🇮🇷";
-    if (t.includes("us") || t.includes("america")) return "🇺🇸";
-    if (t.includes("israel")) return "🇮🇱";
-    if (t.includes("china")) return "🇨🇳";
-    if (t.includes("russia")) return "🇷🇺";
-    if (t.includes("trump")) return "🇺🇸";
-    if (t.includes("bitcoin") || t.includes("btc")) return "₿";
-    if (t.includes("ethereum") || t.includes("eth")) return "⟠";
-    return "📊";
   };
 
   const topicToEnglish: Record<string, string> = {
@@ -204,10 +199,16 @@ export default function Home() {
     }
   });
 
+  const totalPages = Math.ceil(sortedMarkets.length / PAGE_SIZE);
+  const paginatedMarkets = sortedMarkets.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
   return (
-    <div className="min-h-screen bg-[#0d0d0f] text-white flex flex-col">
-      {/* 顶部导航 */}
-      <header className="border-b border-[#1a1a1f] bg-[#0d0d0f]">
+    <div className="h-screen bg-[#0d0d0f] text-white flex flex-col overflow-hidden">
+      {/* 顶部导航 - 固定 */}
+      <header className="flex-shrink-0 border-b border-[#1a1a1f] bg-[#0d0d0f]">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
@@ -242,10 +243,10 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 分类和筛选 */}
-      <div className="px-6 pt-6">
+      {/* 分类和筛选 - 固定 */}
+      <div className="flex-shrink-0 px-6 pt-4 pb-2 bg-[#0d0d0f]">
         {/* 分类标签 */}
-        <div className="flex items-center gap-6 mb-4 text-sm">
+        <div className="flex items-center gap-6 mb-3 text-sm">
           {categories.map(cat => (
             <button
               key={cat}
@@ -260,7 +261,7 @@ export default function Home() {
         </div>
 
         {/* 筛选栏 */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* 排序下拉 */}
             <div className="flex items-center gap-2">
@@ -306,12 +307,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 表头 */}
-      <div className="px-6">
-        <div className="grid grid-cols-[auto_1fr_200px_80px_100px_100px_100px_100px_80px] gap-4 py-3 text-xs text-[#666] border-b border-[#1a1a1f]">
-          <div className="w-8"></div>
+      {/* 表头 - 固定 */}
+      <div className="flex-shrink-0 px-6 bg-[#0d0d0f]">
+        <div className="grid grid-cols-[auto_1fr_120px_80px_80px_90px_90px_90px_70px] gap-2 py-2 text-xs text-[#666] border-b border-[#1a1a1f]">
+          <div className="w-6"></div>
           <div className="flex items-center gap-1">事件 <span className="text-[8px]">◇</span></div>
-          <div>赔率 / 价格 (是 | 否)</div>
+          <div>赔率 / 价格</div>
           <div className="text-right flex items-center justify-end gap-1">价差 <span className="text-[8px]">◇</span></div>
           <div className="text-right flex items-center justify-end gap-1">24h <span className="text-[8px]">◇</span></div>
           <div className="text-right flex items-center justify-end gap-1">24h量 <span className="text-[8px]">◇</span></div>
@@ -321,8 +322,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 市场列表 */}
-      <div className="flex-1 px-6 overflow-auto">
+      {/* 市场列表 - 可滚动 */}
+      <div className="flex-1 px-6 overflow-y-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4AA] mb-4"></div>
@@ -340,7 +341,7 @@ export default function Home() {
               重新加载
             </button>
           </div>
-        ) : sortedMarkets.length === 0 ? (
+        ) : paginatedMarkets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-[#666] mb-4">暂无市场数据</p>
             <button 
@@ -351,14 +352,66 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          sortedMarkets.map((market, index) => (
-            <MarketRow key={market.id || index} market={market} />
+          paginatedMarkets.map((market, index) => (
+            <MarketRow key={market.conditionId || index} market={market} />
           ))
         )}
       </div>
 
-      {/* 底部状态栏 */}
-      <footer className="border-t border-[#1a1a1f] bg-[#0a0a0c] px-4 py-2">
+      {/* 分页控件 - 固定 */}
+      {!loading && !error && sortedMarkets.length > 0 && (
+        <div className="flex-shrink-0 px-6 py-3 bg-[#0d0d0f] border-t border-[#1a1a1f]">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-[#666]">
+              共 {sortedMarkets.length} 个市场，第 {currentPage}/{totalPages} 页
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 bg-[#1a1a1f] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#2a2a2f] transition-colors"
+              >
+                上一页
+              </button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-sm transition-colors ${
+                      currentPage === pageNum 
+                        ? "bg-[#00D4AA] text-black font-medium" 
+                        : "bg-[#1a1a1f] hover:bg-[#2a2a2f]"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 bg-[#1a1a1f] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#2a2a2f] transition-colors"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 底部状态栏 - 固定 */}
+      <footer className="flex-shrink-0 border-t border-[#1a1a1f] bg-[#0a0a0c] px-4 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button className="flex items-center gap-2 text-sm text-[#00D4AA]">
@@ -394,48 +447,50 @@ function MarketRow({ market }: { market: Market }) {
   const yesPercent = Math.round(market.yesPrice * 100);
   
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric' });
+    try {
+      const date = new Date(dateStr);
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    } catch {
+      return dateStr;
+    }
   };
 
   const formatMoney = (vol: number): string => {
-    if (vol >= 1e6) return `$${(vol / 1e6).toFixed(3).replace(/\.?0+$/, '').replace(/\.$/, '')}`;
-    if (vol >= 1e3) return `$${Math.round(vol / 1e3).toLocaleString()}K`;
-    return `$${Math.round(vol).toLocaleString()}`;
+    if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
+    if (vol >= 1e3) return `$${Math.round(vol / 1e3)}K`;
+    return `$${Math.round(vol)}`;
   };
 
+  const marketLink = market.conditionId ? `/markets/${market.conditionId}` : "#";
+
   return (
-    <Link href={`/markets/${market.id}`}>
-      <div className="grid grid-cols-[auto_1fr_200px_80px_100px_100px_100px_100px_80px] gap-4 py-4 items-center border-b border-[#1a1a1f] hover:bg-[#111114] transition-colors cursor-pointer group">
+    <Link href={marketLink}>
+      <div className="grid grid-cols-[auto_1fr_120px_80px_80px_90px_90px_90px_70px] gap-2 py-3 items-center border-b border-[#1a1a1f] hover:bg-[#111114] transition-colors cursor-pointer group">
         {/* 展开箭头 */}
-        <div className="w-8 text-[#444] group-hover:text-[#666]">
+        <div className="w-6 text-[#444] group-hover:text-[#666]">
           <span className="text-xs">›</span>
         </div>
 
         {/* 事件 */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="text-2xl flex-shrink-0">{market.icon}</div>
-          <div className="min-w-0">
-            <div className="font-medium text-white truncate pr-4">{market.title}</div>
-            <div className="flex items-center gap-2 text-xs text-[#666]">
-              <span className="text-[#00D4AA]">{market.daysLeft}天</span>
-              <span>截止: {formatDate(market.endDate)}</span>
-              <button className="hover:text-white" onClick={(e) => e.preventDefault()}>☐</button>
-            </div>
+        <div className="min-w-0">
+          <div className="font-medium text-white truncate pr-2 text-sm">{market.title}</div>
+          <div className="flex items-center gap-2 text-xs text-[#666]">
+            <span className="text-[#00D4AA]">{market.daysLeft}天</span>
+            <span>截止: {formatDate(market.endDate)}</span>
           </div>
         </div>
 
         {/* 赔率 / 价格 */}
         <div>
-          <div className="text-white font-semibold">{yesPercent}%</div>
+          <div className="text-white font-semibold text-sm">{yesPercent}%</div>
           <div className="text-xs text-[#666]">
-            {formatDate(market.endDate).split(',')[0]}
+            {formatDate(market.endDate).slice(0, 7)}
           </div>
         </div>
 
         {/* 价差 */}
         <div className="text-right">
-          <div className={`font-mono ${isUp ? "text-[#00D4AA]" : "text-white"}`}>
+          <div className={`font-mono text-sm ${isUp ? "text-[#00D4AA]" : "text-white"}`}>
             {(market.spread || 0).toFixed(2)}¢
           </div>
           <div className="text-xs text-[#666]">{((market.spread || 0) * 2).toFixed(1)}%</div>
@@ -443,33 +498,33 @@ function MarketRow({ market }: { market: Market }) {
 
         {/* 24h 变化 */}
         <div className="text-right">
-          <div className={isUp ? "text-[#00D4AA]" : "text-[#FF6B6B]"}>
+          <div className={`text-sm ${isUp ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
             {isUp ? "+" : ""}{(market.priceChange || 0).toFixed(1)}¢
           </div>
           <div className="text-xs text-[#666]">{Math.abs(market.priceChange || 0).toFixed(1)}%</div>
         </div>
 
         {/* 24h 成交量 */}
-        <div className="text-right font-mono text-white">
+        <div className="text-right font-mono text-white text-sm">
           {formatMoney(market.volume24h)}
         </div>
 
         {/* 总成交量 */}
-        <div className="text-right font-mono text-white">
+        <div className="text-right font-mono text-white text-sm">
           {formatMoney(market.totalVolume)}
         </div>
 
         {/* 流动性 */}
-        <div className="text-right font-mono text-white">
+        <div className="text-right font-mono text-white text-sm">
           {formatMoney(market.liquidity)}
         </div>
 
         {/* 买入按钮 */}
         <div className="flex items-center gap-1 justify-center" onClick={(e) => e.preventDefault()}>
-          <button className="w-7 h-7 rounded bg-[#00D4AA]/20 text-[#00D4AA] text-xs font-semibold hover:bg-[#00D4AA]/30 transition-colors">
+          <button className="w-6 h-6 rounded bg-[#00D4AA]/20 text-[#00D4AA] text-xs font-semibold hover:bg-[#00D4AA]/30 transition-colors">
             是
           </button>
-          <button className="w-7 h-7 rounded bg-[#FF6B6B]/20 text-[#FF6B6B] text-xs font-semibold hover:bg-[#FF6B6B]/30 transition-colors">
+          <button className="w-6 h-6 rounded bg-[#FF6B6B]/20 text-[#FF6B6B] text-xs font-semibold hover:bg-[#FF6B6B]/30 transition-colors">
             否
           </button>
         </div>
