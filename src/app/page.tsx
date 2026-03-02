@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { WalletButton } from "@/components/auth/ConnectWallet";
+import { translateToZh } from "@/lib/translate";
 
 interface Market {
   id: string;
@@ -163,11 +164,6 @@ export default function Home() {
     return transformedMarkets;
   }, []);
 
-  const fetchFromApi = useCallback(async (): Promise<Market[]> => {
-    // 跳过服务端 API，直接返回 null 让前端通过代理请求
-    return Promise.reject(new Error("Skip API route"));
-  }, []);
-
   const fetchFromProxy = useCallback(async (): Promise<Market[]> => {
     const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false";
     const proxyUrl = PROXY_URL + encodeURIComponent(apiUrl);
@@ -245,11 +241,49 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [fetchFromApi, fetchFromProxy]);
+  }, [fetchFromProxy]);
 
   useEffect(() => {
     fetchMarkets();
   }, [fetchMarkets]);
+
+  // 异步翻译标题
+  const translatedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (markets.length === 0) return;
+    
+    const translateTitles = async () => {
+      const toTranslate = markets.filter(m => !translatedRef.current.has(m.id));
+      if (toTranslate.length === 0) return;
+      
+      // 批量翻译前20个
+      const batch = toTranslate.slice(0, 20);
+      const translations = await Promise.all(
+        batch.map(async (m) => {
+          try {
+            const translated = await translateToZh(m.title);
+            return { id: m.id, title: translated };
+          } catch {
+            return { id: m.id, title: m.title };
+          }
+        })
+      );
+      
+      setMarkets(prev => {
+        const updated = [...prev];
+        for (const t of translations) {
+          translatedRef.current.add(t.id);
+          const idx = updated.findIndex(m => m.id === t.id);
+          if (idx >= 0) {
+            updated[idx] = { ...updated[idx], title: t.title };
+          }
+        }
+        return updated;
+      });
+    };
+    
+    translateTitles();
+  }, [markets.length]);
 
   useEffect(() => {
     setCurrentPage(1);
