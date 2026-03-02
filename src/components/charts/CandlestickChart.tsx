@@ -32,6 +32,10 @@ interface CandlestickChartProps {
   volumeData?: VolumeData[];
   height?: number;
   onTimeRangeChange?: (from: Time, to: Time) => void;
+  currentCandle?: CandleData | null;
+  showSeconds?: boolean;
+  isRealtime?: boolean;
+  lastPrice?: number | null;
 }
 
 export function CandlestickChart({
@@ -39,11 +43,16 @@ export function CandlestickChart({
   volumeData,
   height = 400,
   onTimeRangeChange,
+  currentCandle,
+  showSeconds = false,
+  isRealtime = false,
+  lastPrice,
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -82,7 +91,7 @@ export function CandlestickChart({
       timeScale: {
         borderColor: "rgba(139, 148, 158, 0.2)",
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: showSeconds,
       },
       width: chartContainerRef.current.clientWidth,
       height: height,
@@ -136,19 +145,29 @@ export function CandlestickChart({
       });
     }
 
+    isInitializedRef.current = true;
+
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
+      isInitializedRef.current = false;
     };
-  }, [height, onTimeRangeChange, volumeData]);
+  }, [height, onTimeRangeChange, volumeData, showSeconds]);
 
-  // Update data
   useEffect(() => {
     if (candlestickSeriesRef.current && data.length > 0) {
       candlestickSeriesRef.current.setData(data);
-      chartRef.current?.timeScale().fitContent();
+      if (!isRealtime) {
+        chartRef.current?.timeScale().fitContent();
+      }
     }
-  }, [data]);
+  }, [data, isRealtime]);
+
+  useEffect(() => {
+    if (candlestickSeriesRef.current && currentCandle && isRealtime) {
+      candlestickSeriesRef.current.update(currentCandle);
+    }
+  }, [currentCandle, isRealtime]);
 
   useEffect(() => {
     if (volumeSeriesRef.current && volumeData && volumeData.length > 0) {
@@ -156,7 +175,6 @@ export function CandlestickChart({
     }
   }, [volumeData]);
 
-  // Show message if no data
   if (!data || data.length === 0) {
     return (
       <div 
@@ -173,7 +191,18 @@ export function CandlestickChart({
   }
 
   return (
-    <div ref={chartContainerRef} className="w-full" style={{ height }} />
+    <div className="relative w-full">
+      {isRealtime && lastPrice !== null && lastPrice !== undefined && (
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-2 px-2 py-1 rounded bg-[#1a1a1f]/90 border border-[#333]">
+          <div className="w-2 h-2 rounded-full bg-[#00D4AA] animate-pulse" />
+          <span className="text-xs text-[#888]">实时</span>
+          <span className="text-sm font-mono font-bold text-white">
+            ${lastPrice.toFixed(4)}
+          </span>
+        </div>
+      )}
+      <div ref={chartContainerRef} className="w-full" style={{ height }} />
+    </div>
   );
 }
 

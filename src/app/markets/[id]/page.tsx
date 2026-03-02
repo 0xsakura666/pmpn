@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { CandlestickChart } from "@/components/charts/CandlestickChart";
+import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { OrderBook } from "@/components/trading/OrderBook";
 import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
 import { PositionsPanel } from "@/components/trading/PositionsPanel";
@@ -34,11 +34,11 @@ interface MarketData {
   tickSize?: string;
 }
 
-const timeframes = ["1M", "5M", "15M", "1H", "4H", "1D"];
+type TimeframeType = "1S" | "5S" | "15S" | "1M" | "5M" | "15M" | "1H" | "4H" | "1D";
 
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("1H");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("1M");
   const [market, setMarket] = useState<MarketData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,26 +204,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chart Section */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Timeframe Selector */}
+            {/* Realtime K-line Chart */}
             <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
-              <div className="flex gap-2 mb-4">
-                {timeframes.map((tf) => (
-                  <button
-                    key={tf}
-                    onClick={() => setSelectedTimeframe(tf)}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      selectedTimeframe === tf
-                        ? "bg-[#00D4AA] text-black"
-                        : "bg-[#2a2a2f] text-[#666] hover:text-white"
-                    }`}
-                  >
-                    {tf}
-                  </button>
-                ))}
-              </div>
-              <CandlestickChart
-                data={priceHistory}
+              <RealtimeCandlestickChart
+                tokenId={yesToken?.token_id}
+                initialData={priceHistory}
                 height={400}
+                defaultTimeframe={selectedTimeframe}
+                onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                enableSimulation={true}
               />
             </div>
 
