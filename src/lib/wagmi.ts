@@ -1,12 +1,21 @@
 import { http, createConfig } from "wagmi";
 import { polygon } from "wagmi/chains";
-import { injected } from "wagmi/connectors";
+import { injected, metaMask, coinbaseWallet, walletConnect } from "wagmi/connectors";
 
-// 仅使用 Injected（浏览器扩展），无需 WalletConnect/Reown Project ID
-// 支持：Rainbow 扩展、MetaMask、Rabby 等
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
+
 export const config = createConfig({
   chains: [polygon],
-  connectors: [injected()],
+  connectors: [
+    metaMask(),
+    coinbaseWallet({
+      appName: "Tectonic",
+    }),
+    ...(projectId ? [walletConnect({ projectId })] : []),
+    injected({
+      shimDisconnect: true,
+    }),
+  ],
   transports: {
     [polygon.id]: http(),
   },

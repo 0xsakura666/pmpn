@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { polymarket } from "@/lib/polymarket";
-import { translateToZh } from "@/lib/translate";
 
 export async function GET(
   request: NextRequest,
@@ -8,13 +7,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const searchParams = request.nextUrl.searchParams;
-    const locale = searchParams.get("locale") || "zh";
-    
+
     const market = await polymarket.getMarket(id);
 
     if (!market) {
-      return NextResponse.json({ error: "Market not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "MARKET_NOT_FOUND", message: "市场不存在" },
+        { status: 404 }
+      );
     }
 
     // Get order book for each token
@@ -29,31 +29,31 @@ export async function GET(
       })
     );
 
-    // 翻译标题和描述
-    let title = market.question;
-    let description = market.description;
-    
-    if (locale === "zh") {
-      [title, description] = await Promise.all([
-        translateToZh(market.question),
-        translateToZh(market.description),
-      ]);
-    }
-
     return NextResponse.json({
       id: market.condition_id,
-      title,
+      title: market.question,
       titleOriginal: market.question,
-      description,
+      description: market.description,
       descriptionOriginal: market.description,
       slug: market.market_slug,
       endDate: market.end_date_iso,
       image: market.image || market.icon,
       tokens: market.tokens,
       orderBooks,
+      negRisk: market.neg_risk || false,
+      tickSize: "0.01",
     });
   } catch (error) {
-    console.error("Market detail API error:", error);
-    return NextResponse.json({ error: "Failed to fetch market" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Market detail API error:", errorMessage);
+    
+    return NextResponse.json(
+      { 
+        error: "API_ERROR", 
+        message: "无法获取市场详情",
+        details: errorMessage 
+      },
+      { status: 500 }
+    );
   }
 }

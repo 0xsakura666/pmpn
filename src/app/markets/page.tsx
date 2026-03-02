@@ -25,7 +25,8 @@ const categories = ["全部", "政治", "加密货币", "体育", "经济", "其
 export default function MarketsPage() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [error, setError] = useState<{ message: string; details?: string } | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("全部");
   const [sortBy, setSortBy] = useState("volume");
   const [viewMode, setViewMode] = useState<"list" | "heatmap">("list");
 
@@ -35,27 +36,145 @@ export default function MarketsPage() {
 
   const fetchMarkets = async () => {
     setLoading(true);
+    setError(null);
     try {
+      // 首先尝试通过服务器端 API
       const categoryParam = selectedCategory !== "全部" ? `&category=${selectedCategory}` : "";
       const res = await fetch(`/api/markets?limit=50${categoryParam}`);
       const data = await res.json();
       
-      // Add mock sparkline data
+      // 如果服务器端失败，尝试直接从客户端访问 Polymarket API
+      if (data.error) {
+        console.log("Server API failed, trying direct client-side fetch...");
+        await fetchMarketsDirectly();
+        return;
+      }
+      
+      // Check if data is an array
+      if (!Array.isArray(data)) {
+        setError({ message: "API 返回了无效数据格式" });
+        setMarkets([]);
+        return;
+      }
+      
+      // Add sparkline data
       const marketsWithSparkline = data.map((m: Market) => ({
         ...m,
-        sparkline: generateMockSparkline(m.yesPrice),
+        sparkline: generateMockSparkline(m.yesPrice || 0.5),
         priceChange: (Math.random() - 0.5) * 20,
-        volume24h: Math.floor(Math.random() * 10000000),
+        volume24h: m.volume24h || Math.floor(Math.random() * 10000000),
       }));
       
       setMarkets(marketsWithSparkline);
-    } catch (error) {
-      console.error("Failed to fetch markets:", error);
-      // Use mock data as fallback
-      setMarkets(generateMockMarkets());
+    } catch (err) {
+      console.error("Failed to fetch markets:", err);
+      // 尝试直接客户端获取
+      await fetchMarketsDirectly();
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchMarketsDirectly = async () => {
+    try {
+      console.log("=== Client-side fetch started ===");
+      
+      // 尝试多个方式获取数据
+      const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false&order=volume_24hr";
+      
+      // 使用 CodeTabs 代理 (已测试可用，绕过 DNS 污染)
+      const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(apiUrl)}`;
+      
+      console.log("[CodeTabs] Fetching via proxy...");
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      
+      const res = await fetch(proxyUrl, {
+        headers: {
+          "Accept": "application/json",
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log(`[CodeTabs] Status: ${res.status}`);
+      
+      if (!res.ok) {
+        throw new Error(`CodeTabs proxy failed: HTTP ${res.status}`);
+      }
+      
+      // CodeTabs directly returns the API response
+      const events = await res.json();
+      console.log(`[CodeTabs] SUCCESS! Got ${events?.length || 0} events`);
+      
+      if (!Array.isArray(events)) {
+        throw new Error("Invalid response format");
+      }
+
+      // 从 events 中提取 markets
+      const transformedMarkets: Market[] = [];
+      
+      for (const event of events) {
+        if (event.markets && Array.isArray(event.markets)) {
+          for (const market of event.markets) {
+            const yesPrice = market.outcomePrices 
+              ? parseFloat(JSON.parse(market.outcomePrices)[0]) 
+              : (market.tokens?.find((t: any) => t.outcome === "Yes")?.price || 0.5);
+            
+            transformedMarkets.push({
+              id: market.conditionId || market.condition_id || event.id,
+              title: market.question || event.title,
+              description: market.description || event.description || "",
+              slug: market.slug || event.slug,
+              category: categorizeMarket(market.question || event.title),
+              endDate: market.endDate || event.endDate,
+              image: event.image || "",
+              yesPrice,
+              noPrice: 1 - yesPrice,
+              volume24h: parseFloat(event.volume24hr || "0"),
+              liquidity: parseFloat(event.liquidity || "0"),
+              sparkline: generateMockSparkline(yesPrice),
+              priceChange: (Math.random() - 0.5) * 20,
+            } as Market);
+          }
+        }
+      }
+
+      // Filter by category
+      const filtered = selectedCategory !== "全部"
+        ? transformedMarkets.filter((m: Market) => m.category === selectedCategory)
+        : transformedMarkets;
+
+      setMarkets(filtered);
+      setError(null);
+      console.log(`Loaded ${filtered.length} markets from Polymarket`);
+    } catch (err) {
+      console.error("Direct fetch failed:", err);
+      setError({
+        message: "无法连接到 Polymarket API",
+        details: err instanceof Error ? err.message : undefined,
+      });
+      setMarkets([]);
+    }
+  };
+
+  const categorizeMarket = (question: string): string => {
+    const q = question.toLowerCase();
+    if (q.includes("trump") || q.includes("biden") || q.includes("election") || q.includes("president")) {
+      return "政治";
+    }
+    if (q.includes("crypto") || q.includes("bitcoin") || q.includes("ethereum") || q.includes("btc") || q.includes("eth")) {
+      return "加密货币";
+    }
+    if (q.includes("sports") || q.includes("nba") || q.includes("nfl") || q.includes("super bowl")) {
+      return "体育";
+    }
+    if (q.includes("economy") || q.includes("fed") || q.includes("inflation") || q.includes("rate")) {
+      return "经济";
+    }
+    return "其他";
   };
 
   const sortedMarkets = [...markets].sort((a, b) => {
@@ -169,8 +288,48 @@ export default function MarketsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-[hsl(var(--muted-foreground))]">
-            加载市场中...
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[hsl(var(--primary))] mx-auto mb-4" />
+            <p className="text-[hsl(var(--muted-foreground))]">正在连接 Polymarket API...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <div className="max-w-md mx-auto glass rounded-xl p-8">
+              <div className="text-4xl mb-4">⚠️</div>
+              <h3 className="text-xl font-semibold mb-2 text-[var(--down)]">无法获取市场数据</h3>
+              <p className="text-[hsl(var(--muted-foreground))] mb-4">{error.message}</p>
+              {error.details && (
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mb-4 font-mono bg-[hsl(var(--muted))] p-2 rounded">
+                  {error.details}
+                </p>
+              )}
+              <div className="space-y-3">
+                <button
+                  onClick={fetchMarkets}
+                  className="w-full px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-white font-semibold hover:opacity-90"
+                >
+                  重试
+                </button>
+                <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                  <p className="mb-2">可能的解决方案：</p>
+                  <ul className="text-left space-y-1">
+                    <li>• 使用 VPN 连接到美国/欧洲地区</li>
+                    <li>• 检查网络连接是否正常</li>
+                    <li>• Polymarket 可能暂时不可用</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : sortedMarkets.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-[hsl(var(--muted-foreground))] mb-4">暂无市场数据</p>
+            <button
+              onClick={fetchMarkets}
+              className="px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-white"
+            >
+              重新加载
+            </button>
           </div>
         ) : viewMode === "list" ? (
           <div className="grid grid-cols-1 gap-4">
@@ -260,7 +419,7 @@ function MarketCard({ market }: { market: Market & { sparkline?: number[]; price
           <div className="text-right">
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-[var(--up)]">
-                ${market.yesPrice.toFixed(2)}
+                ${(market.yesPrice || 0.5).toFixed(2)}
               </span>
               <span className="text-sm text-[hsl(var(--muted-foreground))]">Yes</span>
             </div>
@@ -292,121 +451,6 @@ function generateMockSparkline(currentPrice: number): number[] {
     data.push(Math.max(0.01, Math.min(0.99, price)));
   }
   return data;
-}
-
-function generateMockMarkets(): (Market & { sparkline: number[]; priceChange: number })[] {
-  const mockMarkets = [
-    {
-      id: "trump-2024",
-      title: "特朗普会赢得2024年总统大选吗？",
-      description: "",
-      slug: "trump-2024",
-      category: "政治",
-      endDate: "2024-11-05",
-      image: "",
-      yesPrice: 0.65,
-      noPrice: 0.35,
-      volume24h: 12500000,
-      liquidity: 8500000,
-    },
-    {
-      id: "btc-100k",
-      title: "比特币会在2025年前达到10万美元吗？",
-      description: "",
-      slug: "btc-100k",
-      category: "加密货币",
-      endDate: "2024-12-31",
-      image: "",
-      yesPrice: 0.42,
-      noPrice: 0.58,
-      volume24h: 8200000,
-      liquidity: 5200000,
-    },
-    {
-      id: "fed-rate",
-      title: "美联储会在2024年3月降息吗？",
-      description: "",
-      slug: "fed-rate",
-      category: "经济",
-      endDate: "2024-03-20",
-      image: "",
-      yesPrice: 0.28,
-      noPrice: 0.72,
-      volume24h: 5600000,
-      liquidity: 3200000,
-    },
-    {
-      id: "eth-5k",
-      title: "ETH会在2024年3月前达到5000美元吗？",
-      description: "",
-      slug: "eth-5k",
-      category: "加密货币",
-      endDate: "2024-03-31",
-      image: "",
-      yesPrice: 0.35,
-      noPrice: 0.65,
-      volume24h: 4200000,
-      liquidity: 2800000,
-    },
-    {
-      id: "superbowl-chiefs",
-      title: "堪萨斯城酋长队会赢得2024年超级碗吗？",
-      description: "",
-      slug: "superbowl-chiefs",
-      category: "体育",
-      endDate: "2024-02-11",
-      image: "",
-      yesPrice: 0.52,
-      noPrice: 0.48,
-      volume24h: 3800000,
-      liquidity: 2100000,
-    },
-    {
-      id: "ai-gpt5",
-      title: "GPT-5会在2024年发布吗？",
-      description: "",
-      slug: "ai-gpt5",
-      category: "其他",
-      endDate: "2024-12-31",
-      image: "",
-      yesPrice: 0.45,
-      noPrice: 0.55,
-      volume24h: 2100000,
-      liquidity: 1500000,
-    },
-    {
-      id: "recession-2024",
-      title: "美国会在2024年进入经济衰退吗？",
-      description: "",
-      slug: "recession-2024",
-      category: "经济",
-      endDate: "2024-12-31",
-      image: "",
-      yesPrice: 0.22,
-      noPrice: 0.78,
-      volume24h: 1800000,
-      liquidity: 1200000,
-    },
-    {
-      id: "sol-200",
-      title: "SOL会在2024年达到200美元吗？",
-      description: "",
-      slug: "sol-200",
-      category: "加密货币",
-      endDate: "2024-12-31",
-      image: "",
-      yesPrice: 0.38,
-      noPrice: 0.62,
-      volume24h: 1500000,
-      liquidity: 900000,
-    },
-  ];
-  
-  return mockMarkets.map(m => ({
-    ...m,
-    sparkline: generateMockSparkline(m.yesPrice),
-    priceChange: (Math.random() - 0.5) * 20,
-  }));
 }
 
 function formatVolume(volume: number): string {

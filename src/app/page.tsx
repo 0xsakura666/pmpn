@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-[hsl(var(--background))]">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-[hsl(var(--border))]">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(var(--background))/0.8] backdrop-blur-xl border-b border-[hsl(var(--border))/0.5]">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="font-['Space_Grotesk'] text-xl font-bold text-gradient">
-              Tectonic
+            <Link href="/" className="font-['Space_Grotesk'] text-xl font-bold">
+              <span className="text-gradient">Tectonic</span>
             </Link>
             <div className="hidden md:flex items-center gap-6 text-sm">
               <Link href="/markets" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
@@ -20,9 +21,6 @@ export default function Home() {
               <Link href="/smart-money" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
                 聪明钱
               </Link>
-              <Link href="/signals" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
-                信号
-              </Link>
             </div>
           </div>
           <WalletButton />
@@ -30,240 +28,372 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <div className="relative overflow-hidden pt-20">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.1)] via-transparent to-[hsl(var(--accent)/0.1)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[hsl(var(--accent)/0.2)] via-transparent to-transparent" />
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[hsl(var(--primary))/0.1] rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--whale)]/0.1 rounded-full blur-3xl" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="font-['Space_Grotesk'] text-4xl font-bold tracking-tight sm:text-6xl">
-              <span className="text-gradient">Tectonic</span>
-            </h1>
-            <p className="mt-2 text-xl text-[hsl(var(--muted-foreground))]">
-              Polymarket 专业交易终端
-            </p>
-            <p className="mt-6 text-lg leading-8 text-[hsl(var(--muted-foreground))]">
-              实时K线图表 · 聪明钱追踪 · 一键跟单 · Whale Score™ 评分系统
-            </p>
+        <div className="relative z-10 mx-auto max-w-7xl px-6 py-24 text-center">
+          <h1 className="font-['Space_Grotesk'] text-5xl md:text-7xl font-bold tracking-tight leading-tight">
+            <span className="text-gradient">交易</span>
+            <br />
+            <span className="text-[hsl(var(--foreground))]">更快. 更精准. 更智能.</span>
+          </h1>
 
-            <div className="mt-10 flex items-center justify-center gap-x-6">
+          <p className="mt-8 text-xl text-[hsl(var(--muted-foreground))] max-w-2xl mx-auto">
+            Polymarket 专业交易终端，实时追踪聪明钱动向，一键跟单巨鲸交易
+          </p>
+
+          {/* Stats */}
+          <div className="mt-12 flex items-center justify-center gap-16">
+            <StatCounter label="交易量" value={12500000} prefix="$" />
+            <StatCounter label="用户收益" value={850000} prefix="$" />
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="mt-12 flex items-center justify-center gap-4">
+            <Link
+              href="/markets"
+              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold text-lg shadow-lg shadow-[hsl(var(--primary))/0.25] hover:shadow-[hsl(var(--primary))/0.4] transition-all hover:scale-105"
+            >
+              开始交易
+              <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Link>
+            <Link
+              href="/smart-money"
+              className="px-8 py-4 rounded-xl border border-[hsl(var(--border))] text-[hsl(var(--foreground))] font-semibold text-lg hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              了解更多
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Intro */}
+      <section className="relative py-24 border-t border-[hsl(var(--border))/0.5]">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="text-center mb-16">
+            <h2 className="font-['Space_Grotesk'] text-4xl md:text-5xl font-bold mb-4">
+              预测市场专业工具
+            </h2>
+            <p className="text-xl text-[hsl(var(--muted-foreground))]">
+              Tectonic 为您提供市场上最强大的预测市场交易工具
+            </p>
+          </div>
+
+          {/* Mini Stats */}
+          <div className="flex items-center justify-center gap-12 mb-16">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-gradient">10K+</div>
+              <div className="text-sm text-[hsl(var(--muted-foreground))] mt-1">活跃用户</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-gradient">50+</div>
+              <div className="text-sm text-[hsl(var(--muted-foreground))] mt-1">市场覆盖</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature 1: Advanced Market View */}
+      <section className="py-24 border-t border-[hsl(var(--border))/0.5]">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h3 className="font-['Space_Grotesk'] text-3xl font-bold mb-6">
+                专业市场视图
+              </h3>
+              <p className="text-[hsl(var(--muted-foreground))] mb-8">
+                使用完整的市场数据进行交易。我们的专业工具让您快速切换视图，做出更快、更明智的决策。
+              </p>
+              <ul className="space-y-4">
+                <FeatureItem text="快速了解任何市场中的交易者概况" />
+                <FeatureItem text="高级交易分析和用户追踪" />
+                <FeatureItem text="分析市场持仓变化，查看资金流向" />
+              </ul>
               <Link
                 href="/markets"
-                className="rounded-lg bg-[hsl(var(--primary))] px-6 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-sm hover:opacity-90 transition-opacity glow-primary"
+                className="inline-flex items-center mt-8 text-[hsl(var(--primary))] font-semibold hover:underline"
               >
-                开始交易
+                点击探索 →
               </Link>
+            </div>
+            <div className="glass rounded-2xl p-6 hover:border-[hsl(var(--primary))/0.5] transition-all cursor-pointer group">
+              <div className="text-sm text-[hsl(var(--muted-foreground))] mb-4">市场分析预览</div>
+              <div className="space-y-3">
+                <MarketPreviewCard
+                  title="Trump 2024"
+                  yesPrice={0.52}
+                  change={2.4}
+                  volume="$4.2M"
+                />
+                <MarketPreviewCard
+                  title="BTC $150K"
+                  yesPrice={0.35}
+                  change={-1.2}
+                  volume="$2.1M"
+                />
+                <MarketPreviewCard
+                  title="Fed Rate Cut"
+                  yesPrice={0.78}
+                  change={5.1}
+                  volume="$890K"
+                />
+              </div>
+              <div className="mt-4 text-center text-sm text-[hsl(var(--primary))] opacity-0 group-hover:opacity-100 transition-opacity">
+                点击查看详情
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature 2: Smart Money Tracking */}
+      <section className="py-24 border-t border-[hsl(var(--border))/0.5] bg-[hsl(var(--muted))/0.3]">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="order-2 lg:order-1 glass rounded-2xl p-6 hover:border-[var(--whale)]/0.5 transition-all cursor-pointer group">
+              <div className="text-sm text-[hsl(var(--muted-foreground))] mb-4">聪明钱动态</div>
+              <div className="space-y-3">
+                <WhaleActivityCard
+                  address="0x7a8...3f2"
+                  action="BUY"
+                  amount="$45,000"
+                  market="Trump 2024"
+                  score={92}
+                />
+                <WhaleActivityCard
+                  address="0x9c2...1a5"
+                  action="SELL"
+                  amount="$28,000"
+                  market="ETH $5K"
+                  score={87}
+                />
+                <WhaleActivityCard
+                  address="0x4e1...8d7"
+                  action="BUY"
+                  amount="$15,000"
+                  market="Fed Rate"
+                  score={85}
+                />
+              </div>
+              <div className="mt-4 text-center text-sm text-[var(--whale)] opacity-0 group-hover:opacity-100 transition-opacity">
+                点击查看更多
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <h3 className="font-['Space_Grotesk'] text-3xl font-bold mb-6">
+                聪明钱追踪
+              </h3>
+              <p className="text-[hsl(var(--muted-foreground))] mb-8">
+                实时追踪巨鲸交易动态。Whale Score™ 评分系统帮助您识别最有价值的交易信号。
+              </p>
+              <ul className="space-y-4">
+                <FeatureItem text="实时监控大额交易和巨鲸动向" />
+                <FeatureItem text="Whale Score™ 0-100 评分系统" />
+                <FeatureItem text="一键跟单，快速复制成功策略" />
+              </ul>
               <Link
                 href="/smart-money"
-                className="rounded-lg border border-[hsl(var(--border))] px-6 py-3 text-sm font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
+                className="inline-flex items-center mt-8 text-[var(--whale)] font-semibold hover:underline"
               >
-                查看聪明钱 →
+                点击探索 →
               </Link>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Feature Cards */}
-          <div className="mx-auto mt-16 max-w-5xl">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <FeatureCard
-                icon="📈"
-                title="K线图表"
-                description="专业级TradingView图表，支持多种技术指标"
-              />
-              <FeatureCard
-                icon="🐋"
-                title="Whale Score™"
-                description="0-100评分系统，识别高确信度交易者"
-              />
-              <FeatureCard
-                icon="⚡"
-                title="实时信号"
-                description="聪明钱动态实时推送，一键跟单"
-              />
-              <FeatureCard
-                icon="🔥"
-                title="热力图"
-                description="市场资金流向可视化，捕捉趋势"
-              />
+      {/* Feature 3: Real-time Signals */}
+      <section className="py-24 border-t border-[hsl(var(--border))/0.5]">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h3 className="font-['Space_Grotesk'] text-3xl font-bold mb-6">
+                实时信号推送
+              </h3>
+              <p className="text-[hsl(var(--muted-foreground))] mb-8">
+                专为预测市场打造的最佳信号平台。通过将实时更新直接集成到市场中，使新闻交易变得无缝。
+              </p>
+              <ul className="space-y-4">
+                <FeatureItem text="来自 X.com、Truth Social 等平台的新闻" />
+                <FeatureItem text="直接关联相关市场，快速执行" />
+                <FeatureItem text="语音提醒确保您不错过任何机会" />
+              </ul>
+              <Link
+                href="/signals"
+                className="inline-flex items-center mt-8 text-[var(--up)] font-semibold hover:underline"
+              >
+                点击探索 →
+              </Link>
             </div>
-          </div>
-
-          {/* Live Signals Preview */}
-          <div className="mx-auto mt-16 max-w-4xl">
-            <div className="glass rounded-2xl p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-['Space_Grotesk'] text-xl font-semibold">
-                  📡 实时信号
-                </h2>
-                <span className="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+            <div className="glass rounded-2xl p-6 hover:border-[var(--up)]/0.5 transition-all cursor-pointer group">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-[hsl(var(--muted-foreground))]">实时信号</span>
+                <span className="flex items-center gap-2 text-sm text-[var(--up)]">
                   <span className="h-2 w-2 rounded-full bg-[var(--up)] animate-pulse" />
                   已连接
                 </span>
               </div>
-
-              <div className="space-y-4">
-                <SignalPreview
-                  address="0x7a8...3f2"
-                  action="BUY"
-                  amount="$45,000"
-                  market="Trump 2024 - Yes"
-                  price="$0.62"
-                  score={87}
+              <div className="space-y-3">
+                <SignalCard
                   time="NOW"
+                  title="Breaking: Fed signals potential rate cut"
+                  market="Fed Rate Cut"
+                  impact="high"
                 />
-                <SignalPreview
-                  address="0x9c2...1a5"
-                  action="SELL"
-                  amount="$12,000"
-                  market="ETH ETF - No"
-                  price="$0.22"
-                  score={74}
-                  time="2m ago"
+                <SignalCard
+                  time="2m"
+                  title="Trump leads in latest poll"
+                  market="Trump 2024"
+                  impact="medium"
                 />
-                <SignalPreview
-                  address="0x4e1...8d7"
-                  action="BUY"
-                  amount="$8,500"
-                  market="Fed Rate Cut - Yes"
-                  price="$0.45"
-                  score={71}
-                  time="5m ago"
+                <SignalCard
+                  time="5m"
+                  title="BTC breaks $100K resistance"
+                  market="BTC $150K"
+                  impact="high"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* Market Heatmap Preview */}
-          <div className="mx-auto mt-12 max-w-4xl">
-            <div className="glass rounded-2xl p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-['Space_Grotesk'] text-xl font-semibold">
-                  📊 市场热力图
-                </h2>
-                <div className="flex gap-2 text-xs">
-                  <button className="px-3 py-1 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">成交量</button>
-                  <button className="px-3 py-1 rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">资金流</button>
-                  <button className="px-3 py-1 rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">趋势</button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <HeatmapCard category="政治" change={24} volume="$4.2M" color="up" />
-                <HeatmapCard category="体育" change={-5} volume="$890K" color="down" />
-                <HeatmapCard category="加密货币" change={12} volume="$2.1M" color="up" />
-                <HeatmapCard category="科技" change={3} volume="$340K" color="neutral" />
-              </div>
-
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[hsl(var(--muted-foreground))]">巨鲸 vs 散户</span>
-                  <div className="flex-1 mx-4 h-2 rounded-full bg-[hsl(var(--muted))] overflow-hidden">
-                    <div className="h-full w-[82%] bg-[var(--whale)] rounded-full" />
-                  </div>
-                  <span className="font-mono text-[var(--whale)]">82%</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[hsl(var(--muted-foreground))]">净流入</span>
-                  <div className="flex-1 mx-4 h-2 rounded-full bg-[hsl(var(--muted))] overflow-hidden">
-                    <div className="h-full w-[68%] bg-[var(--up)] rounded-full" />
-                  </div>
-                  <span className="font-mono text-[var(--up)]">+$1.2M</span>
-                </div>
+              <div className="mt-4 text-center text-sm text-[var(--up)] opacity-0 group-hover:opacity-100 transition-opacity">
+                点击查看更多
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 border-t border-[hsl(var(--border))/0.5]">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <h2 className="font-['Space_Grotesk'] text-4xl font-bold mb-8">
+            准备好开始了吗？
+          </h2>
+          <Link
+            href="/markets"
+            className="inline-flex items-center px-10 py-5 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold text-xl shadow-lg shadow-[hsl(var(--primary))/0.25] hover:shadow-[hsl(var(--primary))/0.4] transition-all hover:scale-105"
+          >
+            开始交易
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-8 border-t border-[hsl(var(--border))/0.5]">
+        <div className="mx-auto max-w-7xl px-6 text-center">
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            © 2025 Tectonic. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </main>
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: string;
-  title: string;
-  description: string;
-}) {
+function StatCounter({ label, value, prefix = "" }: { label: string; value: number; prefix?: string }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const duration = 2000;
+    const steps = 60;
+    const increment = value / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= value) {
+        setCount(value);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(current));
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
+    return num.toString();
+  };
+
   return (
-    <div className="glass rounded-xl p-6 hover:border-[hsl(var(--primary)/0.5)] transition-colors">
-      <div className="text-3xl mb-3">{icon}</div>
-      <h3 className="font-['Space_Grotesk'] font-semibold">{title}</h3>
-      <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">{description}</p>
+    <div className="text-center">
+      <div className="text-4xl md:text-5xl font-bold font-mono text-gradient">
+        {prefix}{formatNumber(count)}
+      </div>
+      <div className="text-sm text-[hsl(var(--muted-foreground))] mt-2">{label}</div>
     </div>
   );
 }
 
-function SignalPreview({
-  address,
-  action,
-  amount,
-  market,
-  price,
-  score,
-  time,
-}: {
-  address: string;
-  action: "BUY" | "SELL";
-  amount: string;
-  market: string;
-  price: string;
-  score: number;
-  time: string;
-}) {
+function FeatureItem({ text }: { text: string }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="text-[var(--up)] mt-1">✓</span>
+      <span className="text-[hsl(var(--foreground))]">{text}</span>
+    </li>
+  );
+}
+
+function MarketPreviewCard({ title, yesPrice, change, volume }: { title: string; yesPrice: number; change: number; volume: string }) {
+  const isUp = change >= 0;
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-[hsl(var(--muted))/0.5] hover:bg-[hsl(var(--muted))] transition-colors">
+      <div>
+        <div className="font-medium">{title}</div>
+        <div className="text-sm text-[hsl(var(--muted-foreground))]">{volume}</div>
+      </div>
+      <div className="text-right">
+        <div className="font-mono font-bold">${yesPrice.toFixed(2)}</div>
+        <div className={`text-sm ${isUp ? "text-[var(--up)]" : "text-[var(--down)]"}`}>
+          {isUp ? "+" : ""}{change.toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WhaleActivityCard({ address, action, amount, market, score }: { address: string; action: "BUY" | "SELL"; amount: string; market: string; score: number }) {
   const isBuy = action === "BUY";
-  const scoreColor = score >= 85 ? "text-yellow-400" : score >= 70 ? "text-[var(--whale)]" : "text-[hsl(var(--muted-foreground))]";
-  const scoreBg = score >= 85 ? "bg-yellow-400/20 border-yellow-400/30" : score >= 70 ? "bg-[var(--whale)]/20 border-[var(--whale)]/30" : "bg-[hsl(var(--muted))] border-[hsl(var(--border))]";
+  const scoreColor = score >= 90 ? "text-yellow-400 bg-yellow-400/20" : "text-[var(--whale)] bg-[var(--whale)]/20";
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-lg bg-[hsl(var(--muted)/0.5)] hover:bg-[hsl(var(--muted))] transition-colors">
-      <div className="flex items-center gap-4">
-        <span className="text-xs text-[hsl(var(--muted-foreground))] w-16">{time}</span>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm">{address}</span>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${isBuy ? "bg-[var(--up)]/20 text-[var(--up)]" : "bg-[var(--down)]/20 text-[var(--down)]"}`}>
-              {action} {amount}
-            </span>
-          </div>
-          <div className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            {market} @ {price}
-          </div>
-        </div>
-      </div>
+    <div className="flex items-center justify-between p-3 rounded-lg bg-[hsl(var(--muted))/0.5] hover:bg-[hsl(var(--muted))] transition-colors">
       <div className="flex items-center gap-3">
-        <div className={`px-3 py-1 rounded-full border ${scoreBg}`}>
-          <span className={`font-mono text-sm font-semibold ${scoreColor}`}>{score}</span>
+        <span className="font-mono text-sm text-[hsl(var(--muted-foreground))]">{address}</span>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${isBuy ? "bg-[var(--up)]/20 text-[var(--up)]" : "bg-[var(--down)]/20 text-[var(--down)]"}`}>
+          {action}
+        </span>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <div className="font-semibold">{amount}</div>
+          <div className="text-xs text-[hsl(var(--muted-foreground))]">{market}</div>
         </div>
-        <button className="text-xs text-[hsl(var(--primary))] hover:underline">跟单</button>
+        <div className={`px-2 py-1 rounded-full text-xs font-bold ${scoreColor}`}>
+          {score}
+        </div>
       </div>
     </div>
   );
 }
 
-function HeatmapCard({
-  category,
-  change,
-  volume,
-  color,
-}: {
-  category: string;
-  change: number;
-  volume: string;
-  color: "up" | "down" | "neutral";
-}) {
-  const colorClass = color === "up" ? "border-[var(--up)]/50 bg-[var(--up)]/10" : color === "down" ? "border-[var(--down)]/50 bg-[var(--down)]/10" : "border-[hsl(var(--border))] bg-[hsl(var(--muted))]";
-  const changeColor = change >= 0 ? "text-[var(--up)]" : "text-[var(--down)]";
+function SignalCard({ time, title, market, impact }: { time: string; title: string; market: string; impact: "high" | "medium" | "low" }) {
+  const impactColor = impact === "high" ? "bg-[var(--up)]/20 text-[var(--up)]" : impact === "medium" ? "bg-yellow-400/20 text-yellow-400" : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]";
 
   return (
-    <div className={`rounded-xl p-4 border ${colorClass} transition-colors hover:opacity-80`}>
-      <div className="text-sm font-medium">{category}</div>
-      <div className={`text-lg font-bold font-mono ${changeColor}`}>
-        {change >= 0 ? "+" : ""}{change}%
+    <div className="p-3 rounded-lg bg-[hsl(var(--muted))/0.5] hover:bg-[hsl(var(--muted))] transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-[hsl(var(--muted-foreground))]">{time}</span>
+        <span className={`text-xs px-2 py-0.5 rounded ${impactColor}`}>
+          {impact === "high" ? "高影响" : impact === "medium" ? "中影响" : "低影响"}
+        </span>
       </div>
-      <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">{volume}</div>
+      <div className="font-medium text-sm">{title}</div>
+      <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">关联市场: {market}</div>
     </div>
   );
 }

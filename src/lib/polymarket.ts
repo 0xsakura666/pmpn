@@ -1,6 +1,11 @@
 const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || "https://clob.polymarket.com";
-const POLYMARKET_GAMMA_API = "https://gamma-api.polymarket.com";
-const POLYMARKET_DATA_API = "https://data-api.polymarket.com";
+const POLYMARKET_GAMMA_API = process.env.POLYMARKET_GAMMA_API || "https://gamma-api.polymarket.com";
+const POLYMARKET_DATA_API = process.env.POLYMARKET_DATA_API || "https://data-api.polymarket.com";
+
+const API_TIMEOUT = parseInt(process.env.POLYMARKET_TIMEOUT || "20000");
+
+// 使用 CORS 代理绕过 DNS 污染
+const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
 
 export interface PolymarketMarket {
   condition_id: string;
@@ -85,25 +90,150 @@ class PolymarketService {
   }
 
   private async request<T>(url: string): Promise<T> {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Polymarket API error: ${response.status} ${response.statusText}`);
+    // 使用 CORS 代理绕过 DNS 污染
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
+    console.log(`[Polymarket] Fetching via proxy: ${url}`);
+
+    try {
+      const response = await fetch(proxyUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+        cache: "no-store",
+        next: { revalidate: 0 },
+      } as RequestInit);
+
+      console.log(`[Polymarket] Response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Polymarket] Error response: ${errorText}`);
+        throw new Error(`Polymarket API error: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    } catch (error) {
+      console.error(`[Polymarket] Fetch error:`, error);
+
+      if (error instanceof Error) {
+        const cause = (error as any).cause;
+        if (cause) {
+          console.error(`[Polymarket] Cause:`, cause.message || cause);
+        }
+        throw new Error(`Fetch failed: ${error.message}`);
+      }
+      throw error;
     }
-    return response.json();
   }
 
   // ==================== Gamma API (Markets) ====================
 
   async getMarkets(limit: number = 100, offset: number = 0): Promise<PolymarketMarket[]> {
-    return this.request<PolymarketMarket[]>(
-      `${POLYMARKET_GAMMA_API}/markets?limit=${limit}&offset=${offset}&active=true`
-    );
+    // 首先尝试 /events 端点（返回包含 markets 的事件）
+    try {
+      const events = await this.request<any[]>(
+        `${POLYMARKET_GAMMA_API}/events?limit=${limit}&offset=${offset}&active=true&closed=false`
+      );
+      
+      // 从 events 中提取 markets
+      const markets: PolymarketMarket[] = [];
+      for (const event of events) {
+        if (event.markets && Array.isArray(event.markets)) {
+          for (const market of event.markets) {
+            markets.push({
+              condition_id: market.conditionId || market.condition_id,
+              question: market.question || event.title,
+              description: market.description || event.description || "",
+              market_slug: market.slug || event.slug,
+              end_date_iso: market.endDate || event.endDate,
+              game_start_time: "",
+              seconds_delay: 0,
+              fpmm: "",
+              maker_base_fee: 0,
+              taker_base_fee: 0,
+              notifications_enabled: false,
+              neg_risk: market.negRisk || false,
+              neg_risk_market_id: "",
+              neg_risk_request_id: "",
+              icon: event.icon || "",
+              image: event.image || "",
+              rewards: { total_rewards: 0, daily_rewards: 0, end_date: "" },
+              tokens: market.tokens || [],
+            });
+          }
+        }
+      }
+      return markets;
+    } catch (error) {
+      console.error("[Polymarket] Events endpoint failed, trying markets endpoint:", error);
+      // 如果 events 失败，尝试 markets 端点
+      return this.request<PolymarketMarket[]>(
+        `${POLYMARKET_GAMMA_API}/markets?limit=${limit}&offset=${offset}&active=true`
+      );
+    }
   }
 
-  async getMarket(conditionId: string): Promise<PolymarketMarket> {
-    return this.request<PolymarketMarket>(
-      `${POLYMARKET_GAMMA_API}/markets/${conditionId}`
-    );
+  async getMarket(conditionId: string): Promise<PolymarketMarket | null> {
+    try {
+      // 尝试通过 condition_id 查询
+      const markets = await this.request<any[]>(
+        `${POLYMARKET_GAMMA_API}/markets?condition_id=${conditionId}`
+      );
+      
+      if (markets && markets.length > 0) {
+        const market = markets[0];
+        return {
+          condition_id: market.conditionId || market.condition_id || conditionId,
+          question: market.question,
+          description: market.description || "",
+          market_slug: market.slug,
+          end_date_iso: market.endDate,
+          game_start_time: "",
+          seconds_delay: 0,
+          fpmm: "",
+          maker_base_fee: 0,
+          taker_base_fee: 0,
+          notifications_enabled: false,
+          neg_risk: market.negRisk || false,
+          neg_risk_market_id: "",
+          neg_risk_request_id: "",
+          icon: market.icon || "",
+          image: market.image || "",
+          rewards: { total_rewards: 0, daily_rewards: 0, end_date: "" },
+          tokens: this.parseTokens(market),
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("[Polymarket] getMarket error:", error);
+      return null;
+    }
+  }
+  
+  private parseTokens(market: any): Array<{ token_id: string; outcome: string; price: number; winner: boolean }> {
+    const tokens: Array<{ token_id: string; outcome: string; price: number; winner: boolean }> = [];
+    
+    if (market.clobTokenIds) {
+      try {
+        const tokenIds = JSON.parse(market.clobTokenIds);
+        const outcomes = ["Yes", "No"];
+        const prices = market.outcomePrices ? JSON.parse(market.outcomePrices) : [0.5, 0.5];
+        
+        for (let i = 0; i < tokenIds.length && i < 2; i++) {
+          tokens.push({
+            token_id: tokenIds[i],
+            outcome: outcomes[i],
+            price: parseFloat(prices[i]) || 0.5,
+            winner: false,
+          });
+        }
+      } catch {
+        // Parse error
+      }
+    }
+    
+    return tokens;
   }
 
   async searchMarkets(query: string, limit: number = 20): Promise<PolymarketMarket[]> {

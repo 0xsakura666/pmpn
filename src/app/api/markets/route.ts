@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { polymarket } from "@/lib/polymarket";
-import { translateToZh } from "@/lib/translate";
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,23 +7,13 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
     const category = searchParams.get("category");
-    const locale = searchParams.get("locale") || "zh";
 
+    // 从 Polymarket API 获取真实市场数据
     const markets = await polymarket.getMarkets(limit, offset);
 
-    // Transform to our format
-    const transformedMarkets = await Promise.all(
-      markets.map(async (market) => {
-        let title = market.question;
-        let description = market.description;
-
-        // 翻译标题和描述
-        if (locale === "zh") {
-          [title, description] = await Promise.all([
-            translateToZh(market.question),
-            translateToZh(market.description),
-          ]);
-        }
+    const transformedMarkets = markets.map((market) => {
+        const title = market.question;
+        const description = market.description;
 
         return {
           id: market.condition_id,
@@ -42,8 +31,7 @@ export async function GET(request: NextRequest) {
           volume24h: 0,
           liquidity: 0,
         };
-      })
-    );
+      });
 
     // Filter by category if specified
     const filtered = category
@@ -52,8 +40,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(filtered);
   } catch (error) {
-    console.error("Markets API error:", error);
-    return NextResponse.json({ error: "Failed to fetch markets" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Polymarket API failed:", errorMessage);
+
+    return NextResponse.json({
+      error: "POLYMARKET_API_UNREACHABLE",
+      message: "无法连接到 Polymarket API。请检查您的 VPN 连接或网络设置。",
+      details: errorMessage,
+    }, { status: 503 });
   }
 }
 
