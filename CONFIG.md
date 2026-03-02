@@ -93,3 +93,33 @@ npm run dev             # 打开 http://localhost:3000
 | **Vercel** | Storage 绑 Neon → 环境变量补全（含 `NEXTAUTH_URL` 用正式域名）→ 部署 → 生产库 `drizzle-kit push` → 再 Redeploy |
 
 当前方案：**Next.js 全栈在 Vercel，数据库用 Neon，不需要 Railway。**
+
+---
+
+## 七、当前站点 Vercel 环境变量（pmpn-one.vercel.app）
+
+部署地址：**https://pmpn-one.vercel.app**
+
+在 Vercel 项目 **Settings → Environment Variables** 里逐条添加（每条一个 Key + Value，Environment 勾选 Production）：
+
+| Key | Value |
+|-----|--------|
+| `DATABASE_URL` | 你的 Neon 连接串（与本地 .env.local 中一致，或从 Vercel Storage 绑定 Neon 后自动注入） |
+| `AUTH_SECRET` | 生产环境单独生成的一串（运行 `openssl rand -base64 32`，不要与本地相同） |
+| `NEXTAUTH_URL` | `https://pmpn-one.vercel.app`（不要末尾斜杠） |
+| `POLYMARKET_API_URL` | `https://clob.polymarket.com` |
+| `POLYMARKET_GAMMA_API` | `https://gamma-api.polymarket.com` |
+| `POLYMARKET_DATA_API` | `https://data-api.polymarket.com` |
+| `POLYMARKET_TIMEOUT` | `15000` |
+| `NEXT_PUBLIC_WS_URL` | `wss://ws-subscriptions-clob.polymarket.com/ws/market` |
+| `POLYMARKET_BUILDER_API_KEY` | 你的 Polymarket Builder apiKey |
+| `POLYMARKET_BUILDER_SECRET` | 你的 Polymarket Builder secret |
+| `POLYMARKET_BUILDER_PASSPHRASE` | 你的 Polymarket Builder passphrase |
+
+如需 WalletConnect（扫码连手机钱包），再添加：
+
+| Key | Value |
+|-----|--------|
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | 在 [Reown Cloud](https://cloud.reown.com) 创建项目后得到的 Project ID |
+
+保存后到 **Deployments** 对最新部署做一次 **Redeploy**，环境变量才会在新构建中生效。

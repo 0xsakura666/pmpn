@@ -1,5 +1,8 @@
 const TRANSLATE_CACHE = new Map<string, string>();
 
+// 使用 CORS 代理绕过 DNS 污染
+const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+
 export async function translateToZh(text: string): Promise<string> {
   if (!text || text.trim() === "") return text;
   
@@ -10,12 +13,13 @@ export async function translateToZh(text: string): Promise<string> {
   }
 
   try {
-    // 使用 Google Translate 免费 API
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
+    // 使用 Google Translate 免费 API (通过 CORS 代理)
+    const googleUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
+    const url = `${CORS_PROXY}${encodeURIComponent(googleUrl)}`;
     
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
       },
     });
 

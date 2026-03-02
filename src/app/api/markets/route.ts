@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { polymarket } from "@/lib/polymarket";
+import { translateToZh } from "@/lib/translate";
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,19 +8,30 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
     const category = searchParams.get("category");
+    const locale = searchParams.get("locale") || "zh";
 
     // 从 Polymarket API 获取真实市场数据
     const markets = await polymarket.getMarkets(limit, offset);
 
-    const transformedMarkets = markets.map((market) => {
-        const title = market.question;
-        const description = market.description;
+    // 并行翻译所有市场标题（限制并发数）
+    const transformedMarkets = await Promise.all(
+      markets.map(async (market) => {
+        let title = market.question;
+        
+        // 仅在中文 locale 时翻译
+        if (locale === "zh" && market.question) {
+          try {
+            title = await translateToZh(market.question);
+          } catch {
+            // 翻译失败使用原文
+          }
+        }
 
         return {
           id: market.condition_id,
           title,
           titleOriginal: market.question,
-          description,
+          description: market.description,
           descriptionOriginal: market.description,
           slug: market.market_slug,
           category: categorizeMarket(market.question),
@@ -31,7 +43,8 @@ export async function GET(request: NextRequest) {
           volume24h: 0,
           liquidity: 0,
         };
-      });
+      })
+    );
 
     // Filter by category if specified
     const filtered = category

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { polymarket } from "@/lib/polymarket";
+import { translateToZh } from "@/lib/translate";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const searchParams = request.nextUrl.searchParams;
+    const locale = searchParams.get("locale") || "zh";
 
     const market = await polymarket.getMarket(id);
 
@@ -29,11 +32,26 @@ export async function GET(
       })
     );
 
+    // 翻译标题和描述
+    let title = market.question;
+    let description = market.description;
+    
+    if (locale === "zh") {
+      try {
+        [title, description] = await Promise.all([
+          translateToZh(market.question),
+          translateToZh(market.description),
+        ]);
+      } catch {
+        // 翻译失败使用原文
+      }
+    }
+
     return NextResponse.json({
       id: market.condition_id,
-      title: market.question,
+      title,
       titleOriginal: market.question,
-      description: market.description,
+      description,
       descriptionOriginal: market.description,
       slug: market.market_slug,
       endDate: market.end_date_iso,
