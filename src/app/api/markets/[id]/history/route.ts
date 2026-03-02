@@ -26,7 +26,21 @@ export async function GET(
       tokenId = yesToken.token_id;
     }
 
-    const history = await polymarket.getPriceHistory(tokenId, interval, fidelity);
+    let history: Array<{ t: number; p: number }> = [];
+    
+    try {
+      history = await polymarket.getPriceHistory(tokenId, interval, fidelity);
+    } catch (e) {
+      console.warn("Price history fetch failed:", e);
+    }
+
+    // If no history, return empty
+    if (!history || !Array.isArray(history) || history.length === 0) {
+      return NextResponse.json({
+        history: [],
+        candles: [],
+      });
+    }
 
     // Transform to candlestick format
     const candles = history.map((point, index, arr) => {
@@ -48,6 +62,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Price history API error:", error);
-    return NextResponse.json({ error: "Failed to fetch price history" }, { status: 500 });
+    return NextResponse.json({ history: [], candles: [] });
   }
 }
