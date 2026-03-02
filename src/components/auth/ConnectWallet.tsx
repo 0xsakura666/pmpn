@@ -117,9 +117,9 @@ export function WalletButton() {
         <button
           onClick={() => setShowWalletModal(true)}
           disabled={isPending}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-[#00D4AA] text-black font-semibold hover:bg-[#00C49A] transition-colors disabled:opacity-50"
         >
-          {isPending ? "连接中..." : "连接钱包"}
+          {isPending ? "连接中..." : "登录"}
         </button>
 
         {/* Wallet Selection Modal */}

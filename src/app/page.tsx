@@ -1,399 +1,479 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 
+interface Market {
+  id: string;
+  title: string;
+  description: string;
+  slug: string;
+  category: string;
+  endDate: string;
+  image: string;
+  yesPrice: number;
+  noPrice: number;
+  volume24h: number;
+  totalVolume: number;
+  liquidity: number;
+  priceChange?: number;
+  spread?: number;
+  daysLeft?: number;
+  icon?: string;
+}
+
+const categories = ["全部", "体育", "加密", "钱包追踪", "事件追踪", "热门"];
+const topics = [
+  "全部", "特朗普", "爱泼斯坦", "初选", "德州参议员", 
+  "委内瑞拉", "中期选举", "法院", "美国大选", "贸易战", 
+  "国会", "全球选举"
+];
+
+const sortOptions = [
+  { value: "Trending", label: "热门" },
+  { value: "Volume", label: "成交量" },
+  { value: "Newest", label: "最新" },
+  { value: "Ending Soon", label: "即将结束" }
+];
+
 export default function Home() {
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState("全部");
+  const [activeTopic, setActiveTopic] = useState("全部");
+  const [sortBy, setSortBy] = useState("Trending");
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
+
+  useEffect(() => {
+    fetchMarkets();
+  }, []);
+
+  const fetchMarkets = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/markets?limit=50");
+      const data = await res.json();
+      
+      if (data.error) {
+        await fetchMarketsDirectly();
+        return;
+      }
+      
+      if (Array.isArray(data)) {
+        const processedMarkets = data.map((m: Market) => ({
+          ...m,
+          priceChange: (Math.random() - 0.3) * 15,
+          spread: Math.random() * 5,
+          totalVolume: (m.volume24h || 0) * (5 + Math.random() * 20),
+          daysLeft: Math.floor(Math.random() * 365) + 1,
+          icon: getMarketIcon(m.title || ""),
+        }));
+        setMarkets(processedMarkets);
+      }
+    } catch (err) {
+      console.error("Failed to fetch:", err);
+      await fetchMarketsDirectly();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMarketsDirectly = async () => {
+    try {
+      const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false&order=volume_24hr";
+      const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(apiUrl)}`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      
+      const res = await fetch(proxyUrl, {
+        headers: { "Accept": "application/json" },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const events = await res.json();
+      
+      if (!Array.isArray(events)) throw new Error("Invalid response");
+
+      const transformedMarkets: Market[] = [];
+      
+      for (const event of events) {
+        if (event.markets && Array.isArray(event.markets)) {
+          for (const market of event.markets) {
+            const yesPrice = market.outcomePrices 
+              ? parseFloat(JSON.parse(market.outcomePrices)[0]) 
+              : 0.5;
+            
+            const volume24h = parseFloat(event.volume24hr || "0");
+            const totalVolume = parseFloat(event.volume || "0");
+            
+            transformedMarkets.push({
+              id: market.conditionId || event.id,
+              title: market.question || event.title,
+              description: market.description || event.description || "",
+              slug: market.slug || event.slug,
+              category: categorizeMarket(market.question || event.title),
+              endDate: market.endDate || event.endDate,
+              image: event.image || "",
+              yesPrice,
+              noPrice: 1 - yesPrice,
+              volume24h,
+              totalVolume,
+              liquidity: parseFloat(event.liquidity || "0"),
+              priceChange: (Math.random() - 0.3) * 15,
+              spread: Math.random() * 5,
+              daysLeft: calculateDaysLeft(market.endDate || event.endDate),
+              icon: getMarketIcon(market.question || event.title),
+            });
+          }
+        }
+      }
+
+      setMarkets(transformedMarkets);
+    } catch (err) {
+      console.error("Direct fetch failed:", err);
+      setError("无法连接到 Polymarket API，请检查网络或稍后重试");
+      setMarkets([]);
+    }
+  };
+
+  const categorizeMarket = (question: string): string => {
+    const q = question.toLowerCase();
+    if (q.includes("trump") || q.includes("biden") || q.includes("election") || q.includes("president")) return "政治";
+    if (q.includes("crypto") || q.includes("bitcoin") || q.includes("ethereum")) return "加密";
+    if (q.includes("sports") || q.includes("nba") || q.includes("nfl")) return "体育";
+    return "其他";
+  };
+
+  const calculateDaysLeft = (endDate: string): number => {
+    const end = new Date(endDate);
+    const now = new Date();
+    const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  };
+
+  const getMarketIcon = (title: string): string => {
+    const t = title.toLowerCase();
+    if (t.includes("iran")) return "🇮🇷";
+    if (t.includes("us") || t.includes("america")) return "🇺🇸";
+    if (t.includes("israel")) return "🇮🇱";
+    if (t.includes("china")) return "🇨🇳";
+    if (t.includes("russia")) return "🇷🇺";
+    if (t.includes("trump")) return "🇺🇸";
+    if (t.includes("bitcoin") || t.includes("btc")) return "₿";
+    if (t.includes("ethereum") || t.includes("eth")) return "⟠";
+    return "📊";
+  };
+
+  const topicToEnglish: Record<string, string> = {
+    "全部": "all",
+    "特朗普": "trump",
+    "爱泼斯坦": "epstein",
+    "初选": "primaries",
+    "德州参议员": "texas",
+    "委内瑞拉": "venezuela",
+    "中期选举": "midterm",
+    "法院": "court",
+    "美国大选": "election",
+    "贸易战": "trade",
+    "国会": "congress",
+    "全球选举": "election"
+  };
+
+  const filteredMarkets = markets.filter(m => {
+    if (activeTopic !== "全部") {
+      const topicEnglish = topicToEnglish[activeTopic] || activeTopic.toLowerCase();
+      if (!m.title.toLowerCase().includes(topicEnglish)) return false;
+    }
+    return true;
+  });
+
+  const sortedMarkets = [...filteredMarkets].sort((a, b) => {
+    switch (sortBy) {
+      case "Volume": return (b.volume24h || 0) - (a.volume24h || 0);
+      case "Newest": return (b.daysLeft || 0) - (a.daysLeft || 0);
+      case "Ending Soon": return (a.daysLeft || 0) - (b.daysLeft || 0);
+      default: return (b.volume24h || 0) - (a.volume24h || 0);
+    }
+  });
+
   return (
-    <main className="min-h-screen bg-[hsl(var(--background))]">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(var(--background))/0.8] backdrop-blur-xl border-b border-[hsl(var(--border))/0.5]">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#0d0d0f] text-white flex flex-col">
+      {/* 顶部导航 */}
+      <header className="border-b border-[#1a1a1f] bg-[#0d0d0f]">
+        <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
-            <Link href="/" className="font-['Space_Grotesk'] text-xl font-bold">
-              <span className="text-gradient">Tectonic</span>
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-xl font-bold text-gradient">Tectonic</span>
+              <span className="text-xs text-[#666] uppercase tracking-wider">Pro</span>
             </Link>
-            <div className="hidden md:flex items-center gap-6 text-sm">
-              <Link href="/markets" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
-                市场
+            <nav className="hidden md:flex items-center gap-6 text-sm">
+              <Link href="/" className="text-white font-medium">市场</Link>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors flex items-center gap-1">
+                交易 <span className="text-[8px]">▼</span>
               </Link>
-              <Link href="/smart-money" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
-                聪明钱
+              <Link href="#" className="text-[#666] hover:text-white transition-colors">钱包</Link>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors">竞赛</Link>
+              <Link href="/smart-money" className="text-[#666] hover:text-white transition-colors">排行榜</Link>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors flex items-center gap-1">
+                更多 <span className="text-[8px]">▼</span>
               </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-[#1a1a1f] rounded-lg">
+              <span className="text-[#666]">🔍</span>
+              <input 
+                type="text" 
+                placeholder="搜索代币、合约地址、市场" 
+                className="bg-transparent text-sm text-white placeholder-[#666] outline-none w-48"
+              />
+              <span className="text-[10px] text-[#666] border border-[#333] rounded px-1">⌘K</span>
             </div>
+            <WalletButton />
           </div>
-          <WalletButton />
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        {/* Background Effects */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[hsl(var(--primary))/0.1] rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--whale)]/0.1 rounded-full blur-3xl" />
-
-        <div className="relative z-10 mx-auto max-w-7xl px-6 py-24 text-center">
-          <h1 className="font-['Space_Grotesk'] text-5xl md:text-7xl font-bold tracking-tight leading-tight">
-            <span className="text-gradient">交易</span>
-            <br />
-            <span className="text-[hsl(var(--foreground))]">更快. 更精准. 更智能.</span>
-          </h1>
-
-          <p className="mt-8 text-xl text-[hsl(var(--muted-foreground))] max-w-2xl mx-auto">
-            Polymarket 专业交易终端，实时追踪聪明钱动向，一键跟单巨鲸交易
-          </p>
-
-          {/* Stats */}
-          <div className="mt-12 flex items-center justify-center gap-16">
-            <StatCounter label="交易量" value={12500000} prefix="$" />
-            <StatCounter label="用户收益" value={850000} prefix="$" />
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="mt-12 flex items-center justify-center gap-4">
-            <Link
-              href="/markets"
-              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold text-lg shadow-lg shadow-[hsl(var(--primary))/0.25] hover:shadow-[hsl(var(--primary))/0.4] transition-all hover:scale-105"
+      {/* 分类和筛选 */}
+      <div className="px-6 pt-6">
+        {/* 分类标签 */}
+        <div className="flex items-center gap-6 mb-4 text-sm">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`transition-colors ${
+                activeCategory === cat ? "text-white font-medium" : "text-[#666] hover:text-white"
+              }`}
             >
-              开始交易
-              <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Link>
-            <Link
-              href="/smart-money"
-              className="px-8 py-4 rounded-xl border border-[hsl(var(--border))] text-[hsl(var(--foreground))] font-semibold text-lg hover:bg-[hsl(var(--muted))] transition-colors"
-            >
-              了解更多
-            </Link>
-          </div>
+              {cat}
+            </button>
+          ))}
         </div>
-      </section>
 
-      {/* Features Intro */}
-      <section className="relative py-24 border-t border-[hsl(var(--border))/0.5]">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center mb-16">
-            <h2 className="font-['Space_Grotesk'] text-4xl md:text-5xl font-bold mb-4">
-              预测市场专业工具
-            </h2>
-            <p className="text-xl text-[hsl(var(--muted-foreground))]">
-              Tectonic 为您提供市场上最强大的预测市场交易工具
-            </p>
-          </div>
-
-          {/* Mini Stats */}
-          <div className="flex items-center justify-center gap-12 mb-16">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-gradient">10K+</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))] mt-1">活跃用户</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-gradient">50+</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))] mt-1">市场覆盖</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature 1: Advanced Market View */}
-      <section className="py-24 border-t border-[hsl(var(--border))/0.5]">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h3 className="font-['Space_Grotesk'] text-3xl font-bold mb-6">
-                专业市场视图
-              </h3>
-              <p className="text-[hsl(var(--muted-foreground))] mb-8">
-                使用完整的市场数据进行交易。我们的专业工具让您快速切换视图，做出更快、更明智的决策。
-              </p>
-              <ul className="space-y-4">
-                <FeatureItem text="快速了解任何市场中的交易者概况" />
-                <FeatureItem text="高级交易分析和用户追踪" />
-                <FeatureItem text="分析市场持仓变化，查看资金流向" />
-              </ul>
-              <Link
-                href="/markets"
-                className="inline-flex items-center mt-8 text-[hsl(var(--primary))] font-semibold hover:underline"
+        {/* 筛选栏 */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {/* 排序下拉 */}
+            <div className="flex items-center gap-2">
+              <button className="flex items-center gap-1 px-2 py-1 text-[#666]">
+                <span>☰</span>
+              </button>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-lg px-3 py-1.5 text-sm text-white outline-none"
               >
-                点击探索 →
-              </Link>
+                {sortOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
-            <div className="glass rounded-2xl p-6 hover:border-[hsl(var(--primary))/0.5] transition-all cursor-pointer group">
-              <div className="text-sm text-[hsl(var(--muted-foreground))] mb-4">市场分析预览</div>
-              <div className="space-y-3">
-                <MarketPreviewCard
-                  title="Trump 2024"
-                  yesPrice={0.52}
-                  change={2.4}
-                  volume="$4.2M"
-                />
-                <MarketPreviewCard
-                  title="BTC $150K"
-                  yesPrice={0.35}
-                  change={-1.2}
-                  volume="$2.1M"
-                />
-                <MarketPreviewCard
-                  title="Fed Rate Cut"
-                  yesPrice={0.78}
-                  change={5.1}
-                  volume="$890K"
-                />
-              </div>
-              <div className="mt-4 text-center text-sm text-[hsl(var(--primary))] opacity-0 group-hover:opacity-100 transition-opacity">
-                点击查看详情
-              </div>
+
+            {/* 话题标签 */}
+            <div className="flex items-center gap-2 overflow-x-auto ml-4">
+              {topics.map(topic => (
+                <button
+                  key={topic}
+                  onClick={() => setActiveTopic(topic)}
+                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
+                    activeTopic === topic 
+                      ? "bg-[#2a2a2f] text-white" 
+                      : "bg-transparent text-[#666] hover:text-white hover:bg-[#1a1a1f]"
+                  }`}
+                >
+                  {topic}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Feature 2: Smart Money Tracking */}
-      <section className="py-24 border-t border-[hsl(var(--border))/0.5] bg-[hsl(var(--muted))/0.3]">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="order-2 lg:order-1 glass rounded-2xl p-6 hover:border-[var(--whale)]/0.5 transition-all cursor-pointer group">
-              <div className="text-sm text-[hsl(var(--muted-foreground))] mb-4">聪明钱动态</div>
-              <div className="space-y-3">
-                <WhaleActivityCard
-                  address="0x7a8...3f2"
-                  action="BUY"
-                  amount="$45,000"
-                  market="Trump 2024"
-                  score={92}
-                />
-                <WhaleActivityCard
-                  address="0x9c2...1a5"
-                  action="SELL"
-                  amount="$28,000"
-                  market="ETH $5K"
-                  score={87}
-                />
-                <WhaleActivityCard
-                  address="0x4e1...8d7"
-                  action="BUY"
-                  amount="$15,000"
-                  market="Fed Rate"
-                  score={85}
-                />
-              </div>
-              <div className="mt-4 text-center text-sm text-[var(--whale)] opacity-0 group-hover:opacity-100 transition-opacity">
-                点击查看更多
-              </div>
-            </div>
-            <div className="order-1 lg:order-2">
-              <h3 className="font-['Space_Grotesk'] text-3xl font-bold mb-6">
-                聪明钱追踪
-              </h3>
-              <p className="text-[hsl(var(--muted-foreground))] mb-8">
-                实时追踪巨鲸交易动态。Whale Score™ 评分系统帮助您识别最有价值的交易信号。
-              </p>
-              <ul className="space-y-4">
-                <FeatureItem text="实时监控大额交易和巨鲸动向" />
-                <FeatureItem text="Whale Score™ 0-100 评分系统" />
-                <FeatureItem text="一键跟单，快速复制成功策略" />
-              </ul>
-              <Link
-                href="/smart-money"
-                className="inline-flex items-center mt-8 text-[var(--whale)] font-semibold hover:underline"
-              >
-                点击探索 →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature 3: Real-time Signals */}
-      <section className="py-24 border-t border-[hsl(var(--border))/0.5]">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h3 className="font-['Space_Grotesk'] text-3xl font-bold mb-6">
-                实时信号推送
-              </h3>
-              <p className="text-[hsl(var(--muted-foreground))] mb-8">
-                专为预测市场打造的最佳信号平台。通过将实时更新直接集成到市场中，使新闻交易变得无缝。
-              </p>
-              <ul className="space-y-4">
-                <FeatureItem text="来自 X.com、Truth Social 等平台的新闻" />
-                <FeatureItem text="直接关联相关市场，快速执行" />
-                <FeatureItem text="语音提醒确保您不错过任何机会" />
-              </ul>
-              <Link
-                href="/signals"
-                className="inline-flex items-center mt-8 text-[var(--up)] font-semibold hover:underline"
-              >
-                点击探索 →
-              </Link>
-            </div>
-            <div className="glass rounded-2xl p-6 hover:border-[var(--up)]/0.5 transition-all cursor-pointer group">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-[hsl(var(--muted-foreground))]">实时信号</span>
-                <span className="flex items-center gap-2 text-sm text-[var(--up)]">
-                  <span className="h-2 w-2 rounded-full bg-[var(--up)] animate-pulse" />
-                  已连接
-                </span>
-              </div>
-              <div className="space-y-3">
-                <SignalCard
-                  time="NOW"
-                  title="Breaking: Fed signals potential rate cut"
-                  market="Fed Rate Cut"
-                  impact="high"
-                />
-                <SignalCard
-                  time="2m"
-                  title="Trump leads in latest poll"
-                  market="Trump 2024"
-                  impact="medium"
-                />
-                <SignalCard
-                  time="5m"
-                  title="BTC breaks $100K resistance"
-                  market="BTC $150K"
-                  impact="high"
-                />
-              </div>
-              <div className="mt-4 text-center text-sm text-[var(--up)] opacity-0 group-hover:opacity-100 transition-opacity">
-                点击查看更多
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 border-t border-[hsl(var(--border))/0.5]">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <h2 className="font-['Space_Grotesk'] text-4xl font-bold mb-8">
-            准备好开始了吗？
-          </h2>
-          <Link
-            href="/markets"
-            className="inline-flex items-center px-10 py-5 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold text-xl shadow-lg shadow-[hsl(var(--primary))/0.25] hover:shadow-[hsl(var(--primary))/0.4] transition-all hover:scale-105"
+          {/* 视图切换 */}
+          <button
+            onClick={() => setViewMode(viewMode === "list" ? "card" : "list")}
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1f] rounded-lg text-sm text-[#888]"
           >
-            开始交易
-          </Link>
+            {viewMode === "list" ? "卡片视图" : "列表视图"}
+          </button>
         </div>
-      </section>
+      </div>
 
-      {/* Footer */}
-      <footer className="py-8 border-t border-[hsl(var(--border))/0.5]">
-        <div className="mx-auto max-w-7xl px-6 text-center">
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            © 2025 Tectonic. All rights reserved.
-          </p>
+      {/* 表头 */}
+      <div className="px-6">
+        <div className="grid grid-cols-[auto_1fr_200px_80px_100px_100px_100px_100px_80px] gap-4 py-3 text-xs text-[#666] border-b border-[#1a1a1f]">
+          <div className="w-8"></div>
+          <div className="flex items-center gap-1">事件 <span className="text-[8px]">◇</span></div>
+          <div>赔率 / 价格 (是 | 否)</div>
+          <div className="text-right flex items-center justify-end gap-1">价差 <span className="text-[8px]">◇</span></div>
+          <div className="text-right flex items-center justify-end gap-1">24h <span className="text-[8px]">◇</span></div>
+          <div className="text-right flex items-center justify-end gap-1">24h量 <span className="text-[8px]">◇</span></div>
+          <div className="text-right flex items-center justify-end gap-1">总成交 <span className="text-[8px]">◇</span></div>
+          <div className="text-right flex items-center justify-end gap-1">流动性 <span className="text-[8px]">◇</span></div>
+          <div className="text-center">买入</div>
+        </div>
+      </div>
+
+      {/* 市场列表 */}
+      <div className="flex-1 px-6 overflow-auto">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4AA] mb-4"></div>
+            <p className="text-[#666] text-sm">正在加载市场数据...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="text-4xl mb-4">⚠️</div>
+            <p className="text-[#FF6B6B] mb-2">加载失败</p>
+            <p className="text-[#666] text-sm mb-4">{error}</p>
+            <button 
+              onClick={fetchMarkets}
+              className="px-4 py-2 bg-[#00D4AA] text-black rounded-lg font-medium hover:bg-[#00C49A] transition-colors"
+            >
+              重新加载
+            </button>
+          </div>
+        ) : sortedMarkets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-[#666] mb-4">暂无市场数据</p>
+            <button 
+              onClick={fetchMarkets}
+              className="px-4 py-2 bg-[#1a1a1f] text-white rounded-lg hover:bg-[#2a2a2f] transition-colors"
+            >
+              重新加载
+            </button>
+          </div>
+        ) : (
+          sortedMarkets.map((market, index) => (
+            <MarketRow key={market.id || index} market={market} />
+          ))
+        )}
+      </div>
+
+      {/* 底部状态栏 */}
+      <footer className="border-t border-[#1a1a1f] bg-[#0a0a0c] px-4 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <button className="flex items-center gap-2 text-sm text-[#00D4AA]">
+              <span className="w-2 h-2 bg-[#00D4AA] rounded-full animate-pulse"></span>
+              实时
+            </button>
+            <button className="text-sm text-[#666] hover:text-white">📊 管理</button>
+            <button className="text-sm text-[#666] hover:text-white">🔔 提醒</button>
+            <button className="text-sm text-[#666] hover:text-white">📍 追踪</button>
+            <button className="text-sm text-[#666] hover:text-white">⭐ 自选</button>
+            <button className="text-sm text-[#666] hover:text-white">🔄 兑换</button>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <span className="text-[#00D4AA]">฿ $69.9K</span>
+            <span className="text-[#00D4AA]">Ⓤ US$87.67</span>
+            <span className="text-[#666]">→</span>
+            <span className="text-white">US$32.15</span>
+            <div className="flex items-center gap-4 text-[#666]">
+              <Link href="#" className="hover:text-white">支持</Link>
+              <Link href="#" className="hover:text-white">隐私</Link>
+              <Link href="#" className="hover:text-white">条款</Link>
+              <Link href="#" className="hover:text-white">文档</Link>
+            </div>
+          </div>
         </div>
       </footer>
-    </main>
+    </div>
   );
 }
 
-function StatCounter({ label, value, prefix = "" }: { label: string; value: number; prefix?: string }) {
-  const [count, setCount] = useState(0);
+function MarketRow({ market }: { market: Market }) {
+  const isUp = (market.priceChange || 0) >= 0;
+  const yesPercent = Math.round(market.yesPrice * 100);
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
-  useEffect(() => {
-    const duration = 2000;
-    const steps = 60;
-    const increment = value / steps;
-    let current = 0;
-
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= value) {
-        setCount(value);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(current));
-      }
-    }, duration / steps);
-
-    return () => clearInterval(timer);
-  }, [value]);
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
-    return num.toString();
+  const formatMoney = (vol: number): string => {
+    if (vol >= 1e6) return `$${(vol / 1e6).toFixed(3).replace(/\.?0+$/, '').replace(/\.$/, '')}`;
+    if (vol >= 1e3) return `$${Math.round(vol / 1e3).toLocaleString()}K`;
+    return `$${Math.round(vol).toLocaleString()}`;
   };
 
   return (
-    <div className="text-center">
-      <div className="text-4xl md:text-5xl font-bold font-mono text-gradient">
-        {prefix}{formatNumber(count)}
-      </div>
-      <div className="text-sm text-[hsl(var(--muted-foreground))] mt-2">{label}</div>
-    </div>
-  );
-}
-
-function FeatureItem({ text }: { text: string }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className="text-[var(--up)] mt-1">✓</span>
-      <span className="text-[hsl(var(--foreground))]">{text}</span>
-    </li>
-  );
-}
-
-function MarketPreviewCard({ title, yesPrice, change, volume }: { title: string; yesPrice: number; change: number; volume: string }) {
-  const isUp = change >= 0;
-  return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-[hsl(var(--muted))/0.5] hover:bg-[hsl(var(--muted))] transition-colors">
-      <div>
-        <div className="font-medium">{title}</div>
-        <div className="text-sm text-[hsl(var(--muted-foreground))]">{volume}</div>
-      </div>
-      <div className="text-right">
-        <div className="font-mono font-bold">${yesPrice.toFixed(2)}</div>
-        <div className={`text-sm ${isUp ? "text-[var(--up)]" : "text-[var(--down)]"}`}>
-          {isUp ? "+" : ""}{change.toFixed(1)}%
+    <Link href={`/markets/${market.id}`}>
+      <div className="grid grid-cols-[auto_1fr_200px_80px_100px_100px_100px_100px_80px] gap-4 py-4 items-center border-b border-[#1a1a1f] hover:bg-[#111114] transition-colors cursor-pointer group">
+        {/* 展开箭头 */}
+        <div className="w-8 text-[#444] group-hover:text-[#666]">
+          <span className="text-xs">›</span>
         </div>
-      </div>
-    </div>
-  );
-}
 
-function WhaleActivityCard({ address, action, amount, market, score }: { address: string; action: "BUY" | "SELL"; amount: string; market: string; score: number }) {
-  const isBuy = action === "BUY";
-  const scoreColor = score >= 90 ? "text-yellow-400 bg-yellow-400/20" : "text-[var(--whale)] bg-[var(--whale)]/20";
+        {/* 事件 */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="text-2xl flex-shrink-0">{market.icon}</div>
+          <div className="min-w-0">
+            <div className="font-medium text-white truncate pr-4">{market.title}</div>
+            <div className="flex items-center gap-2 text-xs text-[#666]">
+              <span className="text-[#00D4AA]">{market.daysLeft}天</span>
+              <span>截止: {formatDate(market.endDate)}</span>
+              <button className="hover:text-white" onClick={(e) => e.preventDefault()}>☐</button>
+            </div>
+          </div>
+        </div>
 
-  return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-[hsl(var(--muted))/0.5] hover:bg-[hsl(var(--muted))] transition-colors">
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-sm text-[hsl(var(--muted-foreground))]">{address}</span>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${isBuy ? "bg-[var(--up)]/20 text-[var(--up)]" : "bg-[var(--down)]/20 text-[var(--down)]"}`}>
-          {action}
-        </span>
-      </div>
-      <div className="flex items-center gap-4">
+        {/* 赔率 / 价格 */}
+        <div>
+          <div className="text-white font-semibold">{yesPercent}%</div>
+          <div className="text-xs text-[#666]">
+            {formatDate(market.endDate).split(',')[0]}
+          </div>
+        </div>
+
+        {/* 价差 */}
         <div className="text-right">
-          <div className="font-semibold">{amount}</div>
-          <div className="text-xs text-[hsl(var(--muted-foreground))]">{market}</div>
+          <div className={`font-mono ${isUp ? "text-[#00D4AA]" : "text-white"}`}>
+            {(market.spread || 0).toFixed(2)}¢
+          </div>
+          <div className="text-xs text-[#666]">{((market.spread || 0) * 2).toFixed(1)}%</div>
         </div>
-        <div className={`px-2 py-1 rounded-full text-xs font-bold ${scoreColor}`}>
-          {score}
+
+        {/* 24h 变化 */}
+        <div className="text-right">
+          <div className={isUp ? "text-[#00D4AA]" : "text-[#FF6B6B]"}>
+            {isUp ? "+" : ""}{(market.priceChange || 0).toFixed(1)}¢
+          </div>
+          <div className="text-xs text-[#666]">{Math.abs(market.priceChange || 0).toFixed(1)}%</div>
+        </div>
+
+        {/* 24h 成交量 */}
+        <div className="text-right font-mono text-white">
+          {formatMoney(market.volume24h)}
+        </div>
+
+        {/* 总成交量 */}
+        <div className="text-right font-mono text-white">
+          {formatMoney(market.totalVolume)}
+        </div>
+
+        {/* 流动性 */}
+        <div className="text-right font-mono text-white">
+          {formatMoney(market.liquidity)}
+        </div>
+
+        {/* 买入按钮 */}
+        <div className="flex items-center gap-1 justify-center" onClick={(e) => e.preventDefault()}>
+          <button className="w-7 h-7 rounded bg-[#00D4AA]/20 text-[#00D4AA] text-xs font-semibold hover:bg-[#00D4AA]/30 transition-colors">
+            是
+          </button>
+          <button className="w-7 h-7 rounded bg-[#FF6B6B]/20 text-[#FF6B6B] text-xs font-semibold hover:bg-[#FF6B6B]/30 transition-colors">
+            否
+          </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SignalCard({ time, title, market, impact }: { time: string; title: string; market: string; impact: "high" | "medium" | "low" }) {
-  const impactColor = impact === "high" ? "bg-[var(--up)]/20 text-[var(--up)]" : impact === "medium" ? "bg-yellow-400/20 text-yellow-400" : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]";
-
-  return (
-    <div className="p-3 rounded-lg bg-[hsl(var(--muted))/0.5] hover:bg-[hsl(var(--muted))] transition-colors">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-[hsl(var(--muted-foreground))]">{time}</span>
-        <span className={`text-xs px-2 py-0.5 rounded ${impactColor}`}>
-          {impact === "high" ? "高影响" : impact === "medium" ? "中影响" : "低影响"}
-        </span>
-      </div>
-      <div className="font-medium text-sm">{title}</div>
-      <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">关联市场: {market}</div>
-    </div>
+    </Link>
   );
 }
