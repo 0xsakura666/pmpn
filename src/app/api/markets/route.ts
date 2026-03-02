@@ -1,64 +1,127 @@
 import { NextRequest, NextResponse } from "next/server";
-import { polymarket } from "@/lib/polymarket";
-import { translateToZh } from "@/lib/translate";
+
+const GAMMA_API = "https://gamma-api.polymarket.com";
+
+const CORS_PROXIES = [
+  (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
+interface TransformedMarket {
+  id: string;
+  conditionId: string;
+  title: string;
+  description: string;
+  slug: string;
+  category: string;
+  endDate: string;
+  image: string;
+  yesPrice: number;
+  noPrice: number;
+  volume24h: number;
+  totalVolume: number;
+  liquidity: number;
+}
+
+async function fetchWithTimeout(url: string, timeout = 12000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, { 
+      signal: controller.signal,
+      headers: { "Accept": "application/json" },
+    });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
+}
+
+async function fetchWithProxies(apiUrl: string): Promise<unknown[]> {
+  // 首先尝试直连
+  try {
+    const res = await fetchWithTimeout(apiUrl, 8000);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch {}
+
+  // 直连失败，尝试代理
+  for (const makeProxy of CORS_PROXIES) {
+    try {
+      const proxyUrl = makeProxy(apiUrl);
+      const res = await fetchWithTimeout(proxyUrl, 12000);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch {
+      continue;
+    }
+  }
+  
+  throw new Error("All methods failed");
+}
 
 export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const limit = parseInt(searchParams.get("limit") || "50");
+
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const offset = parseInt(searchParams.get("offset") || "0");
-    const category = searchParams.get("category");
-    const locale = searchParams.get("locale") || "zh";
+    const apiUrl = `${GAMMA_API}/events?limit=${limit}&active=true&closed=false`;
+    
+    const events = await fetchWithProxies(apiUrl);
 
-    // 从 Polymarket API 获取真实市场数据
-    const markets = await polymarket.getMarkets(limit, offset);
-
-    // 并行翻译所有市场标题（限制并发数）
-    const transformedMarkets = await Promise.all(
-      markets.map(async (market) => {
-        let title = market.question;
-        
-        // 仅在中文 locale 时翻译
-        if (locale === "zh" && market.question) {
+    const markets: TransformedMarket[] = [];
+    
+    for (const event of events as Record<string, unknown>[]) {
+      const eventMarkets = event.markets as Record<string, unknown>[] | undefined;
+      if (eventMarkets && Array.isArray(eventMarkets)) {
+        for (const market of eventMarkets) {
+          let yesPrice = 0.5;
           try {
-            title = await translateToZh(market.question);
-          } catch {
-            // 翻译失败使用原文
-          }
+            if (market.outcomePrices) {
+              yesPrice = parseFloat(JSON.parse(market.outcomePrices as string)[0]) || 0.5;
+            }
+          } catch {}
+          
+          const conditionId = (market.conditionId || market.condition_id || "") as string;
+          
+          markets.push({
+            id: conditionId,
+            conditionId,
+            title: (market.question || event.title || "") as string,
+            description: (market.description || event.description || "") as string,
+            slug: (market.slug || event.slug || "") as string,
+            category: categorizeMarket((market.question || event.title || "") as string),
+            endDate: (market.endDate || event.endDate || "") as string,
+            image: (event.image || "") as string,
+            yesPrice,
+            noPrice: 1 - yesPrice,
+            volume24h: parseFloat((event.volume24hr as string) || "0"),
+            totalVolume: parseFloat((event.volume as string) || "0"),
+            liquidity: parseFloat((event.liquidity as string) || "0"),
+          });
         }
+      }
+    }
 
-        return {
-          id: market.condition_id,
-          title,
-          titleOriginal: market.question,
-          description: market.description,
-          descriptionOriginal: market.description,
-          slug: market.market_slug,
-          category: categorizeMarket(market.question),
-          endDate: market.end_date_iso,
-          image: market.image || market.icon,
-          yesPrice: market.tokens?.find((t) => t.outcome === "Yes")?.price || 0.5,
-          noPrice: market.tokens?.find((t) => t.outcome === "No")?.price || 0.5,
-          tokens: market.tokens,
-          volume24h: 0,
-          liquidity: 0,
-        };
-      })
-    );
-
-    // Filter by category if specified
-    const filtered = category
-      ? transformedMarkets.filter((m) => m.category.toLowerCase() === category.toLowerCase())
-      : transformedMarkets;
-
-    return NextResponse.json(filtered);
+    return NextResponse.json(markets, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Polymarket API failed:", errorMessage);
 
     return NextResponse.json({
       error: "POLYMARKET_API_UNREACHABLE",
-      message: "无法连接到 Polymarket API。请检查您的 VPN 连接或网络设置。",
+      message: "无法连接到 Polymarket API",
       details: errorMessage,
     }, { status: 503 });
   }
