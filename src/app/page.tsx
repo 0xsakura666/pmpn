@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 
@@ -38,10 +38,36 @@ const sortOptions = [
 ];
 
 const PAGE_SIZE = 10;
+const CACHE_KEY = "pmpn_markets_cache";
+const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
+
+interface CacheData {
+  markets: Market[];
+  timestamp: number;
+}
+
+function getCache(): CacheData | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data: CacheData = JSON.parse(cached);
+    if (Date.now() - data.timestamp > CACHE_TTL) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCache(markets: Market[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets, timestamp: Date.now() }));
+  } catch {}
+}
 
 export default function Home() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("全部");
   const [activeTopic, setActiveTopic] = useState("全部");
@@ -49,108 +75,110 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [currentPage, setCurrentPage] = useState(1);
 
+  const fetchMarketsDirectly = useCallback(async (): Promise<Market[]> => {
+    const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false&order=volume_24hr";
+    const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(apiUrl)}`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    
+    const res = await fetch(proxyUrl, {
+      headers: { "Accept": "application/json" },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    
+    const events = await res.json();
+    
+    if (!Array.isArray(events)) throw new Error("Invalid response");
+
+    const transformedMarkets: Market[] = [];
+    
+    for (const event of events) {
+      if (event.markets && Array.isArray(event.markets)) {
+        for (const market of event.markets) {
+          const yesPrice = market.outcomePrices 
+            ? parseFloat(JSON.parse(market.outcomePrices)[0]) 
+            : 0.5;
+          
+          const volume24h = parseFloat(event.volume24hr || "0");
+          const totalVolume = parseFloat(event.volume || "0");
+          const conditionId = market.conditionId || market.condition_id || "";
+          
+          transformedMarkets.push({
+            id: conditionId,
+            conditionId: conditionId,
+            title: market.question || event.title,
+            description: market.description || event.description || "",
+            slug: market.slug || event.slug,
+            category: categorizeMarket(market.question || event.title),
+            endDate: market.endDate || event.endDate,
+            image: event.image || "",
+            yesPrice,
+            noPrice: 1 - yesPrice,
+            volume24h,
+            totalVolume,
+            liquidity: parseFloat(event.liquidity || "0"),
+            priceChange: (Math.random() - 0.3) * 15,
+            spread: Math.random() * 5,
+            daysLeft: calculateDaysLeft(market.endDate || event.endDate),
+          });
+        }
+      }
+    }
+
+    return transformedMarkets;
+  }, []);
+
+  const fetchMarkets = useCallback(async (useCache = true) => {
+    const cached = useCache ? getCache() : null;
+    
+    if (cached && cached.markets.length > 0) {
+      setMarkets(cached.markets);
+      setLoading(false);
+      setIsRefreshing(true);
+      
+      fetchMarketsDirectly()
+        .then(freshMarkets => {
+          if (freshMarkets.length > 0) {
+            setMarkets(freshMarkets);
+            setCache(freshMarkets);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setIsRefreshing(false));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const freshMarkets = await fetchMarketsDirectly();
+      if (freshMarkets.length > 0) {
+        setMarkets(freshMarkets);
+        setCache(freshMarkets);
+      }
+    } catch (err) {
+      console.error("Failed to fetch:", err);
+      setError("无法连接到 Polymarket API，请检查网络或稍后重试");
+      setMarkets([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchMarketsDirectly]);
+
   useEffect(() => {
     fetchMarkets();
-  }, []);
+  }, [fetchMarkets]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [activeCategory, activeTopic, sortBy]);
 
-  const fetchMarkets = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/markets?limit=50");
-      const data = await res.json();
-      
-      if (data.error) {
-        await fetchMarketsDirectly();
-        return;
-      }
-      
-      if (Array.isArray(data)) {
-        const processedMarkets = data.map((m: Market) => ({
-          ...m,
-          conditionId: m.id,
-          priceChange: (Math.random() - 0.3) * 15,
-          spread: Math.random() * 5,
-          totalVolume: (m.volume24h || 0) * (5 + Math.random() * 20),
-          daysLeft: calculateDaysLeft(m.endDate),
-        }));
-        setMarkets(processedMarkets);
-      }
-    } catch (err) {
-      console.error("Failed to fetch:", err);
-      await fetchMarketsDirectly();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMarketsDirectly = async () => {
-    try {
-      const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false&order=volume_24hr";
-      const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(apiUrl)}`;
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
-      
-      const res = await fetch(proxyUrl, {
-        headers: { "Accept": "application/json" },
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      
-      const events = await res.json();
-      
-      if (!Array.isArray(events)) throw new Error("Invalid response");
-
-      const transformedMarkets: Market[] = [];
-      
-      for (const event of events) {
-        if (event.markets && Array.isArray(event.markets)) {
-          for (const market of event.markets) {
-            const yesPrice = market.outcomePrices 
-              ? parseFloat(JSON.parse(market.outcomePrices)[0]) 
-              : 0.5;
-            
-            const volume24h = parseFloat(event.volume24hr || "0");
-            const totalVolume = parseFloat(event.volume || "0");
-            const conditionId = market.conditionId || market.condition_id || "";
-            
-            transformedMarkets.push({
-              id: conditionId,
-              conditionId: conditionId,
-              title: market.question || event.title,
-              description: market.description || event.description || "",
-              slug: market.slug || event.slug,
-              category: categorizeMarket(market.question || event.title),
-              endDate: market.endDate || event.endDate,
-              image: event.image || "",
-              yesPrice,
-              noPrice: 1 - yesPrice,
-              volume24h,
-              totalVolume,
-              liquidity: parseFloat(event.liquidity || "0"),
-              priceChange: (Math.random() - 0.3) * 15,
-              spread: Math.random() * 5,
-              daysLeft: calculateDaysLeft(market.endDate || event.endDate),
-            });
-          }
-        }
-      }
-
-      setMarkets(transformedMarkets);
-    } catch (err) {
-      console.error("Direct fetch failed:", err);
-      setError("无法连接到 Polymarket API，请检查网络或稍后重试");
-      setMarkets([]);
-    }
-  };
 
   const categorizeMarket = (question: string): string => {
     const q = question.toLowerCase();
@@ -324,10 +352,19 @@ export default function Home() {
 
       {/* 市场列表 - 可滚动 */}
       <div className="flex-1 px-6 overflow-y-auto">
+        {isRefreshing && (
+          <div className="sticky top-0 z-10 flex items-center justify-center py-1 bg-[#0d0d0f]/90 backdrop-blur">
+            <div className="flex items-center gap-2 text-xs text-[#00D4AA]">
+              <div className="animate-spin h-3 w-3 border border-[#00D4AA] border-t-transparent rounded-full"></div>
+              更新中...
+            </div>
+          </div>
+        )}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4AA] mb-4"></div>
-            <p className="text-[#666] text-sm">正在加载市场数据...</p>
+          <div className="space-y-0">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -335,7 +372,7 @@ export default function Home() {
             <p className="text-[#FF6B6B] mb-2">加载失败</p>
             <p className="text-[#666] text-sm mb-4">{error}</p>
             <button 
-              onClick={fetchMarkets}
+              onClick={() => fetchMarkets(false)}
               className="px-4 py-2 bg-[#00D4AA] text-black rounded-lg font-medium hover:bg-[#00C49A] transition-colors"
             >
               重新加载
@@ -345,7 +382,7 @@ export default function Home() {
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-[#666] mb-4">暂无市场数据</p>
             <button 
-              onClick={fetchMarkets}
+              onClick={() => fetchMarkets(false)}
               className="px-4 py-2 bg-[#1a1a1f] text-white rounded-lg hover:bg-[#2a2a2f] transition-colors"
             >
               重新加载
@@ -530,5 +567,42 @@ function MarketRow({ market }: { market: Market }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+function SkeletonRow() {
+  return (
+    <div className="grid grid-cols-[auto_1fr_120px_80px_80px_90px_90px_90px_70px] gap-2 py-3 items-center border-b border-[#1a1a1f] animate-pulse">
+      <div className="w-6"></div>
+      <div className="min-w-0 space-y-2">
+        <div className="h-4 bg-[#1a1a1f] rounded w-3/4"></div>
+        <div className="h-3 bg-[#1a1a1f] rounded w-1/2"></div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 bg-[#1a1a1f] rounded w-12"></div>
+        <div className="h-3 bg-[#1a1a1f] rounded w-16"></div>
+      </div>
+      <div className="text-right space-y-2">
+        <div className="h-4 bg-[#1a1a1f] rounded w-12 ml-auto"></div>
+        <div className="h-3 bg-[#1a1a1f] rounded w-8 ml-auto"></div>
+      </div>
+      <div className="text-right space-y-2">
+        <div className="h-4 bg-[#1a1a1f] rounded w-10 ml-auto"></div>
+        <div className="h-3 bg-[#1a1a1f] rounded w-8 ml-auto"></div>
+      </div>
+      <div className="text-right">
+        <div className="h-4 bg-[#1a1a1f] rounded w-14 ml-auto"></div>
+      </div>
+      <div className="text-right">
+        <div className="h-4 bg-[#1a1a1f] rounded w-14 ml-auto"></div>
+      </div>
+      <div className="text-right">
+        <div className="h-4 bg-[#1a1a1f] rounded w-14 ml-auto"></div>
+      </div>
+      <div className="flex items-center gap-1 justify-center">
+        <div className="w-6 h-6 bg-[#1a1a1f] rounded"></div>
+        <div className="w-6 h-6 bg-[#1a1a1f] rounded"></div>
+      </div>
+    </div>
   );
 }
