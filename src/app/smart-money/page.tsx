@@ -122,61 +122,75 @@ export default function SmartMoneyPage() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
+    <div className="min-h-screen bg-[#0d0d0f] text-white">
       {/* Header */}
-      <header className="border-b border-[hsl(var(--border))]">
-        <div className="container mx-auto px-4 py-4">
-          <nav className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <Link href="/" className="text-2xl font-['Space_Grotesk'] font-bold">
-                <span className="text-gradient">Tectonic</span>
+      <header className="border-b border-[#1a1a1f] bg-[#0d0d0f]">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-xl font-bold text-gradient">Tectonic</span>
+              <span className="text-xs text-[#666] uppercase tracking-wider">Pro</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-6 text-sm">
+              <Link href="/" className="text-[#666] hover:text-white transition-colors">市场</Link>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors flex items-center gap-1">
+                交易 <span className="text-[8px]">▼</span>
               </Link>
-              <div className="hidden md:flex items-center gap-6">
-                <Link href="/markets" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
-                  市场
-                </Link>
-                <Link href="/smart-money" className="text-[hsl(var(--foreground))] font-semibold">
-                  聪明钱
-                </Link>
-              </div>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors">钱包</Link>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors">竞赛</Link>
+              <Link href="/smart-money" className="text-white font-medium">排行榜</Link>
+              <Link href="#" className="text-[#666] hover:text-white transition-colors flex items-center gap-1">
+                更多 <span className="text-[8px]">▼</span>
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-[#1a1a1f] rounded-lg">
+              <span className="text-[#666]">🔍</span>
+              <input 
+                type="text" 
+                placeholder="搜索代币、合约地址、市场" 
+                className="bg-transparent text-sm text-white placeholder-[#666] outline-none w-48"
+              />
+              <span className="text-[10px] text-[#666] border border-[#333] rounded px-1">⌘K</span>
             </div>
             <WalletButton />
-          </nav>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-['Space_Grotesk'] font-bold mb-2">
+      <main className="container mx-auto px-6 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-1">
             聪明钱追踪器
           </h1>
-          <p className="text-[hsl(var(--muted-foreground))]">
+          <p className="text-[#666] text-sm">
             追踪巨鲸动向，复制盈利策略
           </p>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="glass rounded-xl p-4">
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">追踪巨鲸</div>
-            <div className="text-2xl font-bold text-[var(--whale)]">{traders.length}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
+            <div className="text-sm text-[#666]">追踪巨鲸</div>
+            <div className="text-2xl font-bold text-[#7B61FF]">{traders.length}</div>
           </div>
-          <div className="glass rounded-xl p-4">
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">巨鲸成交量</div>
+          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
+            <div className="text-sm text-[#666]">巨鲸成交量</div>
             <div className="text-2xl font-bold">${(totalWhaleVolume / 1e6).toFixed(1)}M</div>
           </div>
-          <div className="glass rounded-xl p-4">
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">平均胜率</div>
-            <div className="text-2xl font-bold text-[var(--up)]">{avgWhaleWinRate.toFixed(1)}%</div>
+          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
+            <div className="text-sm text-[#666]">平均胜率</div>
+            <div className="text-2xl font-bold text-[#00D4AA]">{avgWhaleWinRate.toFixed(1)}%</div>
           </div>
-          <div className="glass rounded-xl p-4">
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">最近信号</div>
+          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
+            <div className="text-sm text-[#666]">最近信号</div>
             <div className="text-2xl font-bold">{activities.length}</div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-[hsl(var(--border))]">
+        <div className="flex gap-2 mb-6 border-b border-[#1a1a1f]">
           {[
             { id: "leaderboard", label: "排行榜" },
             { id: "activity", label: "实时动态" },
@@ -187,16 +201,16 @@ export default function SmartMoneyPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-4 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === tab.id
-                  ? "text-[hsl(var(--foreground))]"
-                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  ? "text-white"
+                  : "text-[#666] hover:text-white"
               }`}
             >
               {tab.label}
               {tab.id === "activity" && (
-                <span className="ml-2 w-2 h-2 rounded-full bg-[var(--up)] inline-block animate-pulse" />
+                <span className="ml-2 w-2 h-2 rounded-full bg-[#00D4AA] inline-block animate-pulse" />
               )}
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[hsl(var(--primary))]" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00D4AA]" />
               )}
             </button>
           ))}
@@ -208,7 +222,7 @@ export default function SmartMoneyPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-sm"
+              className="px-3 py-2 rounded-lg bg-[#1a1a1f] border border-[#2a2a2f] text-sm text-white outline-none"
             >
               <option value="whaleScore">巨鲸评分</option>
               <option value="pnl">总盈亏</option>
@@ -219,7 +233,7 @@ export default function SmartMoneyPage() {
             <select
               value={minScore}
               onChange={(e) => setMinScore(parseInt(e.target.value))}
-              className="px-3 py-2 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-sm"
+              className="px-3 py-2 rounded-lg bg-[#1a1a1f] border border-[#2a2a2f] text-sm text-white outline-none"
             >
               <option value="0">所有评分</option>
               <option value="50">评分 50+</option>
@@ -235,7 +249,7 @@ export default function SmartMoneyPage() {
             {activeTab === "leaderboard" && (
               <div className="space-y-3">
                 {loading ? (
-                  <div className="text-center py-12 text-[hsl(var(--muted-foreground))]">
+                  <div className="text-center py-12 text-[#666]">
                     加载巨鲸数据中...
                   </div>
                 ) : (
@@ -254,7 +268,7 @@ export default function SmartMoneyPage() {
             {activeTab === "activity" && (
               <div className="space-y-3">
                 {loading ? (
-                  <div className="text-center py-12 text-[hsl(var(--muted-foreground))]">
+                  <div className="text-center py-12 text-[#666]">
                     加载动态中...
                   </div>
                 ) : (
@@ -290,7 +304,7 @@ export default function SmartMoneyPage() {
                 <h3 className="font-['Space_Grotesk'] font-semibold mb-2">
                   选择一只巨鲸
                 </h3>
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                <p className="text-sm text-[#666]">
                   点击交易者查看详情并设置跟单
                 </p>
               </div>
@@ -312,7 +326,7 @@ export default function SmartMoneyPage() {
                       <span>{tier.icon}</span>
                       <span style={{ color: tier.color }}>{tier.label}</span>
                     </div>
-                    <span className="text-[hsl(var(--muted-foreground))]">{tier.range}</span>
+                    <span className="text-[#666]">{tier.range}</span>
                   </div>
                 ))}
               </div>
@@ -349,11 +363,11 @@ function TraderCard({
     <div
       onClick={onClick}
       className={`p-4 rounded-xl glass cursor-pointer transition-all hover:scale-[1.01] ${
-        isSelected ? "border-2 border-[hsl(var(--primary))]" : "border border-transparent"
+        isSelected ? "border-2 border-[#00D4AA]" : "border border-transparent"
       }`}
     >
       <div className="flex items-center gap-4">
-        <div className="text-2xl font-bold text-[hsl(var(--muted-foreground))] w-8">
+        <div className="text-2xl font-bold text-[#666] w-8">
           #{trader.rank}
         </div>
         <div
@@ -374,10 +388,10 @@ function TraderCard({
           </div>
           <div className="flex items-center gap-4 mt-1 text-sm">
             <span className="text-[var(--up)]">{trader.winRate.toFixed(1)}% 胜率</span>
-            <span className="text-[hsl(var(--muted-foreground))]">
+            <span className="text-[#666]">
               {trader.totalTrades} 笔交易
             </span>
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">
+            <span className="text-xs text-[#666]">
               {timeAgo}
             </span>
           </div>
@@ -390,22 +404,22 @@ function TraderCard({
           >
             {isProfitable ? "+" : ""}${formatNumber(trader.totalPnl)}
           </div>
-          <div className="text-xs text-[hsl(var(--muted-foreground))]">总盈亏</div>
+          <div className="text-xs text-[#666]">总盈亏</div>
         </div>
       </div>
       
       {/* Mini stats bar */}
-      <div className="mt-3 pt-3 border-t border-[hsl(var(--border))] grid grid-cols-3 gap-4 text-xs">
+      <div className="mt-3 pt-3 border-t border-[#1a1a1f] grid grid-cols-3 gap-4 text-xs">
         <div>
-          <span className="text-[hsl(var(--muted-foreground))]">成交量</span>
+          <span className="text-[#666]">成交量</span>
           <div className="font-semibold">${formatNumber(trader.totalVolume)}</div>
         </div>
         <div>
-          <span className="text-[hsl(var(--muted-foreground))]">平均金额</span>
+          <span className="text-[#666]">平均金额</span>
           <div className="font-semibold">${formatNumber(trader.avgTradeSize)}</div>
         </div>
         <div>
-          <span className="text-[hsl(var(--muted-foreground))]">已实现</span>
+          <span className="text-[#666]">已实现</span>
           <div className={`font-semibold ${trader.realizedPnl >= 0 ? "text-[var(--up)]" : "text-[var(--down)]"}`}>
             {trader.realizedPnl >= 0 ? "+" : ""}${formatNumber(trader.realizedPnl)}
           </div>
@@ -420,7 +434,7 @@ function ActivityCard({ activity }: { activity: Activity }) {
   const significanceColors = {
     high: "border-[#FFD700]/50 bg-[#FFD700]/5",
     medium: "border-[var(--whale)]/50 bg-[var(--whale)]/5",
-    low: "border-[hsl(var(--border))]",
+    low: "border-[#1a1a1f]",
   };
 
   return (
@@ -442,16 +456,16 @@ function ActivityCard({ activity }: { activity: Activity }) {
                 {activity.trader.address.slice(0, 8)}...
               </span>
               <span>{activity.trader.tierIcon}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[hsl(var(--muted))]">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#1a1a1f]">
                 {activity.trader.whaleScore}
               </span>
             </div>
-            <div className="text-xs text-[hsl(var(--muted-foreground))]">
+            <div className="text-xs text-[#666]">
               {activity.trader.winRate.toFixed(1)}% 胜率
             </div>
           </div>
         </div>
-        <div className="text-xs text-[hsl(var(--muted-foreground))]">
+        <div className="text-xs text-[#666]">
           {getTimeAgo(activity.timestamp)}
         </div>
       </div>
@@ -464,7 +478,7 @@ function ActivityCard({ activity }: { activity: Activity }) {
         </span>
         <div className="text-right">
           <span className="font-mono font-semibold">${formatNumber(activity.total)}</span>
-          <span className="text-xs text-[hsl(var(--muted-foreground))] ml-1">
+          <span className="text-xs text-[#666] ml-1">
             @ ${activity.price.toFixed(3)}
           </span>
         </div>
