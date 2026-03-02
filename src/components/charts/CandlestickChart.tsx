@@ -156,6 +156,22 @@ export function CandlestickChart({
     }
   }, [volumeData]);
 
+  // Show message if no data
+  if (!data || data.length === 0) {
+    return (
+      <div 
+        className="w-full flex items-center justify-center text-[hsl(var(--muted-foreground))]" 
+        style={{ height }}
+      >
+        <div className="text-center">
+          <div className="text-2xl mb-2">📊</div>
+          <p>暂无价格历史数据</p>
+          <p className="text-xs mt-1">市场可能是新创建的或交易量较低</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={chartContainerRef} className="w-full" style={{ height }} />
   );

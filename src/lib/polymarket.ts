@@ -158,7 +158,7 @@ class PolymarketService {
               icon: event.icon || "",
               image: event.image || "",
               rewards: { total_rewards: 0, daily_rewards: 0, end_date: "" },
-              tokens: market.tokens || [],
+              tokens: this.parseTokens(market),
             });
           }
         }
