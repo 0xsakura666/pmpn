@@ -181,7 +181,12 @@ class PolymarketService {
       );
       
       if (markets && markets.length > 0) {
-        const market = markets[0];
+        // 精确匹配 conditionId
+        const market = markets.find(m => 
+          (m.conditionId === conditionId) || 
+          (m.condition_id === conditionId)
+        ) || markets[0];
+        
         return {
           condition_id: market.conditionId || market.condition_id || conditionId,
           question: market.question,

@@ -104,10 +104,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[hsl(var(--primary))] mx-auto mb-4" />
-          <p className="text-[hsl(var(--muted-foreground))]">加载市场数据...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00D4AA] mx-auto mb-4" />
+          <p className="text-[#666]">加载市场数据...</p>
         </div>
       </div>
     );
@@ -115,10 +115,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   if (error || !market) {
     return (
-      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[var(--down)] mb-4">{error || "Market not found"}</p>
-          <Link href="/markets" className="text-[hsl(var(--primary))] hover:underline">
+          <p className="text-[#FF6B6B] mb-4">{error || "市场不存在"}</p>
+          <Link href="/" className="text-[#00D4AA] hover:underline">
             ← 返回市场列表
           </Link>
         </div>
@@ -142,16 +142,16 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   })) || [];
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
+    <div className="min-h-screen bg-[#0d0d0f] text-white">
       {/* Header */}
-      <header className="border-b border-[hsl(var(--border))]">
-        <div className="container mx-auto px-4 py-4">
+      <header className="border-b border-[#222] bg-[#0d0d0f]">
+        <div className="container mx-auto px-4 py-3">
           <nav className="flex items-center justify-between">
             <div className="flex items-center gap-6">
-              <Link href="/" className="text-2xl font-['Space_Grotesk'] font-bold">
-                <span className="text-gradient">Tectonic</span>
+              <Link href="/" className="text-xl font-bold text-[#00D4AA]">
+                Tectonic
               </Link>
-              <Link href="/markets" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+              <Link href="/" className="text-[#666] hover:text-white text-sm">
                 ← 返回市场
               </Link>
             </div>
@@ -163,7 +163,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       <main className="container mx-auto px-4 py-6">
         {/* Market Info */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))] mb-2">
+          <div className="flex items-center gap-2 text-sm text-[#666] mb-2">
             <span>截止 {new Date(market.endDate).toLocaleDateString('zh-CN')}</span>
           </div>
           <div className="flex items-start gap-4 mb-4">
@@ -175,11 +175,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               />
             )}
             <div>
-              <h1 className="text-2xl md:text-3xl font-['Space_Grotesk'] font-bold mb-2">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">
                 {market.title}
               </h1>
               {market.titleOriginal !== market.title && (
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                <p className="text-sm text-[#666]">
                   {market.titleOriginal}
                 </p>
               )}
@@ -187,15 +187,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           </div>
           <div className="flex flex-wrap gap-6">
             <div>
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">Yes 价格</span>
+              <span className="text-sm text-[#666]">Yes 价格</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-[var(--up)]">${yesPrice.toFixed(2)}</span>
+                <span className="text-3xl font-bold text-[#00D4AA]">${yesPrice.toFixed(2)}</span>
               </div>
             </div>
             <div>
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">No 价格</span>
+              <span className="text-sm text-[#666]">No 价格</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-[var(--down)]">${noPrice.toFixed(2)}</span>
+                <span className="text-3xl font-bold text-[#FF6B6B]">${noPrice.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           {/* Chart Section */}
           <div className="lg:col-span-2 space-y-4">
             {/* Timeframe Selector */}
-            <div className="glass rounded-xl p-4">
+            <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
               <div className="flex gap-2 mb-4">
                 {timeframes.map((tf) => (
                   <button
@@ -213,8 +213,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     onClick={() => setSelectedTimeframe(tf)}
                     className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                       selectedTimeframe === tf
-                        ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                        : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                        ? "bg-[#00D4AA] text-black"
+                        : "bg-[#2a2a2f] text-[#666] hover:text-white"
                     }`}
                   >
                     {tf}
@@ -229,33 +229,33 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
             {/* Description */}
             {market.description && (
-              <div className="glass rounded-xl p-4">
-                <h3 className="font-['Space_Grotesk'] font-semibold mb-2">市场描述</h3>
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
+                <h3 className="font-semibold mb-2 text-white">市场描述</h3>
+                <p className="text-sm text-[#666]">
                   {market.description}
                 </p>
               </div>
             )}
 
             {/* Token Info */}
-            <div className="glass rounded-xl p-4">
-              <h3 className="font-['Space_Grotesk'] font-semibold mb-4">代币信息</h3>
+            <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
+              <h3 className="font-semibold mb-4 text-white">代币信息</h3>
               <div className="space-y-3">
                 {market.tokens?.map((token) => (
-                  <div key={token.token_id} className="flex items-center justify-between p-3 rounded-lg bg-[hsl(var(--muted))]">
+                  <div key={token.token_id} className="flex items-center justify-between p-3 rounded-lg bg-[#0d0d0f]">
                     <div className="flex items-center gap-3">
                       <span className={`px-2 py-1 rounded text-sm font-medium ${
                         token.outcome === "Yes" 
-                          ? "bg-[var(--up)]/20 text-[var(--up)]" 
-                          : "bg-[var(--down)]/20 text-[var(--down)]"
+                          ? "bg-[#00D4AA]/20 text-[#00D4AA]" 
+                          : "bg-[#FF6B6B]/20 text-[#FF6B6B]"
                       }`}>
                         {token.outcome}
                       </span>
-                      <span className="text-xs font-mono text-[hsl(var(--muted-foreground))]">
+                      <span className="text-xs font-mono text-[#666]">
                         {token.token_id.slice(0, 20)}...
                       </span>
                     </div>
-                    <span className="font-bold">${token.price.toFixed(3)}</span>
+                    <span className="font-bold text-white">${token.price.toFixed(3)}</span>
                   </div>
                 ))}
               </div>
@@ -278,32 +278,32 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             <PositionsPanel />
 
             {/* Order Book */}
-            <div className="glass rounded-xl p-4">
-              <h3 className="font-['Space_Grotesk'] font-semibold mb-4">订单簿 (Yes)</h3>
+            <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
+              <h3 className="font-semibold mb-4 text-white">订单簿 (Yes)</h3>
               {formattedBids.length > 0 || formattedAsks.length > 0 ? (
                 <OrderBook bids={formattedBids} asks={formattedAsks} />
               ) : (
-                <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-4">
+                <p className="text-sm text-[#666] text-center py-4">
                   暂无订单簿数据
                 </p>
               )}
             </div>
 
             {/* Market Info */}
-            <div className="glass rounded-xl p-4">
-              <h3 className="font-['Space_Grotesk'] font-semibold mb-4">市场信息</h3>
+            <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
+              <h3 className="font-semibold mb-4 text-white">市场信息</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-[hsl(var(--muted-foreground))]">市场 ID</span>
-                  <span className="font-mono text-xs">{market.id.slice(0, 16)}...</span>
+                  <span className="text-[#666]">市场 ID</span>
+                  <span className="font-mono text-xs text-white">{market.id.slice(0, 16)}...</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[hsl(var(--muted-foreground))]">结算日期</span>
-                  <span>{new Date(market.endDate).toLocaleDateString('zh-CN')}</span>
+                  <span className="text-[#666]">结算日期</span>
+                  <span className="text-white">{new Date(market.endDate).toLocaleDateString('zh-CN')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[hsl(var(--muted-foreground))]">Slug</span>
-                  <span className="font-mono text-xs">{market.slug}</span>
+                  <span className="text-[#666]">Slug</span>
+                  <span className="font-mono text-xs text-white">{market.slug}</span>
                 </div>
               </div>
             </div>
