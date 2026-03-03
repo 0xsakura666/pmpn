@@ -102,13 +102,21 @@ function calculateDaysLeft(endDate: string): number {
 
 function isExpiredEvent(title: string, endDate: string): boolean {
   const currentYear = new Date().getFullYear();
-  const pastYearRegex = new RegExp(`\\b(201\\d|202[0-${currentYear - 2001}])\\b`);
-  if (pastYearRegex.test(title)) return true;
   
-  if (!endDate) return false;
-  const endTime = new Date(endDate).getTime();
-  if (isNaN(endTime)) return false;
-  return endTime < Date.now();
+  // Check if title contains a past year (2010-2025 when current year is 2026)
+  const yearMatch = title.match(/\b(20\d{2})\b/);
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1]);
+    if (year < currentYear) return true;
+  }
+  
+  // Check if endDate has passed
+  if (endDate) {
+    const endTime = new Date(endDate).getTime();
+    if (!isNaN(endTime) && endTime < Date.now()) return true;
+  }
+  
+  return false;
 }
 
 function formatMoney(vol: number): string {
@@ -526,57 +534,84 @@ const EventRow = memo(function EventRow({ event }: { event: EventGroup }) {
   );
 });
 
-function SkeletonCard() {
+function LoadingOverlay() {
   return (
-    <div className="rounded-2xl border border-[#1e1e28] bg-[#13131a] p-5">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-[#1e1e28]" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-full animate-pulse rounded bg-[#1e1e28]" />
-          <div className="h-4 w-2/3 animate-pulse rounded bg-[#1e1e28]" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c10]/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <div className="h-12 w-12 rounded-full border-2 border-[#1e1e28]" />
+          <div className="absolute inset-0 h-12 w-12 animate-spin rounded-full border-2 border-transparent border-t-[#00D4AA]" />
         </div>
-      </div>
-      <div className="mb-2 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-24 animate-pulse rounded bg-[#1e1e28]" />
-          <div className="flex gap-1">
-            <div className="h-6 w-10 animate-pulse rounded-md bg-[#1e1e28]" />
-            <div className="h-6 w-10 animate-pulse rounded-md bg-[#1e1e28]" />
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[#888]">正在加载市场数据</span>
+          <span className="flex gap-1">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "0ms" }} />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "150ms" }} />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "300ms" }} />
+          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-20 animate-pulse rounded bg-[#1e1e28]" />
-          <div className="flex gap-1">
-            <div className="h-6 w-10 animate-pulse rounded-md bg-[#1e1e28]" />
-            <div className="h-6 w-10 animate-pulse rounded-md bg-[#1e1e28]" />
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 border-t border-[#1e1e28] pt-3">
-        <div className="h-3 w-28 animate-pulse rounded bg-[#1e1e28]" />
       </div>
     </div>
   );
 }
 
-function SkeletonRow() {
+function SkeletonCard({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="grid grid-cols-[1fr_100px_100px_100px_140px] items-center gap-4 px-4 py-3.5">
-      <div className="flex items-start gap-3">
-        <div className="h-7 w-7 shrink-0 animate-pulse rounded-md bg-[#1e1e28]" />
+    <div 
+      className="rounded-2xl border border-[#1e1e28] bg-[#13131a] p-5 opacity-0 animate-fade-in"
+      style={{ animationDelay: `${delay}ms`, animationFillMode: "forwards" }}
+    >
+      <div className="mb-4 flex items-start gap-3">
+        <div className="h-8 w-8 shrink-0 rounded-lg skeleton-shimmer" />
         <div className="flex-1 space-y-2">
-          <div className="h-4 w-3/4 animate-pulse rounded bg-[#1e1e28]" />
-          <div className="h-3 w-1/3 animate-pulse rounded bg-[#1e1e28]" />
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+          <div className="h-4 w-2/3 rounded skeleton-shimmer" />
+        </div>
+      </div>
+      <div className="mb-2 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-24 rounded skeleton-shimmer" />
+          <div className="flex gap-1">
+            <div className="h-6 w-10 rounded-md skeleton-shimmer" />
+            <div className="h-6 w-10 rounded-md skeleton-shimmer" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-20 rounded skeleton-shimmer" />
+          <div className="flex gap-1">
+            <div className="h-6 w-10 rounded-md skeleton-shimmer" />
+            <div className="h-6 w-10 rounded-md skeleton-shimmer" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 border-t border-[#1e1e28] pt-3">
+        <div className="h-3 w-28 rounded skeleton-shimmer" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonRow({ delay = 0 }: { delay?: number }) {
+  return (
+    <div 
+      className="grid grid-cols-[1fr_100px_100px_100px_140px] items-center gap-4 px-4 py-3.5 opacity-0 animate-fade-in"
+      style={{ animationDelay: `${delay}ms`, animationFillMode: "forwards" }}
+    >
+      <div className="flex items-start gap-3">
+        <div className="h-7 w-7 shrink-0 rounded-md skeleton-shimmer" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-3/4 rounded skeleton-shimmer" />
+          <div className="h-3 w-1/3 rounded skeleton-shimmer" />
         </div>
       </div>
       <div className="space-y-1.5">
-        <div className="h-4 w-14 animate-pulse rounded bg-[#1e1e28]" />
-        <div className="h-1.5 animate-pulse rounded-full bg-[#1e1e28]" />
+        <div className="h-4 w-14 rounded skeleton-shimmer" />
+        <div className="h-1.5 rounded-full skeleton-shimmer" />
       </div>
-      <div className="ml-auto h-4 w-14 animate-pulse rounded bg-[#1e1e28]" />
-      <div className="ml-auto h-4 w-14 animate-pulse rounded bg-[#1e1e28]" />
+      <div className="ml-auto h-4 w-14 rounded skeleton-shimmer" />
+      <div className="ml-auto h-4 w-14 rounded skeleton-shimmer" />
       <div className="flex justify-end gap-2">
-        <div className="h-7 w-16 animate-pulse rounded-lg bg-[#1e1e28]" />
+        <div className="h-7 w-16 rounded-lg skeleton-shimmer" />
         <div className="h-7 w-16 animate-pulse rounded-lg bg-[#1e1e28]" />
       </div>
     </div>
@@ -651,11 +686,20 @@ export default function Home() {
       // Skip events with past years in title (e.g., "2024", "2025" when current year is 2026)
       if (isExpiredEvent(title, eventEndDate)) continue;
 
-      // Filter out markets that have already ended
-      const activeMarkets = subMarkets.filter((m) => m.daysLeft > 0 && !isExpiredEvent(m.question, m.endDate));
+      // Filter out markets that have already ended (keep markets with no end date or future end date)
+      const activeMarkets = subMarkets.filter((m) => {
+        // If daysLeft is -1, it means no valid end date, keep it
+        if (m.daysLeft === -1) return true;
+        // If daysLeft > 0, it's still active
+        if (m.daysLeft > 0) return true;
+        // Check if title contains past year
+        if (isExpiredEvent(m.question, "")) return false;
+        return false;
+      });
       if (activeMarkets.length === 0) continue;
       
-      const eventDaysLeft = Math.min(...activeMarkets.map((m) => m.daysLeft));
+      const validDaysLeft = activeMarkets.filter(m => m.daysLeft > 0).map(m => m.daysLeft);
+      const eventDaysLeft = validDaysLeft.length > 0 ? Math.min(...validDaysLeft) : 30;
 
       groups.push({
         id: eventId,
@@ -675,8 +719,7 @@ export default function Home() {
   }, []);
 
   const fetchFromProxy = useCallback(async (): Promise<EventGroup[]> => {
-    const now = new Date().toISOString();
-    const apiUrl = `https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false&end_date_min=${now}`;
+    const apiUrl = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false";
     const res = await fetchWithTimeout(PROXY_URL + encodeURIComponent(apiUrl), 8000);
     if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
     const text = await res.text();
@@ -942,19 +985,22 @@ export default function Home() {
           )}
 
           {loading ? (
-            viewMode === "card" ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <SkeletonCard key={i} />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <SkeletonRow key={i} />
-                ))}
-              </div>
-            )
+            <>
+              <LoadingOverlay />
+              {viewMode === "card" ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <SkeletonCard key={i} delay={i * 50} />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <SkeletonRow key={i} delay={i * 50} />
+                  ))}
+                </div>
+              )}
+            </>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-24">
               <AlertCircle className="mb-4 h-12 w-12 text-[#FF6B6B]" />
