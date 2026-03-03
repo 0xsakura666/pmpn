@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CandlestickChart } from "./CandlestickChart";
+import { CandlestickChart, type ChartMode } from "./CandlestickChart";
 import {
   useMultiTimeframeCandles,
   useSimulatedMultiTimeframeCandles,
@@ -11,6 +11,7 @@ import {
   INTERVAL_SECONDS,
 } from "@/hooks/useRealtimeCandles";
 import { Time, CandlestickData } from "lightweight-charts";
+import { TrendingUp, BarChart2 } from "lucide-react";
 
 type TimeframeType = "1S" | "5S" | "15S" | "1M" | "5M" | "15M" | "1H" | "4H" | "1D";
 
@@ -21,6 +22,7 @@ interface RealtimeCandlestickChartProps {
   defaultTimeframe?: TimeframeType;
   onTimeframeChange?: (tf: TimeframeType) => void;
   enableSimulation?: boolean;
+  defaultChartMode?: ChartMode;
 }
 
 const TIMEFRAME_TO_INTERVAL: Record<TimeframeType, IntervalType> = {
@@ -57,8 +59,10 @@ export function RealtimeCandlestickChart({
   defaultTimeframe = "1M",
   onTimeframeChange,
   enableSimulation = false,
+  defaultChartMode = "line",
 }: RealtimeCandlestickChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
+  const [chartMode, setChartMode] = useState<ChartMode>(defaultChartMode);
 
   const config = TIMEFRAME_CONFIG[selectedTimeframe];
   const currentInterval = TIMEFRAME_TO_INTERVAL[selectedTimeframe];
@@ -168,8 +172,36 @@ export function RealtimeCandlestickChart({
           </div>
         </div>
 
-        {/* Status */}
+        {/* Chart Mode Toggle & Status */}
         <div className="flex items-center gap-3 text-xs">
+          {/* Chart Mode Toggle */}
+          <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
+            <button
+              onClick={() => setChartMode("line")}
+              className={`p-1.5 rounded transition-all ${
+                chartMode === "line"
+                  ? "bg-[#00D4AA] text-black"
+                  : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
+              }`}
+              title="实时线图"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setChartMode("candle")}
+              className={`p-1.5 rounded transition-all ${
+                chartMode === "candle"
+                  ? "bg-[#7B61FF] text-white"
+                  : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
+              }`}
+              title="K线图"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          
+          <span className="text-[#333]">|</span>
+          
           <div className="flex items-center gap-1.5">
             <div
               className={`w-1.5 h-1.5 rounded-full ${
@@ -181,7 +213,7 @@ export function RealtimeCandlestickChart({
             </span>
           </div>
           <span className="text-[#333]">|</span>
-          <span className="text-[#555]">{displayCandles.length} K线</span>
+          <span className="text-[#555]">{displayCandles.length} {chartMode === "candle" ? "K线" : "点"}</span>
           <span className="text-[#333]">|</span>
           <span className="text-[#555]">{tickCount} ticks</span>
         </div>
@@ -219,6 +251,7 @@ export function RealtimeCandlestickChart({
         showSeconds={config.showSeconds}
         isRealtime={true}
         lastPrice={lastPrice}
+        chartMode={chartMode}
       />
 
       {/* Current Candle Info */}

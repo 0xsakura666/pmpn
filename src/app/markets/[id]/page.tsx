@@ -56,6 +56,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       const cached = localStorage.getItem(`market_${resolvedParams.id}`);
       if (cached) {
         const cachedMarket = JSON.parse(cached);
+        const yesTokenId = cachedMarket.yesTokenId || "";
+        const noTokenId = cachedMarket.noTokenId || "";
         setMarket({
           id: cachedMarket.conditionId,
           title: cachedMarket.title,
@@ -65,11 +67,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           endDate: cachedMarket.endDate,
           image: cachedMarket.image || "",
           tokens: [
-            { token_id: `${cachedMarket.conditionId}_yes`, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
-            { token_id: `${cachedMarket.conditionId}_no`, outcome: "No", price: cachedMarket.noPrice, winner: false },
+            { token_id: yesTokenId, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
+            { token_id: noTokenId, outcome: "No", price: cachedMarket.noPrice, winner: false },
           ],
           orderBooks: [],
         });
+        // 从缓存加载后也尝试获取价格历史
+        if (yesTokenId) {
+          fetchPriceHistory(yesTokenId);
+        }
         setLoading(false);
         return;
       }
@@ -227,7 +233,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chart Section */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Realtime K-line Chart */}
+            {/* Realtime Chart */}
             <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
               <RealtimeCandlestickChart
                 tokenId={yesToken?.token_id}
@@ -236,6 +242,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 defaultTimeframe={selectedTimeframe}
                 onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                 enableSimulation={true}
+                defaultChartMode="line"
               />
             </div>
 

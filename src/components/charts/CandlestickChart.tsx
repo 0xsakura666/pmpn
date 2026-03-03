@@ -8,6 +8,7 @@ import {
   CandlestickSeries,
   HistogramSeries,
   AreaSeries,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -27,6 +28,8 @@ interface VolumeData {
   color: string;
 }
 
+export type ChartMode = "line" | "candle";
+
 interface CandlestickChartProps {
   data: CandleData[];
   volumeData?: VolumeData[];
@@ -36,6 +39,7 @@ interface CandlestickChartProps {
   showSeconds?: boolean;
   isRealtime?: boolean;
   lastPrice?: number | null;
+  chartMode?: ChartMode;
 }
 
 export function CandlestickChart({
@@ -47,10 +51,13 @@ export function CandlestickChart({
   showSeconds = false,
   isRealtime = false,
   lastPrice,
+  chartMode = "candle",
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const areaSeriesRef = useRef<ISeriesApi<"Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const isInitializedRef = useRef(false);
 
@@ -99,18 +106,28 @@ export function CandlestickChart({
 
     chartRef.current = chart;
 
-    // Add candlestick series using v5 API
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#00D4AA",
-      downColor: "#FF6B6B",
-      borderUpColor: "#00D4AA",
-      borderDownColor: "#FF6B6B",
-      wickUpColor: "#00D4AA",
-      wickDownColor: "#FF6B6B",
-    });
-    candlestickSeriesRef.current = candlestickSeries;
+    if (chartMode === "candle") {
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor: "#00D4AA",
+        downColor: "#FF6B6B",
+        borderUpColor: "#00D4AA",
+        borderDownColor: "#FF6B6B",
+        wickUpColor: "#00D4AA",
+        wickDownColor: "#FF6B6B",
+      });
+      candlestickSeriesRef.current = candlestickSeries;
+    } else {
+      const areaSeries = chart.addSeries(AreaSeries, {
+        lineColor: "#00D4AA",
+        topColor: "rgba(0, 212, 170, 0.3)",
+        bottomColor: "rgba(0, 212, 170, 0.02)",
+        lineWidth: 2,
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      areaSeriesRef.current = areaSeries;
+    }
 
-    // Add volume series
     if (volumeData) {
       const volumeSeries = chart.addSeries(HistogramSeries, {
         color: "#7B61FF",
@@ -128,7 +145,6 @@ export function CandlestickChart({
       volumeSeriesRef.current = volumeSeries;
     }
 
-    // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
@@ -136,7 +152,6 @@ export function CandlestickChart({
     };
     window.addEventListener("resize", handleResize);
 
-    // Time range change callback
     if (onTimeRangeChange) {
       chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
         if (range) {
@@ -150,24 +165,39 @@ export function CandlestickChart({
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
+      candlestickSeriesRef.current = null;
+      areaSeriesRef.current = null;
+      lineSeriesRef.current = null;
       isInitializedRef.current = false;
     };
-  }, [height, onTimeRangeChange, volumeData, showSeconds]);
+  }, [height, onTimeRangeChange, volumeData, showSeconds, chartMode]);
 
   useEffect(() => {
-    if (candlestickSeriesRef.current && data.length > 0) {
+    if (data.length === 0) return;
+    
+    if (chartMode === "candle" && candlestickSeriesRef.current) {
       candlestickSeriesRef.current.setData(data);
       if (!isRealtime) {
         chartRef.current?.timeScale().fitContent();
       }
+    } else if (chartMode === "line" && areaSeriesRef.current) {
+      const lineData = data.map(d => ({ time: d.time, value: d.close }));
+      areaSeriesRef.current.setData(lineData);
+      if (!isRealtime) {
+        chartRef.current?.timeScale().fitContent();
+      }
     }
-  }, [data, isRealtime]);
+  }, [data, isRealtime, chartMode]);
 
   useEffect(() => {
-    if (candlestickSeriesRef.current && currentCandle && isRealtime) {
-      candlestickSeriesRef.current.update(currentCandle);
+    if (currentCandle && isRealtime) {
+      if (chartMode === "candle" && candlestickSeriesRef.current) {
+        candlestickSeriesRef.current.update(currentCandle);
+      } else if (chartMode === "line" && areaSeriesRef.current) {
+        areaSeriesRef.current.update({ time: currentCandle.time, value: currentCandle.close });
+      }
     }
-  }, [currentCandle, isRealtime]);
+  }, [currentCandle, isRealtime, chartMode]);
 
   useEffect(() => {
     if (volumeSeriesRef.current && volumeData && volumeData.length > 0) {

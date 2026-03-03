@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const DATA_API = "https://data-api.polymarket.com";
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
 
 export interface TradeRecord {
   proxyWallet: string;
@@ -24,18 +23,6 @@ export interface TradeRecord {
   transactionHash: string;
 }
 
-async function fetchWithProxy<T>(url: string): Promise<T> {
-  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-  const response = await fetch(proxyUrl, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-  return response.json();
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -45,20 +32,36 @@ export async function GET(request: NextRequest) {
     const side = searchParams.get("side");
     const limit = searchParams.get("limit") || "100";
     const offset = searchParams.get("offset") || "0";
-    const takerOnly = searchParams.get("takerOnly") || "true";
 
     const params = new URLSearchParams();
     params.set("limit", limit);
     params.set("offset", offset);
-    params.set("takerOnly", takerOnly);
 
     if (user) params.set("user", user);
     if (market) params.set("market", market);
     if (eventId) params.set("eventId", eventId);
     if (side) params.set("side", side);
 
-    const url = `${DATA_API}/trades?${params.toString()}`;
-    const trades = await fetchWithProxy<TradeRecord[]>(url);
+    console.log(`[Trades API] Fetching for user: ${user}`);
+    
+    const response = await fetch(`${DATA_API}/trades?${params.toString()}`, {
+      headers: {
+        "Accept": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Trades API] Error: ${response.status} - ${errorText}`);
+      return NextResponse.json(
+        { error: `Data API error: ${response.status}`, trades: [] },
+        { status: response.status }
+      );
+    }
+
+    const trades: TradeRecord[] = await response.json();
+    console.log(`[Trades API] Found ${trades.length} trades`);
 
     return NextResponse.json({
       trades,
@@ -71,7 +74,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Trades API error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch trades" },
+      { error: error instanceof Error ? error.message : "Failed to fetch trades", trades: [] },
       { status: 500 }
     );
   }

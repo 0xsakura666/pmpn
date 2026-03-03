@@ -129,20 +129,23 @@ export async function GET(request: NextRequest) {
 
 function categorizeMarket(question: string): string {
   const q = question.toLowerCase();
-  if (q.includes("trump") || q.includes("biden") || q.includes("election") || q.includes("president") || q.includes("vote") || q.includes("congress") || q.includes("senate")) {
+  if (/trump|biden|election|president|vote|congress|senate|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan|governor|republican|democrat|kamala|harris/.test(q)) {
     return "政治";
   }
-  if (q.includes("crypto") || q.includes("bitcoin") || q.includes("ethereum") || q.includes("btc") || q.includes("eth") || q.includes("sol") || q.includes("coin")) {
+  if (/crypto|bitcoin|ethereum|btc|eth|sol|coin|defi|nft|solana|xrp|doge/.test(q)) {
     return "加密货币";
   }
-  if (q.includes("sports") || q.includes("nba") || q.includes("nfl") || q.includes("game") || q.includes("super bowl") || q.includes("champion") || q.includes("win")) {
+  if (/sport|nba|nfl|soccer|football|tennis|championship|playoffs|game|match|team|player|super bowl|champion|win/.test(q)) {
     return "体育";
   }
-  if (q.includes("economy") || q.includes("fed") || q.includes("inflation") || q.includes("gdp") || q.includes("rate") || q.includes("recession")) {
+  if (/economy|fed|inflation|gdp|rate|recession|unemployment|oil|gold|stock|market/.test(q)) {
     return "经济";
   }
-  if (q.includes("ai") || q.includes("openai") || q.includes("gpt") || q.includes("tech") || q.includes("apple") || q.includes("google") || q.includes("microsoft")) {
+  if (/ai|openai|gpt|tech|apple|google|microsoft|nvidia|tesla|meta|amazon|software|startup/.test(q)) {
     return "科技";
+  }
+  if (/movie|oscar|grammy|music|celebrity|tv|show|netflix|disney|streaming/.test(q)) {
+    return "娱乐";
   }
   return "其他";
 }

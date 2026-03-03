@@ -30,6 +30,8 @@ interface SubMarket {
   endDate: string;
   slug: string;
   daysLeft: number;
+  yesTokenId: string;
+  noTokenId: string;
 }
 
 interface EventGroup {
@@ -82,7 +84,7 @@ const PROXY_URL = "https://api.codetabs.com/v1/proxy/?quest=";
 
 function categorizeMarket(question: string): string {
   const q = question.toLowerCase();
-  if (/trump|biden|election|president|senate|congress|vote|poll|governor|republican|democrat|kamala|harris/.test(q)) return "政治";
+  if (/trump|biden|election|president|senate|congress|vote|poll|governor|republican|democrat|kamala|harris|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan/.test(q)) return "政治";
   if (/crypto|bitcoin|ethereum|btc|eth|token|solana|sol|xrp|doge|coin|defi|nft/.test(q)) return "加密";
   if (/sport|nba|nfl|soccer|football|tennis|championship|playoffs|game|match|team|player|lebron|curry/.test(q)) return "体育";
   if (/ai|openai|google|apple|microsoft|nvidia|tesla|meta|amazon|tech|software|startup|ipo/.test(q)) return "科技";
@@ -140,6 +142,22 @@ function setCache(events: EventGroup[]) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ events, timestamp: Date.now() }));
     for (const ev of events) {
+      // Cache event data for event detail page
+      localStorage.setItem(
+        `event_${ev.id}`,
+        JSON.stringify({
+          id: ev.id,
+          title: ev.title,
+          description: ev.description,
+          image: ev.image,
+          category: ev.category,
+          volume24h: ev.volume24h,
+          totalVolume: ev.totalVolume,
+          liquidity: ev.liquidity,
+          markets: ev.markets,
+        }),
+      );
+      // Cache individual market data
       for (const m of ev.markets) {
         if (m.conditionId) {
           localStorage.setItem(
@@ -161,6 +179,8 @@ function setCache(events: EventGroup[]) {
               priceChange: 0,
               spread: 0,
               daysLeft: m.daysLeft,
+              yesTokenId: m.yesTokenId,
+              noTokenId: m.noTokenId,
             }),
           );
         }
@@ -185,7 +205,7 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 4500000,
       daysLeft: 245,
       markets: [
-        { conditionId: "d1m1", question: "Will Trump win the 2024 election?", yesPrice: 0.52, noPrice: 0.48, endDate: "2024-11-05", slug: "trump-win", daysLeft: 245 },
+        { conditionId: "d1m1", question: "Will Trump win the 2024 election?", yesPrice: 0.52, noPrice: 0.48, endDate: "2024-11-05", slug: "trump-win", daysLeft: 245, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -200,9 +220,9 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 2500000,
       daysLeft: 300,
       markets: [
-        { conditionId: "d2m1", question: "Will Bitcoin reach $100K in 2024?", yesPrice: 0.35, noPrice: 0.65, endDate: "2024-12-31", slug: "btc-100k", daysLeft: 300 },
-        { conditionId: "d2m2", question: "Will Bitcoin reach $75K in 2024?", yesPrice: 0.62, noPrice: 0.38, endDate: "2024-12-31", slug: "btc-75k", daysLeft: 300 },
-        { conditionId: "d2m3", question: "Will Bitcoin reach $50K in 2024?", yesPrice: 0.88, noPrice: 0.12, endDate: "2024-12-31", slug: "btc-50k", daysLeft: 300 },
+        { conditionId: "d2m1", question: "Will Bitcoin reach $100K in 2024?", yesPrice: 0.35, noPrice: 0.65, endDate: "2024-12-31", slug: "btc-100k", daysLeft: 300, yesTokenId: "", noTokenId: "" },
+        { conditionId: "d2m2", question: "Will Bitcoin reach $75K in 2024?", yesPrice: 0.62, noPrice: 0.38, endDate: "2024-12-31", slug: "btc-75k", daysLeft: 300, yesTokenId: "", noTokenId: "" },
+        { conditionId: "d2m3", question: "Will Bitcoin reach $50K in 2024?", yesPrice: 0.88, noPrice: 0.12, endDate: "2024-12-31", slug: "btc-50k", daysLeft: 300, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -217,8 +237,8 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 1800000,
       daysLeft: 18,
       markets: [
-        { conditionId: "d3m1", question: "Will the Fed cut rates in March?", yesPrice: 0.12, noPrice: 0.88, endDate: "2024-03-20", slug: "fed-march", daysLeft: 18 },
-        { conditionId: "d3m2", question: "Will the Fed cut rates in June?", yesPrice: 0.55, noPrice: 0.45, endDate: "2024-06-12", slug: "fed-june", daysLeft: 100 },
+        { conditionId: "d3m1", question: "Will the Fed cut rates in March?", yesPrice: 0.12, noPrice: 0.88, endDate: "2024-03-20", slug: "fed-march", daysLeft: 18, yesTokenId: "", noTokenId: "" },
+        { conditionId: "d3m2", question: "Will the Fed cut rates in June?", yesPrice: 0.55, noPrice: 0.45, endDate: "2024-06-12", slug: "fed-june", daysLeft: 100, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -233,7 +253,7 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 1400000,
       daysLeft: 300,
       markets: [
-        { conditionId: "d4m1", question: "Will AI stocks outperform the S&P 500?", yesPrice: 0.68, noPrice: 0.32, endDate: "2024-12-31", slug: "ai-sp500", daysLeft: 300 },
+        { conditionId: "d4m1", question: "Will AI stocks outperform the S&P 500?", yesPrice: 0.68, noPrice: 0.32, endDate: "2024-12-31", slug: "ai-sp500", daysLeft: 300, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -248,8 +268,8 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 1100000,
       daysLeft: 88,
       markets: [
-        { conditionId: "d5m1", question: "Will Ethereum ETF be approved by May?", yesPrice: 0.75, noPrice: 0.25, endDate: "2024-05-31", slug: "eth-etf-may", daysLeft: 88 },
-        { conditionId: "d5m2", question: "Will Ethereum ETF be approved by July?", yesPrice: 0.85, noPrice: 0.15, endDate: "2024-07-31", slug: "eth-etf-jul", daysLeft: 150 },
+        { conditionId: "d5m1", question: "Will Ethereum ETF be approved by May?", yesPrice: 0.75, noPrice: 0.25, endDate: "2024-05-31", slug: "eth-etf-may", daysLeft: 88, yesTokenId: "", noTokenId: "" },
+        { conditionId: "d5m2", question: "Will Ethereum ETF be approved by July?", yesPrice: 0.85, noPrice: 0.15, endDate: "2024-07-31", slug: "eth-etf-jul", daysLeft: 150, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -264,7 +284,7 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 960000,
       daysLeft: 300,
       markets: [
-        { conditionId: "d6m1", question: "Will OpenAI IPO in 2024?", yesPrice: 0.15, noPrice: 0.85, endDate: "2024-12-31", slug: "openai-ipo", daysLeft: 300 },
+        { conditionId: "d6m1", question: "Will OpenAI IPO in 2024?", yesPrice: 0.15, noPrice: 0.85, endDate: "2024-12-31", slug: "openai-ipo", daysLeft: 300, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -279,8 +299,8 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 840000,
       daysLeft: 300,
       markets: [
-        { conditionId: "d7m1", question: "Will Apple exceed $4T market cap?", yesPrice: 0.42, noPrice: 0.58, endDate: "2024-12-31", slug: "apple-4t", daysLeft: 300 },
-        { conditionId: "d7m2", question: "Will Apple exceed $3.5T market cap?", yesPrice: 0.71, noPrice: 0.29, endDate: "2024-12-31", slug: "apple-35t", daysLeft: 300 },
+        { conditionId: "d7m1", question: "Will Apple exceed $4T market cap?", yesPrice: 0.42, noPrice: 0.58, endDate: "2024-12-31", slug: "apple-4t", daysLeft: 300, yesTokenId: "", noTokenId: "" },
+        { conditionId: "d7m2", question: "Will Apple exceed $3.5T market cap?", yesPrice: 0.71, noPrice: 0.29, endDate: "2024-12-31", slug: "apple-35t", daysLeft: 300, yesTokenId: "", noTokenId: "" },
       ],
     },
     {
@@ -295,7 +315,7 @@ function getFallbackEvents(): EventGroup[] {
       liquidity: 630000,
       daysLeft: 300,
       markets: [
-        { conditionId: "d8m1", question: "Will Musk acquire another company?", yesPrice: 0.38, noPrice: 0.62, endDate: "2024-12-31", slug: "musk-acquire", daysLeft: 300 },
+        { conditionId: "d8m1", question: "Will Musk acquire another company?", yesPrice: 0.38, noPrice: 0.62, endDate: "2024-12-31", slug: "musk-acquire", daysLeft: 300, yesTokenId: "", noTokenId: "" },
       ],
     },
   ];
@@ -359,9 +379,11 @@ const EventCard = memo(function EventCard({ event }: { event: EventGroup }) {
     );
   }
 
+  const eventLink = `/events/${event.id}`;
+
   return (
     <div className="group flex h-full flex-col rounded-2xl border border-[#1e1e28] bg-[#13131a] p-5 transition-all duration-200 hover:border-[#2d2d3a] hover:bg-[#16161f]">
-      <Link href={primaryLink} className="mb-4 flex items-start gap-3">
+      <Link href={eventLink} className="mb-4 flex items-start gap-3">
         {event.image && (
           <img src={event.image} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
         )}
@@ -406,9 +428,9 @@ const EventCard = memo(function EventCard({ event }: { event: EventGroup }) {
       </div>
 
       <div className="flex items-center justify-between border-t border-[#1e1e28] pt-3 mt-auto">
-        <span className="text-xs text-[#6b6b80]">
+        <Link href={eventLink} className="text-xs text-[#6b6b80] hover:text-[#00D4AA] transition-colors">
           {remaining > 0 && `+${remaining} Outcomes · `}Vol {formatMoney(event.totalVolume)}
-        </span>
+        </Link>
         <button
           className="text-[#6b6b80] transition-colors hover:text-white"
           onClick={(e) => e.stopPropagation()}
@@ -423,10 +445,11 @@ const EventCard = memo(function EventCard({ event }: { event: EventGroup }) {
 const EventRow = memo(function EventRow({ event }: { event: EventGroup }) {
   const primary = event.markets[0];
   const yp = Math.round(primary.yesPrice * 100);
-  const primaryLink = primary?.conditionId ? `/markets/${primary.conditionId}` : "#";
+  const eventLink = `/events/${event.id}`;
+  const primaryMarketLink = primary?.conditionId ? `/markets/${primary.conditionId}` : eventLink;
 
   return (
-    <Link href={primaryLink} className="block">
+    <Link href={eventLink} className="block">
       <div className="group grid grid-cols-[1fr_100px_100px_100px_140px] items-center gap-4 rounded-xl border border-transparent px-4 py-3.5 transition-all hover:border-[#1e1e28] hover:bg-[#13131a]">
         <div className="flex items-start gap-3 min-w-0">
           {event.image && (
@@ -472,13 +495,13 @@ const EventRow = memo(function EventRow({ event }: { event: EventGroup }) {
 
         <div className="flex items-center justify-end gap-2" onClick={(e) => e.preventDefault()}>
           <Link
-            href={primaryLink}
+            href={primaryMarketLink}
             className="rounded-lg bg-[#00D4AA]/10 px-3 py-1.5 text-xs font-semibold text-[#00D4AA] transition-colors hover:bg-[#00D4AA]/20"
           >
             Yes {yp}¢
           </Link>
           <Link
-            href={primaryLink}
+            href={primaryMarketLink}
             className="rounded-lg bg-[#FF6B6B]/10 px-3 py-1.5 text-xs font-semibold text-[#FF6B6B] transition-colors hover:bg-[#FF6B6B]/20"
           >
             No {100 - yp}¢
@@ -585,8 +608,15 @@ export default function Home() {
 
       const subMarkets: SubMarket[] = eventMarkets.map((m) => {
         let yesPrice = 0.5;
+        let yesTokenId = "";
+        let noTokenId = "";
         try {
           if (m.outcomePrices) yesPrice = parseFloat(JSON.parse(m.outcomePrices as string)[0]) || 0.5;
+          if (m.clobTokenIds) {
+            const tokenIds = JSON.parse(m.clobTokenIds as string);
+            yesTokenId = tokenIds[0] || "";
+            noTokenId = tokenIds[1] || "";
+          }
         } catch {}
         const endDate = (m.endDate || eventEndDate || "") as string;
         return {
@@ -597,6 +627,8 @@ export default function Home() {
           endDate,
           slug: (m.slug || "") as string,
           daysLeft: calculateDaysLeft(endDate),
+          yesTokenId,
+          noTokenId,
         };
       });
 
@@ -620,8 +652,8 @@ export default function Home() {
   }, []);
 
   const fetchFromProxy = useCallback(async (): Promise<EventGroup[]> => {
-    const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false";
-    const res = await fetchWithTimeout(PROXY_URL + encodeURIComponent(apiUrl), 8000);
+    const apiUrl = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false";
+    const res = await fetchWithTimeout(PROXY_URL + encodeURIComponent(apiUrl), 10000);
     if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
     const text = await res.text();
     if (!text || text.length < 10) throw new Error("Empty response");

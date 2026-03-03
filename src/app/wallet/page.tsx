@@ -16,6 +16,8 @@ import {
   PieChart,
   ArrowUpRight,
   ArrowDownRight,
+  Search,
+  AlertCircle,
 } from "lucide-react";
 
 interface Position {
@@ -53,41 +55,68 @@ interface Trade {
 
 type TabType = "positions" | "history";
 
+const STORAGE_KEY = "polymarket_lookup_address";
+
 export default function WalletPage() {
-  const { address, isConnected } = useAccount();
+  const { address: connectedAddress, isConnected } = useAccount();
   const [activeTab, setActiveTab] = useState<TabType>("positions");
   const [positions, setPositions] = useState<Position[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [lookupAddress, setLookupAddress] = useState("");
+  const [inputAddress, setInputAddress] = useState("");
+  
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      setLookupAddress(stored);
+      setInputAddress(stored);
+    } else if (connectedAddress) {
+      setLookupAddress(connectedAddress);
+      setInputAddress(connectedAddress);
+    }
+  }, [connectedAddress]);
+
+  const activeAddress = lookupAddress || connectedAddress;
 
   const fetchPositions = useCallback(async () => {
-    if (!address) return;
+    if (!activeAddress) return;
     try {
-      const res = await fetch(`/api/positions?user=${address}`);
+      const res = await fetch(`/api/positions?user=${activeAddress}`);
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setPositions(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Positions error:", data);
+        setPositions([]);
       }
     } catch (err) {
       console.error("Failed to fetch positions:", err);
+      setPositions([]);
     }
-  }, [address]);
+  }, [activeAddress]);
 
   const fetchTrades = useCallback(async () => {
-    if (!address) return;
+    if (!activeAddress) return;
     try {
-      const res = await fetch(`/api/trades?user=${address}&limit=50`);
+      const res = await fetch(`/api/trades?user=${activeAddress}&limit=50`);
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setTrades(data.trades || []);
+      } else {
+        console.error("Trades error:", data);
+        setTrades([]);
       }
     } catch (err) {
       console.error("Failed to fetch trades:", err);
+      setTrades([]);
     }
-  }, [address]);
+  }, [activeAddress]);
 
   const refreshData = useCallback(async () => {
+    if (!activeAddress) return;
     setLoading(true);
     setError(null);
     try {
@@ -97,27 +126,80 @@ export default function WalletPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchPositions, fetchTrades]);
+  }, [activeAddress, fetchPositions, fetchTrades]);
+  
+  const handleAddressSubmit = () => {
+    const addr = inputAddress.trim();
+    if (addr && /^0x[a-fA-F0-9]{40}$/.test(addr)) {
+      setLookupAddress(addr);
+      localStorage.setItem(STORAGE_KEY, addr);
+    }
+  };
+  
+  const handleUseConnected = () => {
+    if (connectedAddress) {
+      setLookupAddress(connectedAddress);
+      setInputAddress(connectedAddress);
+      localStorage.setItem(STORAGE_KEY, connectedAddress);
+    }
+  };
 
   useEffect(() => {
-    if (isConnected && address) {
+    if (activeAddress) {
       refreshData();
     }
-  }, [isConnected, address, refreshData]);
+  }, [activeAddress, refreshData]);
 
-  const totalValue = positions.reduce((sum, p) => sum + p.currentValue, 0);
-  const totalPnl = positions.reduce((sum, p) => sum + p.cashPnl, 0);
+  const totalValue = positions.reduce((sum, p) => sum + (p.currentValue || 0), 0);
+  const totalPnl = positions.reduce((sum, p) => sum + (p.cashPnl || 0), 0);
   const totalPnlPercent = totalValue > 0 ? (totalPnl / (totalValue - totalPnl)) * 100 : 0;
 
-  if (!isConnected) {
+  if (!isConnected && !lookupAddress) {
     return (
       <div className="min-h-screen bg-[#0c0c10] text-white">
         <Header />
-        <div className="flex flex-col items-center justify-center py-32">
+        <div className="flex flex-col items-center justify-center py-32 px-4">
           <Wallet className="h-16 w-16 text-[#6b6b80] mb-6" />
-          <h2 className="text-xl font-semibold mb-2">连接钱包查看资产</h2>
-          <p className="text-[#6b6b80] mb-6">连接钱包后可以查看持仓和交易历史</p>
-          <WalletButton />
+          <h2 className="text-xl font-semibold mb-2">查看 Polymarket 账户</h2>
+          <p className="text-[#6b6b80] mb-6 text-center">连接钱包或输入 Polymarket 地址查看持仓</p>
+          
+          <div className="w-full max-w-md space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputAddress}
+                onChange={(e) => setInputAddress(e.target.value)}
+                placeholder="输入 Polymarket 钱包地址 (0x...)"
+                className="flex-1 px-4 py-3 rounded-xl bg-[#13131a] border border-[#1e1e28] text-sm focus:outline-none focus:border-[#00D4AA]"
+              />
+              <button
+                onClick={handleAddressSubmit}
+                disabled={!/^0x[a-fA-F0-9]{40}$/.test(inputAddress.trim())}
+                className="px-4 py-3 rounded-xl bg-[#00D4AA] text-black font-semibold text-sm hover:bg-[#00c49a] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                查询
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-[#1e1e28]" />
+              <span className="text-xs text-[#6b6b80]">或</span>
+              <div className="flex-1 h-px bg-[#1e1e28]" />
+            </div>
+            
+            <WalletButton />
+          </div>
+          
+          <div className="mt-8 p-4 rounded-xl bg-[#13131a] border border-[#1e1e28]">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-[#00D4AA] mt-0.5 shrink-0" />
+              <div className="text-xs text-[#6b6b80]">
+                <p className="mb-1"><strong className="text-white">提示</strong></p>
+                <p>Polymarket 使用代理钱包系统。您的 Polymarket 地址可能与 MetaMask 地址不同。</p>
+                <p className="mt-1">查找您的地址：访问 <a href="https://polymarket.com/profile" target="_blank" rel="noopener noreferrer" className="text-[#00D4AA] hover:underline">polymarket.com/profile</a> 复制您的钱包地址。</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -128,6 +210,44 @@ export default function WalletPage() {
       <Header />
 
       <main className="mx-auto max-w-[1200px] px-6 py-6">
+        {/* Address Input */}
+        <div className="mb-6 p-4 rounded-xl bg-[#13131a] border border-[#1e1e28]">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-[#6b6b80] mb-1 block">查询地址</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inputAddress}
+                  onChange={(e) => setInputAddress(e.target.value)}
+                  placeholder="输入 Polymarket 钱包地址 (0x...)"
+                  className="flex-1 px-3 py-2 rounded-lg bg-[#0c0c10] border border-[#1e1e28] text-sm font-mono focus:outline-none focus:border-[#00D4AA]"
+                />
+                <button
+                  onClick={handleAddressSubmit}
+                  disabled={!/^0x[a-fA-F0-9]{40}$/.test(inputAddress.trim())}
+                  className="px-4 py-2 rounded-lg bg-[#00D4AA] text-black font-semibold text-sm hover:bg-[#00c49a] disabled:opacity-50"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {isConnected && connectedAddress !== lookupAddress && (
+              <button
+                onClick={handleUseConnected}
+                className="px-4 py-2 rounded-lg border border-[#1e1e28] text-sm text-[#6b6b80] hover:bg-[#1e1e28] hover:text-white self-end"
+              >
+                使用已连接钱包
+              </button>
+            )}
+          </div>
+          {activeAddress && (
+            <div className="mt-2 text-xs text-[#6b6b80]">
+              当前查询: <span className="font-mono text-white">{activeAddress}</span>
+            </div>
+          )}
+        </div>
+
         {/* Portfolio Summary */}
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-[#1e1e28] bg-[#13131a] p-6">
