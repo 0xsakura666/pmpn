@@ -17,6 +17,7 @@ interface RealtimeCandlestickChartProps {
   tokenId?: string;
   initialData?: CandlestickData<Time>[];
   height?: number;
+  autoHeight?: boolean;
   defaultTimeframe?: TimeframeType;
   onTimeframeChange?: (tf: TimeframeType) => void;
   defaultChartMode?: ChartMode;
@@ -53,10 +54,12 @@ export function RealtimeCandlestickChart({
   tokenId,
   initialData = [],
   height = 400,
+  autoHeight,
   defaultTimeframe = "1M",
   onTimeframeChange,
   defaultChartMode = "line",
 }: RealtimeCandlestickChartProps) {
+  const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
   const [chartMode, setChartMode] = useState<ChartMode>(defaultChartMode);
 
@@ -112,9 +115,9 @@ export function RealtimeCandlestickChart({
   }, [displayCandles]);
 
   return (
-    <div className="space-y-3">
+    <div className={`${useAutoHeight ? "h-full flex flex-col" : "space-y-3"}`}>
       {/* Timeframe Selector */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className={`flex items-center justify-between flex-wrap gap-2 ${useAutoHeight ? "shrink-0 mb-2" : ""}`}>
         <div className="flex gap-1 flex-wrap">
           {/* Realtime Timeframes */}
           <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
@@ -202,7 +205,7 @@ export function RealtimeCandlestickChart({
 
       {/* Stats Bar */}
       {candleStats && (
-        <div className="flex items-center gap-4 px-2 py-1.5 bg-[#0d0d0f] rounded-lg text-xs">
+        <div className={`flex items-center gap-4 px-2 py-1.5 bg-[#0d0d0f] rounded-lg text-xs ${useAutoHeight ? "shrink-0 mb-2" : ""}`}>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">周期:</span>
             <span className="text-white font-medium">{config.label}</span>
@@ -225,19 +228,22 @@ export function RealtimeCandlestickChart({
       )}
 
       {/* Chart */}
-      <CandlestickChart
-        data={displayCandles}
-        height={height}
-        currentCandle={displayCurrentCandle}
-        showSeconds={config.showSeconds}
-        isRealtime={true}
-        lastPrice={lastPrice}
-        chartMode={chartMode}
-      />
+      <div className={useAutoHeight ? "flex-1 min-h-0" : ""}>
+        <CandlestickChart
+          data={displayCandles}
+          height={useAutoHeight ? 0 : height}
+          autoHeight={useAutoHeight}
+          currentCandle={displayCurrentCandle}
+          showSeconds={config.showSeconds}
+          isRealtime={true}
+          lastPrice={lastPrice}
+          chartMode={chartMode}
+        />
+      </div>
 
       {/* Current Candle Info */}
       {displayCurrentCandle && (
-        <div className="flex items-center justify-between text-xs px-2 py-1.5 bg-[#0d0d0f]/50 rounded-lg">
+        <div className={`flex items-center justify-between text-xs px-2 py-1.5 bg-[#0d0d0f]/50 rounded-lg ${useAutoHeight ? "shrink-0 mt-2" : ""}`}>
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-[#00D4AA] animate-pulse" />
             <span className="text-[#666]">当前K线</span>

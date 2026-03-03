@@ -34,6 +34,7 @@ interface CandlestickChartProps {
   data: CandleData[];
   volumeData?: VolumeData[];
   height?: number;
+  autoHeight?: boolean;
   onTimeRangeChange?: (from: Time, to: Time) => void;
   currentCandle?: CandleData | null;
   showSeconds?: boolean;
@@ -46,6 +47,7 @@ export function CandlestickChart({
   data,
   volumeData,
   height = 400,
+  autoHeight = false,
   onTimeRangeChange,
   currentCandle,
   showSeconds = false,
@@ -61,8 +63,17 @@ export function CandlestickChart({
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const isInitializedRef = useRef(false);
 
+  const getChartHeight = () => {
+    if (autoHeight || height === 0) {
+      return chartContainerRef.current?.parentElement?.clientHeight || 300;
+    }
+    return height;
+  };
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    const chartHeight = getChartHeight();
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -101,7 +112,7 @@ export function CandlestickChart({
         secondsVisible: showSeconds,
       },
       width: chartContainerRef.current.clientWidth,
-      height: height,
+      height: chartHeight,
     });
 
     chartRef.current = chart;
@@ -147,10 +158,23 @@ export function CandlestickChart({
 
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        const newHeight = autoHeight || height === 0
+          ? chartContainerRef.current.parentElement?.clientHeight || 300
+          : height;
+        chart.applyOptions({ 
+          width: chartContainerRef.current.clientWidth,
+          height: newHeight,
+        });
       }
     };
     window.addEventListener("resize", handleResize);
+    
+    if (autoHeight || height === 0) {
+      const resizeObserver = new ResizeObserver(handleResize);
+      if (chartContainerRef.current.parentElement) {
+        resizeObserver.observe(chartContainerRef.current.parentElement);
+      }
+    }
 
     if (onTimeRangeChange) {
       chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
@@ -170,7 +194,7 @@ export function CandlestickChart({
       lineSeriesRef.current = null;
       isInitializedRef.current = false;
     };
-  }, [height, onTimeRangeChange, volumeData, showSeconds, chartMode]);
+  }, [height, autoHeight, onTimeRangeChange, volumeData, showSeconds, chartMode]);
 
   useEffect(() => {
     if (data.length === 0) return;
@@ -205,11 +229,15 @@ export function CandlestickChart({
     }
   }, [volumeData]);
 
+  const containerStyle = autoHeight || height === 0 
+    ? { height: "100%", minHeight: 200 } 
+    : { height };
+
   if (!data || data.length === 0) {
     return (
       <div 
         className="w-full flex items-center justify-center text-[hsl(var(--muted-foreground))]" 
-        style={{ height }}
+        style={containerStyle}
       >
         <div className="text-center">
           <div className="text-2xl mb-2">📊</div>
@@ -221,7 +249,7 @@ export function CandlestickChart({
   }
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full h-full">
       {isRealtime && lastPrice !== null && lastPrice !== undefined && (
         <div className="absolute top-2 right-2 z-10 flex items-center gap-2 px-2 py-1 rounded bg-[#1a1a1f]/90 border border-[#333]">
           <div className="w-2 h-2 rounded-full bg-[#00D4AA] animate-pulse" />
@@ -231,7 +259,7 @@ export function CandlestickChart({
           </span>
         </div>
       )}
-      <div ref={chartContainerRef} className="w-full" style={{ height }} />
+      <div ref={chartContainerRef} className="w-full" style={containerStyle} />
     </div>
   );
 }
