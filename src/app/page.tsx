@@ -203,10 +203,7 @@ export default function Home() {
       
       (async () => {
         try {
-          let freshMarkets = await fetchFromApi().catch(() => null);
-          if (!freshMarkets || freshMarkets.length === 0) {
-            freshMarkets = await fetchFromProxy();
-          }
+          const freshMarkets = await fetchFromProxy();
           if (freshMarkets.length > 0) {
             setMarkets(freshMarkets);
             setCache(freshMarkets);
