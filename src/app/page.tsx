@@ -64,6 +64,12 @@ function getCache(): CacheData | null {
 function setCache(markets: Market[]) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ markets, timestamp: Date.now() }));
+    // 同时保存每个市场的详情供详情页使用
+    for (const market of markets) {
+      if (market.conditionId) {
+        localStorage.setItem(`market_${market.conditionId}`, JSON.stringify(market));
+      }
+    }
   } catch {}
 }
 

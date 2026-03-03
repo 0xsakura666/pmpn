@@ -52,6 +52,29 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     setLoading(true);
     setError(null);
     try {
+      // 首先尝试从 localStorage 读取
+      const cached = localStorage.getItem(`market_${resolvedParams.id}`);
+      if (cached) {
+        const cachedMarket = JSON.parse(cached);
+        setMarket({
+          id: cachedMarket.conditionId,
+          title: cachedMarket.title,
+          titleOriginal: cachedMarket.title,
+          description: cachedMarket.description || "",
+          slug: cachedMarket.slug,
+          endDate: cachedMarket.endDate,
+          image: cachedMarket.image || "",
+          tokens: [
+            { token_id: `${cachedMarket.conditionId}_yes`, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
+            { token_id: `${cachedMarket.conditionId}_no`, outcome: "No", price: cachedMarket.noPrice, winner: false },
+          ],
+          orderBooks: [],
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 如果没有缓存，尝试从 API 获取
       const res = await fetch(`/api/markets/${resolvedParams.id}`);
       const data = await res.json();
       
