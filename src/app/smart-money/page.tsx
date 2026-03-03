@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Search } from "lucide-react";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 import { WhaleScore, WhaleScoreBar, WhaleScoreBadge } from "@/components/ui/WhaleScore";
 import { SignalFeed } from "@/components/ui/LiveSignalCard";
 import { SmartCollections, CreateCollectionModal } from "@/components/ui/SmartCollections";
 import { CopyTradePanel } from "@/components/trading/CopyTradePanel";
+
+const navItems = [
+  { href: "/", label: "市场" },
+  { href: "#", label: "交易" },
+  { href: "#", label: "钱包" },
+  { href: "/smart-money", label: "排行榜" },
+] as const;
 
 interface Trader {
   rank: number;
@@ -121,76 +130,83 @@ export default function SmartMoneyPage() {
     ? traders.reduce((sum, t) => sum + t.winRate, 0) / traders.length 
     : 0;
 
+  const pathname = usePathname();
+
   return (
-    <div className="min-h-screen bg-[#0d0d0f] text-white">
+    <div className="min-h-screen bg-[#0c0c10] text-white">
       {/* Header */}
-      <header className="border-b border-[#1a1a1f] bg-[#0d0d0f]">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-8">
+      <header className="shrink-0 border-b border-[#1a1a22] bg-[#0c0c10]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
               <span className="text-xl font-bold text-gradient">Tectonic</span>
-              <span className="text-xs text-[#666] uppercase tracking-wider">Pro</span>
             </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm">
-              <Link href="/" className="text-[#666] hover:text-white transition-colors">市场</Link>
-              <Link href="#" className="text-[#666] hover:text-white transition-colors flex items-center gap-1">
-                交易 <span className="text-[8px]">▼</span>
-              </Link>
-              <Link href="#" className="text-[#666] hover:text-white transition-colors">钱包</Link>
-              <Link href="#" className="text-[#666] hover:text-white transition-colors">竞赛</Link>
-              <Link href="/smart-money" className="text-white font-medium">排行榜</Link>
-              <Link href="#" className="text-[#666] hover:text-white transition-colors flex items-center gap-1">
-                更多 <span className="text-[8px]">▼</span>
-              </Link>
+            <nav className="hidden items-center gap-1 text-sm md:flex">
+              {navItems.map(({ href, label }) => {
+                const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href) && href !== "#";
+                return (
+                  <Link
+                    key={label}
+                    href={href}
+                    className={`rounded-lg px-3.5 py-1.5 font-medium transition-all duration-150 ${
+                      isActive
+                        ? "bg-[#00D4AA]/15 text-[#00D4AA]"
+                        : "text-[#6b6b80] hover:bg-[#ffffff08] hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-[#1a1a1f] rounded-lg">
-              <span className="text-[#666]">🔍</span>
-              <input 
-                type="text" 
-                placeholder="搜索代币、合约地址、市场" 
-                className="bg-transparent text-sm text-white placeholder-[#666] outline-none w-48"
+
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-xl bg-[#13131a] px-3.5 py-2 ring-1 ring-[#1e1e28] focus-within:ring-[#00D4AA]/40 md:flex transition-shadow">
+              <Search className="h-4 w-4 text-[#6b6b80]" />
+              <input
+                type="text"
+                placeholder="搜索..."
+                className="w-32 bg-transparent text-sm text-white placeholder-[#6b6b80] outline-none"
               />
-              <span className="text-[10px] text-[#666] border border-[#333] rounded px-1">⌘K</span>
             </div>
             <WalletButton />
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-6">
+      <main className="mx-auto max-w-[1440px] px-6 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-1">
             聪明钱追踪器
           </h1>
-          <p className="text-[#666] text-sm">
+          <p className="text-[#6b6b80] text-sm">
             追踪巨鲸动向，复制盈利策略
           </p>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
-            <div className="text-sm text-[#666]">追踪巨鲸</div>
+          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
+            <div className="text-sm text-[#6b6b80]">追踪巨鲸</div>
             <div className="text-2xl font-bold text-[#7B61FF]">{traders.length}</div>
           </div>
-          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
-            <div className="text-sm text-[#666]">巨鲸成交量</div>
+          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
+            <div className="text-sm text-[#6b6b80]">巨鲸成交量</div>
             <div className="text-2xl font-bold">${(totalWhaleVolume / 1e6).toFixed(1)}M</div>
           </div>
-          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
-            <div className="text-sm text-[#666]">平均胜率</div>
+          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
+            <div className="text-sm text-[#6b6b80]">平均胜率</div>
             <div className="text-2xl font-bold text-[#00D4AA]">{avgWhaleWinRate.toFixed(1)}%</div>
           </div>
-          <div className="bg-[#1a1a1f] border border-[#2a2a2f] rounded-xl p-4">
-            <div className="text-sm text-[#666]">最近信号</div>
+          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
+            <div className="text-sm text-[#6b6b80]">最近信号</div>
             <div className="text-2xl font-bold">{activities.length}</div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-[#1a1a1f]">
+        <div className="flex gap-2 mb-6 border-b border-[#1a1a22]">
           {[
             { id: "leaderboard", label: "排行榜" },
             { id: "activity", label: "实时动态" },
@@ -198,11 +214,11 @@ export default function SmartMoneyPage() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as "leaderboard" | "activity" | "collections")}
               className={`px-4 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === tab.id
-                  ? "text-white"
-                  : "text-[#666] hover:text-white"
+                  ? "text-[#00D4AA]"
+                  : "text-[#6b6b80] hover:text-white"
               }`}
             >
               {tab.label}
@@ -222,7 +238,7 @@ export default function SmartMoneyPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-[#1a1a1f] border border-[#2a2a2f] text-sm text-white outline-none"
+              className="px-3 py-2 rounded-lg bg-[#13131a] border border-[#1e1e28] text-sm text-white outline-none"
             >
               <option value="whaleScore">巨鲸评分</option>
               <option value="pnl">总盈亏</option>
@@ -233,7 +249,7 @@ export default function SmartMoneyPage() {
             <select
               value={minScore}
               onChange={(e) => setMinScore(parseInt(e.target.value))}
-              className="px-3 py-2 rounded-lg bg-[#1a1a1f] border border-[#2a2a2f] text-sm text-white outline-none"
+              className="px-3 py-2 rounded-lg bg-[#13131a] border border-[#1e1e28] text-sm text-white outline-none"
             >
               <option value="0">所有评分</option>
               <option value="50">评分 50+</option>
@@ -249,7 +265,7 @@ export default function SmartMoneyPage() {
             {activeTab === "leaderboard" && (
               <div className="space-y-3">
                 {loading ? (
-                  <div className="text-center py-12 text-[#666]">
+                  <div className="text-center py-12 text-[#6b6b80]">
                     加载巨鲸数据中...
                   </div>
                 ) : (
@@ -268,7 +284,7 @@ export default function SmartMoneyPage() {
             {activeTab === "activity" && (
               <div className="space-y-3">
                 {loading ? (
-                  <div className="text-center py-12 text-[#666]">
+                  <div className="text-center py-12 text-[#6b6b80]">
                     加载动态中...
                   </div>
                 ) : (
@@ -299,20 +315,20 @@ export default function SmartMoneyPage() {
                 }}
               />
             ) : (
-              <div className="glass rounded-xl p-6 text-center">
+              <div className="rounded-xl border border-[#1e1e28] bg-[#13131a] p-6 text-center">
                 <div className="text-4xl mb-4">🐋</div>
-                <h3 className="font-['Space_Grotesk'] font-semibold mb-2">
+                <h3 className="font-semibold mb-2">
                   选择一只巨鲸
                 </h3>
-                <p className="text-sm text-[#666]">
+                <p className="text-sm text-[#6b6b80]">
                   点击交易者查看详情并设置跟单
                 </p>
               </div>
             )}
 
             {/* Score Legend */}
-            <div className="glass rounded-xl p-4">
-              <h3 className="font-['Space_Grotesk'] font-semibold mb-4">巨鲸评分等级</h3>
+            <div className="rounded-xl border border-[#1e1e28] bg-[#13131a] p-4">
+              <h3 className="font-semibold mb-4">巨鲸评分等级</h3>
               <div className="space-y-3">
                 {[
                   { icon: "🐋", label: "超级巨鲸", range: "90-100", color: "#FFD700" },
@@ -326,7 +342,7 @@ export default function SmartMoneyPage() {
                       <span>{tier.icon}</span>
                       <span style={{ color: tier.color }}>{tier.label}</span>
                     </div>
-                    <span className="text-[#666]">{tier.range}</span>
+                    <span className="text-[#6b6b80]">{tier.range}</span>
                   </div>
                 ))}
               </div>
@@ -362,12 +378,12 @@ function TraderCard({
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl glass cursor-pointer transition-all hover:scale-[1.01] ${
-        isSelected ? "border-2 border-[#00D4AA]" : "border border-transparent"
+      className={`p-4 rounded-xl bg-[#13131a] cursor-pointer transition-all hover:bg-[#16161f] ${
+        isSelected ? "border-2 border-[#00D4AA]" : "border border-[#1e1e28]"
       }`}
     >
       <div className="flex items-center gap-4">
-        <div className="text-2xl font-bold text-[#666] w-8">
+        <div className="text-2xl font-bold text-[#6b6b80] w-8">
           #{trader.rank}
         </div>
         <div
@@ -387,11 +403,11 @@ function TraderCard({
             <span title={trader.tierLabel}>{trader.tierIcon}</span>
           </div>
           <div className="flex items-center gap-4 mt-1 text-sm">
-            <span className="text-[var(--up)]">{trader.winRate.toFixed(1)}% 胜率</span>
-            <span className="text-[#666]">
+            <span className="text-[#00D4AA]">{trader.winRate.toFixed(1)}% 胜率</span>
+            <span className="text-[#6b6b80]">
               {trader.totalTrades} 笔交易
             </span>
-            <span className="text-xs text-[#666]">
+            <span className="text-xs text-[#6b6b80]">
               {timeAgo}
             </span>
           </div>
@@ -399,28 +415,28 @@ function TraderCard({
         <div className="text-right">
           <div
             className={`text-lg font-bold ${
-              isProfitable ? "text-[var(--up)]" : "text-[var(--down)]"
+              isProfitable ? "text-[#00D4AA]" : "text-[#FF6B6B]"
             }`}
           >
             {isProfitable ? "+" : ""}${formatNumber(trader.totalPnl)}
           </div>
-          <div className="text-xs text-[#666]">总盈亏</div>
+          <div className="text-xs text-[#6b6b80]">总盈亏</div>
         </div>
       </div>
       
       {/* Mini stats bar */}
-      <div className="mt-3 pt-3 border-t border-[#1a1a1f] grid grid-cols-3 gap-4 text-xs">
+      <div className="mt-3 pt-3 border-t border-[#1e1e28] grid grid-cols-3 gap-4 text-xs">
         <div>
-          <span className="text-[#666]">成交量</span>
+          <span className="text-[#6b6b80]">成交量</span>
           <div className="font-semibold">${formatNumber(trader.totalVolume)}</div>
         </div>
         <div>
-          <span className="text-[#666]">平均金额</span>
+          <span className="text-[#6b6b80]">平均金额</span>
           <div className="font-semibold">${formatNumber(trader.avgTradeSize)}</div>
         </div>
         <div>
-          <span className="text-[#666]">已实现</span>
-          <div className={`font-semibold ${trader.realizedPnl >= 0 ? "text-[var(--up)]" : "text-[var(--down)]"}`}>
+          <span className="text-[#6b6b80]">已实现</span>
+          <div className={`font-semibold ${trader.realizedPnl >= 0 ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
             {trader.realizedPnl >= 0 ? "+" : ""}${formatNumber(trader.realizedPnl)}
           </div>
         </div>
@@ -433,8 +449,8 @@ function ActivityCard({ activity }: { activity: Activity }) {
   const isBuy = activity.action === "buy";
   const significanceColors = {
     high: "border-[#FFD700]/50 bg-[#FFD700]/5",
-    medium: "border-[var(--whale)]/50 bg-[var(--whale)]/5",
-    low: "border-[#1a1a1f]",
+    medium: "border-[#7B61FF]/50 bg-[#7B61FF]/5",
+    low: "border-[#1e1e28] bg-[#13131a]",
   };
 
   return (
@@ -445,7 +461,7 @@ function ActivityCard({ activity }: { activity: Activity }) {
         <div className="flex items-center gap-3">
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-              isBuy ? "bg-[var(--up)]/20 text-[var(--up)]" : "bg-[var(--down)]/20 text-[var(--down)]"
+              isBuy ? "bg-[#00D4AA]/20 text-[#00D4AA]" : "bg-[#FF6B6B]/20 text-[#FF6B6B]"
             }`}
           >
             {isBuy ? "B" : "S"}
@@ -456,16 +472,16 @@ function ActivityCard({ activity }: { activity: Activity }) {
                 {activity.trader.address.slice(0, 8)}...
               </span>
               <span>{activity.trader.tierIcon}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#1a1a1f]">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#1e1e28]">
                 {activity.trader.whaleScore}
               </span>
             </div>
-            <div className="text-xs text-[#666]">
+            <div className="text-xs text-[#6b6b80]">
               {activity.trader.winRate.toFixed(1)}% 胜率
             </div>
           </div>
         </div>
-        <div className="text-xs text-[#666]">
+        <div className="text-xs text-[#6b6b80]">
           {getTimeAgo(activity.timestamp)}
         </div>
       </div>
@@ -473,12 +489,12 @@ function ActivityCard({ activity }: { activity: Activity }) {
       <p className="text-sm mb-2 line-clamp-1">{activity.market.title}</p>
 
       <div className="flex items-center justify-between text-sm">
-        <span className={isBuy ? "text-[var(--up)]" : "text-[var(--down)]"}>
+        <span className={isBuy ? "text-[#00D4AA]" : "text-[#FF6B6B]"}>
           {isBuy ? "买入" : "卖出"} {activity.outcome.toUpperCase()}
         </span>
         <div className="text-right">
           <span className="font-mono font-semibold">${formatNumber(activity.total)}</span>
-          <span className="text-xs text-[#666] ml-1">
+          <span className="text-xs text-[#6b6b80] ml-1">
             @ ${activity.price.toFixed(3)}
           </span>
         </div>
