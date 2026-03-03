@@ -76,8 +76,8 @@ const categoryFilters = [
 ] as const;
 
 const PAGE_SIZE = 12;
-const CACHE_KEY = "pmpn_events_cache_v2";
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_KEY = "pmpn_events_cache_v3";
+const CACHE_TTL = 3 * 60 * 1000;
 const PROXY_URL = "https://api.codetabs.com/v1/proxy/?quest=";
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -94,7 +94,21 @@ function categorizeMarket(question: string): string {
 }
 
 function calculateDaysLeft(endDate: string): number {
-  return Math.max(0, Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000));
+  if (!endDate) return -1;
+  const endTime = new Date(endDate).getTime();
+  if (isNaN(endTime)) return -1;
+  return Math.ceil((endTime - Date.now()) / 86400000);
+}
+
+function isExpiredEvent(title: string, endDate: string): boolean {
+  const currentYear = new Date().getFullYear();
+  const pastYearRegex = new RegExp(`\\b(201\\d|202[0-${currentYear - 2001}])\\b`);
+  if (pastYearRegex.test(title)) return true;
+  
+  if (!endDate) return false;
+  const endTime = new Date(endDate).getTime();
+  if (isNaN(endTime)) return false;
+  return endTime < Date.now();
 }
 
 function formatMoney(vol: number): string {
@@ -633,14 +647,15 @@ export default function Home() {
       });
 
       const eventId = (event.id || subMarkets[0]?.conditionId || `evt-${groups.length}`) as string;
-      const eventDaysLeft = subMarkets.length > 0 ? Math.min(...subMarkets.map((m) => m.daysLeft)) : 0;
-
-      // Skip events that have already ended
-      if (eventDaysLeft <= 0) continue;
+      
+      // Skip events with past years in title (e.g., "2024", "2025" when current year is 2026)
+      if (isExpiredEvent(title, eventEndDate)) continue;
 
       // Filter out markets that have already ended
-      const activeMarkets = subMarkets.filter((m) => m.daysLeft > 0);
+      const activeMarkets = subMarkets.filter((m) => m.daysLeft > 0 && !isExpiredEvent(m.question, m.endDate));
       if (activeMarkets.length === 0) continue;
+      
+      const eventDaysLeft = Math.min(...activeMarkets.map((m) => m.daysLeft));
 
       groups.push({
         id: eventId,
@@ -660,8 +675,9 @@ export default function Home() {
   }, []);
 
   const fetchFromProxy = useCallback(async (): Promise<EventGroup[]> => {
-    const apiUrl = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false";
-    const res = await fetchWithTimeout(PROXY_URL + encodeURIComponent(apiUrl), 10000);
+    const now = new Date().toISOString();
+    const apiUrl = `https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false&end_date_min=${now}`;
+    const res = await fetchWithTimeout(PROXY_URL + encodeURIComponent(apiUrl), 8000);
     if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
     const text = await res.text();
     if (!text || text.length < 10) throw new Error("Empty response");
