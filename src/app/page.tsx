@@ -100,23 +100,11 @@ function calculateDaysLeft(endDate: string): number {
   return Math.ceil((endTime - Date.now()) / 86400000);
 }
 
-function isExpiredEvent(title: string, endDate: string): boolean {
-  const currentYear = new Date().getFullYear();
-  
-  // Check if title contains a past year (2010-2025 when current year is 2026)
-  const yearMatch = title.match(/\b(20\d{2})\b/);
-  if (yearMatch) {
-    const year = parseInt(yearMatch[1]);
-    if (year < currentYear) return true;
-  }
-  
-  // Check if endDate has passed
-  if (endDate) {
-    const endTime = new Date(endDate).getTime();
-    if (!isNaN(endTime) && endTime < Date.now()) return true;
-  }
-  
-  return false;
+function isExpiredByDate(endDate: string): boolean {
+  if (!endDate) return false;
+  const endTime = new Date(endDate).getTime();
+  if (isNaN(endTime)) return false;
+  return endTime < Date.now();
 }
 
 function formatMoney(vol: number): string {
@@ -534,22 +522,20 @@ const EventRow = memo(function EventRow({ event }: { event: EventGroup }) {
   );
 });
 
-function LoadingOverlay() {
+function InlineLoader() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c10]/80 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative">
-          <div className="h-12 w-12 rounded-full border-2 border-[#1e1e28]" />
-          <div className="absolute inset-0 h-12 w-12 animate-spin rounded-full border-2 border-transparent border-t-[#00D4AA]" />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-[#888]">正在加载市场数据</span>
-          <span className="flex gap-1">
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "0ms" }} />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "150ms" }} />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "300ms" }} />
-          </span>
-        </div>
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="relative mb-4">
+        <div className="h-10 w-10 rounded-full border-2 border-[#1e1e28]" />
+        <div className="absolute inset-0 h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-[#00D4AA]" />
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-[#888]">正在加载市场数据</span>
+        <span className="flex gap-1">
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "0ms" }} />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "150ms" }} />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00D4AA]" style={{ animationDelay: "300ms" }} />
+        </span>
       </div>
     </div>
   );
@@ -683,19 +669,11 @@ export default function Home() {
 
       const eventId = (event.id || subMarkets[0]?.conditionId || `evt-${groups.length}`) as string;
       
-      // Skip events with past years in title (e.g., "2024", "2025" when current year is 2026)
-      if (isExpiredEvent(title, eventEndDate)) continue;
+      // Skip events where end date has passed
+      if (isExpiredByDate(eventEndDate)) continue;
 
-      // Filter out markets that have already ended (keep markets with no end date or future end date)
-      const activeMarkets = subMarkets.filter((m) => {
-        // If daysLeft is -1, it means no valid end date, keep it
-        if (m.daysLeft === -1) return true;
-        // If daysLeft > 0, it's still active
-        if (m.daysLeft > 0) return true;
-        // Check if title contains past year
-        if (isExpiredEvent(m.question, "")) return false;
-        return false;
-      });
+      // Filter out markets that have already ended
+      const activeMarkets = subMarkets.filter((m) => !isExpiredByDate(m.endDate));
       if (activeMarkets.length === 0) continue;
       
       const validDaysLeft = activeMarkets.filter(m => m.daysLeft > 0).map(m => m.daysLeft);
@@ -985,22 +963,7 @@ export default function Home() {
           )}
 
           {loading ? (
-            <>
-              <LoadingOverlay />
-              {viewMode === "card" ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <SkeletonCard key={i} delay={i * 50} />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <SkeletonRow key={i} delay={i * 50} />
-                  ))}
-                </div>
-              )}
-            </>
+            <InlineLoader />
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-24">
               <AlertCircle className="mb-4 h-12 w-12 text-[#FF6B6B]" />
