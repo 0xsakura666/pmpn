@@ -633,6 +633,14 @@ export default function Home() {
       });
 
       const eventId = (event.id || subMarkets[0]?.conditionId || `evt-${groups.length}`) as string;
+      const eventDaysLeft = subMarkets.length > 0 ? Math.min(...subMarkets.map((m) => m.daysLeft)) : 0;
+
+      // Skip events that have already ended
+      if (eventDaysLeft <= 0) continue;
+
+      // Filter out markets that have already ended
+      const activeMarkets = subMarkets.filter((m) => m.daysLeft > 0);
+      if (activeMarkets.length === 0) continue;
 
       groups.push({
         id: eventId,
@@ -644,8 +652,8 @@ export default function Home() {
         volume24h,
         totalVolume: parseFloat((event.volume as string) || "0"),
         liquidity: parseFloat((event.liquidity as string) || "0"),
-        markets: subMarkets,
-        daysLeft: subMarkets.length > 0 ? Math.min(...subMarkets.map((m) => m.daysLeft)) : 0,
+        markets: activeMarkets,
+        daysLeft: eventDaysLeft,
       });
     }
     return groups;

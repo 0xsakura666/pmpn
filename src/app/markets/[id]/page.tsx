@@ -241,7 +241,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 height={400}
                 defaultTimeframe={selectedTimeframe}
                 onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                enableSimulation={true}
                 defaultChartMode="line"
               />
             </div>

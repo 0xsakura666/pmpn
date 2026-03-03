@@ -78,10 +78,17 @@ export async function GET(request: NextRequest) {
 
     const markets: TransformedMarket[] = [];
     
+    const now = Date.now();
+    
     for (const event of events as Record<string, unknown>[]) {
       const eventMarkets = event.markets as Record<string, unknown>[] | undefined;
       if (eventMarkets && Array.isArray(eventMarkets)) {
         for (const market of eventMarkets) {
+          const endDate = (market.endDate || event.endDate || "") as string;
+          
+          // Skip markets that have already ended
+          if (endDate && new Date(endDate).getTime() < now) continue;
+          
           let yesPrice = 0.5;
           try {
             if (market.outcomePrices) {
@@ -98,7 +105,7 @@ export async function GET(request: NextRequest) {
             description: (market.description || event.description || "") as string,
             slug: (market.slug || event.slug || "") as string,
             category: categorizeMarket((market.question || event.title || "") as string),
-            endDate: (market.endDate || event.endDate || "") as string,
+            endDate,
             image: (event.image || "") as string,
             yesPrice,
             noPrice: 1 - yesPrice,

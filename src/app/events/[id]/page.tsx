@@ -6,7 +6,7 @@ import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestic
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
 import { WalletButton } from "@/components/auth/ConnectWallet";
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3, ChevronRight } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3, Check } from "lucide-react";
 import { Time, CandlestickData } from "lightweight-charts";
 
 interface SubMarket {
@@ -47,8 +47,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<SubMarket | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("1M");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("5M");
   const [priceHistory, setPriceHistory] = useState<CandlestickData<Time>[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     const cached = localStorage.getItem(`event_${resolvedParams.id}`);
@@ -71,12 +72,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   }, [resolvedParams.id]);
 
   const fetchPriceHistory = useCallback(async (tokenId: string) => {
-    if (!tokenId) return;
+    if (!tokenId) {
+      setPriceHistory([]);
+      return;
+    }
+    
+    setHistoryLoading(true);
     try {
       const res = await fetch(`/api/price-history?market=${tokenId}&interval=max&fidelity=60`);
       if (res.ok) {
         const data = await res.json();
-        if (data.history && data.history.length > 0) {
+        if (data.history && Array.isArray(data.history) && data.history.length > 0) {
           const candles = data.history.map((point: { t: number; p: number }, index: number, arr: { t: number; p: number }[]) => {
             const prevPrice = index > 0 ? arr[index - 1].p : point.p;
             return {
@@ -91,15 +97,22 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         } else {
           setPriceHistory([]);
         }
+      } else {
+        setPriceHistory([]);
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch price history:", err);
       setPriceHistory([]);
+    } finally {
+      setHistoryLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (selectedMarket?.yesTokenId) {
       fetchPriceHistory(selectedMarket.yesTokenId);
+    } else {
+      setPriceHistory([]);
     }
   }, [selectedMarket, fetchPriceHistory]);
 
@@ -133,13 +146,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       <header className="border-b border-[#222] bg-[#0d0d0f] sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3">
           <nav className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <Link href="/" className="text-xl font-bold text-[#00D4AA]">
                 Tectonic
               </Link>
               <Link href="/" className="flex items-center gap-1 text-[#666] hover:text-white text-sm">
                 <ArrowLeft className="w-4 h-4" />
-                返回市场
+                返回
               </Link>
             </div>
             <WalletButton />
@@ -148,176 +161,155 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {/* Event Header */}
-        <div className="mb-6">
-          <div className="flex items-start gap-4 mb-4">
-            {event.image && (
-              <img
-                src={event.image}
-                alt=""
-                className="w-20 h-20 rounded-xl object-cover border border-[#222]"
-              />
-            )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2 py-0.5 rounded-full text-xs bg-[#7B61FF]/20 text-[#7B61FF]">
-                  {event.category}
-                </span>
-                <span className="text-xs text-[#666]">
-                  {event.markets.length} 个市场
-                </span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">
-                {event.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                <div className="flex items-center gap-1.5 text-[#666]">
-                  <DollarSign className="w-4 h-4" />
-                  <span>24h成交量: <span className="text-white font-medium">{formatMoney(event.volume24h)}</span></span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[#666]">
-                  <BarChart3 className="w-4 h-4" />
-                  <span>总成交量: <span className="text-white font-medium">{formatMoney(event.totalVolume)}</span></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {event.description && (
-            <p className="text-sm text-[#888] bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
-              {event.description}
-            </p>
+        {/* Event Header - Compact */}
+        <div className="flex items-center gap-4 mb-6">
+          {event.image && (
+            <img
+              src={event.image}
+              alt=""
+              className="w-14 h-14 rounded-xl object-cover border border-[#222]"
+            />
           )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2 py-0.5 rounded-full text-xs bg-[#7B61FF]/20 text-[#7B61FF]">
+                {event.category}
+              </span>
+              <span className="text-xs text-[#666]">{event.markets.length} 个市场</span>
+              <span className="text-xs text-[#666]">·</span>
+              <span className="text-xs text-[#666]">Vol {formatMoney(event.totalVolume)}</span>
+            </div>
+            <h1 className="text-xl font-bold text-white truncate">{event.title}</h1>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Markets List */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-[#1a1a1f] rounded-xl border border-[#222] overflow-hidden">
-              <div className="p-4 border-b border-[#222]">
-                <h2 className="font-semibold text-white">选择市场</h2>
-                <p className="text-xs text-[#666] mt-1">点击查看该市场的K线和交易</p>
-              </div>
-              <div className="max-h-[500px] overflow-y-auto">
-                {event.markets.map((market) => {
-                  const isSelected = selectedMarket?.conditionId === market.conditionId;
-                  const isUp = market.yesPrice > 0.5;
-
-                  return (
-                    <button
-                      key={market.conditionId}
-                      onClick={() => setSelectedMarket(market)}
-                      className={`w-full p-4 text-left border-b border-[#222] last:border-b-0 transition-all ${
-                        isSelected
-                          ? "bg-[#00D4AA]/10 border-l-2 border-l-[#00D4AA]"
-                          : "hover:bg-[#222]/50"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium mb-2 ${isSelected ? "text-white" : "text-[#ccc]"}`}>
-                            {market.question}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1">
-                              {isUp ? (
-                                <TrendingUp className="w-3 h-3 text-[#00D4AA]" />
-                              ) : (
-                                <TrendingDown className="w-3 h-3 text-[#FF6B6B]" />
-                              )}
-                              <span className={`text-lg font-bold ${isUp ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
-                                {Math.round(market.yesPrice * 100)}%
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-xs text-[#666]">
-                              <Clock className="w-3 h-3" />
-                              <span>{market.daysLeft}天</span>
-                            </div>
-                          </div>
-                        </div>
-                        <ChevronRight className={`w-4 h-4 shrink-0 mt-1 ${isSelected ? "text-[#00D4AA]" : "text-[#444]"}`} />
+        {/* Market Tabs - Horizontal */}
+        <div className="mb-6 overflow-x-auto">
+          <div className="flex gap-2 pb-2">
+            {event.markets.map((market) => {
+              const isSelected = selectedMarket?.conditionId === market.conditionId;
+              const probability = Math.round(market.yesPrice * 100);
+              
+              return (
+                <button
+                  key={market.conditionId}
+                  onClick={() => setSelectedMarket(market)}
+                  className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all ${
+                    isSelected
+                      ? "bg-[#00D4AA]/10 border-[#00D4AA] text-white"
+                      : "bg-[#1a1a1f] border-[#222] text-[#888] hover:border-[#333] hover:text-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-left">
+                      <p className="text-sm font-medium max-w-[200px] truncate">
+                        {market.question.length > 30 ? market.question.slice(0, 30) + "..." : market.question}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-lg font-bold ${probability > 50 ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
+                          {probability}%
+                        </span>
+                        <span className="text-xs text-[#666]">{market.daysLeft}天</span>
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-[#00D4AA]" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedMarket && (
+          <>
+            {/* Price Cards */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 rounded-xl bg-[#00D4AA]/5 border border-[#00D4AA]/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#888]">Yes</span>
+                  <TrendingUp className="w-4 h-4 text-[#00D4AA]" />
+                </div>
+                <div className="text-3xl font-bold text-[#00D4AA] mt-1">
+                  {Math.round(selectedMarket.yesPrice * 100)}¢
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-[#FF6B6B]/5 border border-[#FF6B6B]/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#888]">No</span>
+                  <TrendingDown className="w-4 h-4 text-[#FF6B6B]" />
+                </div>
+                <div className="text-3xl font-bold text-[#FF6B6B] mt-1">
+                  {Math.round(selectedMarket.noPrice * 100)}¢
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Right: Chart & Trading */}
-          <div className="lg:col-span-2 space-y-4">
-            {selectedMarket ? (
-              <>
-                {/* Selected Market Info */}
-                <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-white mb-1">{selectedMarket.question}</h3>
-                      <div className="flex items-center gap-2 text-xs text-[#666]">
-                        <span>截止 {new Date(selectedMarket.endDate).toLocaleDateString('zh-CN')}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price Display */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 rounded-lg bg-[#00D4AA]/10 border border-[#00D4AA]/20">
-                      <span className="text-xs text-[#666]">Yes 价格</span>
-                      <div className="text-2xl font-bold text-[#00D4AA]">
-                        ${selectedMarket.yesPrice.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-[#FF6B6B]/10 border border-[#FF6B6B]/20">
-                      <span className="text-xs text-[#666]">No 价格</span>
-                      <div className="text-2xl font-bold text-[#FF6B6B]">
-                        ${selectedMarket.noPrice.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
+            {/* Chart - Full Width */}
+            <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222] mb-6">
+              {historyLoading ? (
+                <div className="h-[400px] flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4AA]" />
                 </div>
+              ) : (
+                <RealtimeCandlestickChart
+                  tokenId={selectedMarket.yesTokenId}
+                  initialData={priceHistory}
+                  height={400}
+                  defaultTimeframe={selectedTimeframe}
+                  onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                  defaultChartMode="line"
+                />
+              )}
+            </div>
 
-                {/* Chart */}
-                <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
-                  <RealtimeCandlestickChart
+            {/* Order Book & Trade - Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-[#1a1a1f] rounded-xl border border-[#222] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#222]">
+                  <h3 className="font-semibold text-white">订单簿</h3>
+                </div>
+                <div className="p-4">
+                  <RealtimeOrderBook
                     tokenId={selectedMarket.yesTokenId}
-                    initialData={priceHistory}
-                    height={400}
-                    defaultTimeframe={selectedTimeframe}
-                    onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                    enableSimulation={true}
-                    defaultChartMode="line"
+                    maxDepth={8}
                   />
                 </div>
-
-                {/* Order Book & Trade */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
-                    <h3 className="font-semibold text-white mb-3">订单簿</h3>
-                    <RealtimeOrderBook
-                      tokenId={selectedMarket.yesTokenId}
-                      maxDepth={6}
-                    />
-                  </div>
-                  <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222]">
-                    <h3 className="font-semibold text-white mb-3">快速交易</h3>
-                    <QuickTradePanel
-                      yesTokenId={selectedMarket.yesTokenId}
-                      noTokenId={selectedMarket.noTokenId}
-                      marketTitle={selectedMarket.question}
-                      yesPrice={selectedMarket.yesPrice}
-                      noPrice={selectedMarket.noPrice}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-[#1a1a1f] rounded-xl p-8 border border-[#222] text-center">
-                <BarChart3 className="w-12 h-12 text-[#444] mx-auto mb-4" />
-                <p className="text-[#666]">请从左侧选择一个市场查看详情</p>
               </div>
-            )}
-          </div>
-        </div>
+              
+              <div className="bg-[#1a1a1f] rounded-xl border border-[#222] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#222]">
+                  <h3 className="font-semibold text-white">快速交易</h3>
+                </div>
+                <div className="p-4">
+                  <QuickTradePanel
+                    yesTokenId={selectedMarket.yesTokenId}
+                    noTokenId={selectedMarket.noTokenId}
+                    marketTitle={selectedMarket.question}
+                    yesPrice={selectedMarket.yesPrice}
+                    noPrice={selectedMarket.noPrice}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Market Info */}
+            <div className="mt-6 p-4 bg-[#1a1a1f] rounded-xl border border-[#222]">
+              <div className="flex items-center gap-4 text-sm text-[#666]">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  <span>截止 {new Date(selectedMarket.endDate).toLocaleDateString('zh-CN')}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="w-4 h-4" />
+                  <span>24h成交量 {formatMoney(event.volume24h)}</span>
+                </div>
+              </div>
+              {event.description && (
+                <p className="mt-3 text-sm text-[#888]">{event.description}</p>
+              )}
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

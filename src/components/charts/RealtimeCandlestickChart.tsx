@@ -4,11 +4,9 @@ import { useState, useMemo } from "react";
 import { CandlestickChart, type ChartMode } from "./CandlestickChart";
 import {
   useMultiTimeframeCandles,
-  useSimulatedMultiTimeframeCandles,
   aggregateCandlesToHigherTimeframe,
   type CandleData,
   type IntervalType,
-  INTERVAL_SECONDS,
 } from "@/hooks/useRealtimeCandles";
 import { Time, CandlestickData } from "lightweight-charts";
 import { TrendingUp, BarChart2 } from "lucide-react";
@@ -21,7 +19,6 @@ interface RealtimeCandlestickChartProps {
   height?: number;
   defaultTimeframe?: TimeframeType;
   onTimeframeChange?: (tf: TimeframeType) => void;
-  enableSimulation?: boolean;
   defaultChartMode?: ChartMode;
 }
 
@@ -58,7 +55,6 @@ export function RealtimeCandlestickChart({
   height = 400,
   defaultTimeframe = "1M",
   onTimeframeChange,
-  enableSimulation = false,
   defaultChartMode = "line",
 }: RealtimeCandlestickChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
@@ -68,50 +64,35 @@ export function RealtimeCandlestickChart({
   const currentInterval = TIMEFRAME_TO_INTERVAL[selectedTimeframe];
 
   const {
-    isConnected: wsConnected,
-    lastPrice: wsLastPrice,
-    lastUpdate: wsLastUpdate,
+    isConnected,
+    lastPrice,
+    lastUpdate,
     getCandles: wsGetCandles,
     getCurrentCandle: wsGetCurrentCandle,
-    tickCount: wsTickCount,
+    tickCount,
   } = useMultiTimeframeCandles({
     tokenId: tokenId || "",
     initialData: initialData as CandleData[],
   });
 
-  const {
-    lastPrice: simLastPrice,
-    lastUpdate: simLastUpdate,
-    getCandles: simGetCandles,
-    getCurrentCandle: simGetCurrentCandle,
-    tickCount: simTickCount,
-  } = useSimulatedMultiTimeframeCandles({
-    initialPrice: initialData.length > 0 ? initialData[initialData.length - 1].close : 0.5,
-    volatility: 0.002,
-    updateInterval: 100,
-  });
-
-  const useSimulation = enableSimulation && !tokenId;
-  const isConnected = useSimulation ? true : wsConnected;
-  const lastPrice = useSimulation ? simLastPrice : wsLastPrice;
-  const lastUpdate = useSimulation ? simLastUpdate : wsLastUpdate;
-  const tickCount = useSimulation ? simTickCount : wsTickCount;
-
   const displayCandles = useMemo(() => {
-    const getCandles = useSimulation ? simGetCandles : wsGetCandles;
-    const candles = getCandles(currentInterval);
+    // Priority: WebSocket real-time data > Initial historical data
+    const wsCandles = wsGetCandles(currentInterval);
+    if (wsCandles.length > 0) {
+      return wsCandles as CandlestickData<Time>[];
+    }
     
-    if (candles.length === 0 && initialData.length > 0) {
+    // Use initial historical data if available
+    if (initialData.length > 0) {
       return initialData;
     }
     
-    return candles as CandlestickData<Time>[];
-  }, [useSimulation, simGetCandles, wsGetCandles, currentInterval, lastUpdate, initialData]);
+    return [];
+  }, [wsGetCandles, currentInterval, lastUpdate, initialData]);
 
   const displayCurrentCandle = useMemo(() => {
-    const getCurrentCandle = useSimulation ? simGetCurrentCandle : wsGetCurrentCandle;
-    return getCurrentCandle(currentInterval) as CandlestickData<Time> | null;
-  }, [useSimulation, simGetCurrentCandle, wsGetCurrentCandle, currentInterval, lastUpdate]);
+    return wsGetCurrentCandle(currentInterval) as CandlestickData<Time> | null;
+  }, [wsGetCurrentCandle, currentInterval, lastUpdate]);
 
   const handleTimeframeChange = (tf: TimeframeType) => {
     setSelectedTimeframe(tf);
