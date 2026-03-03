@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAccount } from "wagmi";
@@ -36,7 +36,7 @@ interface Market {
   negRisk?: boolean;
 }
 
-export default function TradePage() {
+function TradePageContent() {
   const searchParams = useSearchParams();
   const initialMarketId = searchParams.get("market");
   
@@ -363,5 +363,19 @@ export default function TradePage() {
         </main>
       )}
     </div>
+  );
+}
+
+export default function TradePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0c0c10] flex items-center justify-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-[#00D4AA]" />
+        </div>
+      }
+    >
+      <TradePageContent />
+    </Suspense>
   );
 }
