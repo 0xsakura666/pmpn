@@ -696,18 +696,18 @@ export default function Home() {
     return groups;
   }, []);
 
-  const fetchFromProxy = useCallback(async (): Promise<EventGroup[]> => {
-    const apiUrl = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false";
-    const res = await fetchWithTimeout(PROXY_URL + encodeURIComponent(apiUrl), 8000);
-    if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
-    const text = await res.text();
-    if (!text || text.length < 10) throw new Error("Empty response");
-    const raw = JSON.parse(text);
-    if (!Array.isArray(raw) || raw.length === 0) throw new Error("No events data");
-    const result = processToEventGroups(raw);
-    if (result.length === 0) throw new Error("No events processed");
-    return result;
-  }, [fetchWithTimeout, processToEventGroups]);
+  const fetchFromAPI = useCallback(async (): Promise<EventGroup[]> => {
+    const res = await fetchWithTimeout("/api/events?limit=100", 15000);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `API error: ${res.status}`);
+    }
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("No events data");
+    }
+    return data as EventGroup[];
+  }, [fetchWithTimeout]);
 
   const fetchEvents = useCallback(
     async (useCache = true) => {
@@ -718,7 +718,7 @@ export default function Home() {
         setLoading(false);
         setIsRefreshing(true);
         try {
-          const fresh = await fetchFromProxy();
+          const fresh = await fetchFromAPI();
           if (fresh.length > 0) {
             setEvents(fresh);
             setCache(fresh);
@@ -731,7 +731,7 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const fresh = await fetchFromProxy();
+        const fresh = await fetchFromAPI();
         setEvents(fresh);
         setCache(fresh);
       } catch {
@@ -744,7 +744,7 @@ export default function Home() {
         setLoading(false);
       }
     },
-    [fetchFromProxy],
+    [fetchFromAPI],
   );
 
   useEffect(() => {
