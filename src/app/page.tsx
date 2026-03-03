@@ -75,11 +75,14 @@ function setCache(markets: Market[]) {
 
 function getFallbackMarkets(): Market[] {
   const fallbackData = [
-    { id: "1", title: "Will Trump win the 2024 election?", volume24h: 15000000, totalVolume: 89000000, yesPrice: 0.52, endDate: "2024-11-05" },
-    { id: "2", title: "Will Bitcoin reach $100K in 2024?", volume24h: 8500000, totalVolume: 45000000, yesPrice: 0.35, endDate: "2024-12-31" },
-    { id: "3", title: "Will Fed cut rates in March?", volume24h: 6200000, totalVolume: 28000000, yesPrice: 0.12, endDate: "2024-03-20" },
-    { id: "4", title: "Will AI stocks outperform S&P 500?", volume24h: 4800000, totalVolume: 22000000, yesPrice: 0.68, endDate: "2024-12-31" },
-    { id: "5", title: "Will Ethereum ETF be approved?", volume24h: 3900000, totalVolume: 18000000, yesPrice: 0.75, endDate: "2024-05-31" },
+    { id: "demo1", title: "特朗普会赢得2024年大选吗？", volume24h: 15000000, totalVolume: 89000000, yesPrice: 0.52, endDate: "2024-11-05" },
+    { id: "demo2", title: "比特币2024年能达到10万美元吗？", volume24h: 8500000, totalVolume: 45000000, yesPrice: 0.35, endDate: "2024-12-31" },
+    { id: "demo3", title: "美联储会在3月降息吗？", volume24h: 6200000, totalVolume: 28000000, yesPrice: 0.12, endDate: "2024-03-20" },
+    { id: "demo4", title: "AI股票会跑赢标普500吗？", volume24h: 4800000, totalVolume: 22000000, yesPrice: 0.68, endDate: "2024-12-31" },
+    { id: "demo5", title: "以太坊ETF会被批准吗？", volume24h: 3900000, totalVolume: 18000000, yesPrice: 0.75, endDate: "2024-05-31" },
+    { id: "demo6", title: "OpenAI会在2024年上市吗？", volume24h: 3200000, totalVolume: 15000000, yesPrice: 0.15, endDate: "2024-12-31" },
+    { id: "demo7", title: "苹果市值会超过4万亿美元吗？", volume24h: 2800000, totalVolume: 12000000, yesPrice: 0.42, endDate: "2024-12-31" },
+    { id: "demo8", title: "马斯克会收购另一家公司吗？", volume24h: 2100000, totalVolume: 9000000, yesPrice: 0.38, endDate: "2024-12-31" },
   ];
   
   return fallbackData.map((m, i) => ({
@@ -174,29 +177,41 @@ export default function Home() {
     const apiUrl = "https://gamma-api.polymarket.com/events?limit=50&active=true&closed=false";
     const proxyUrl = PROXY_URL + encodeURIComponent(apiUrl);
     
-    console.log("[Fetch] Requesting via proxy...");
-    const res = await fetchWithTimeout(proxyUrl, 25000);
+    console.log("[Fetch] Requesting via proxy:", proxyUrl);
     
-    if (!res.ok) {
-      console.error("[Fetch] Proxy returned:", res.status);
-      throw new Error(`Proxy error: ${res.status}`);
+    try {
+      const res = await fetchWithTimeout(proxyUrl, 8000);
+      
+      if (!res.ok) {
+        console.error("[Fetch] Proxy returned:", res.status);
+        throw new Error(`Proxy error: ${res.status}`);
+      }
+      
+      const text = await res.text();
+      console.log("[Fetch] Response length:", text.length);
+      
+      if (!text || text.length < 10) {
+        throw new Error("Empty response");
+      }
+      
+      const events = JSON.parse(text);
+      
+      if (!Array.isArray(events) || events.length === 0) {
+        throw new Error("No events data");
+      }
+      
+      const markets = processEvents(events);
+      console.log("[Fetch] Processed markets:", markets.length);
+      
+      if (markets.length === 0) {
+        throw new Error("No markets processed");
+      }
+      
+      return markets;
+    } catch (err) {
+      console.error("[Fetch] Error:", err);
+      throw err;
     }
-    
-    const events = await res.json();
-    console.log("[Fetch] Got events:", events?.length || 0);
-    
-    if (!Array.isArray(events) || events.length === 0) {
-      throw new Error("No events data");
-    }
-    
-    const markets = processEvents(events);
-    console.log("[Fetch] Processed markets:", markets.length);
-    
-    if (markets.length === 0) {
-      throw new Error("No markets processed");
-    }
-    
-    return markets;
   }, [processEvents]);
 
   const fetchMarkets = useCallback(async (useCache = true) => {
