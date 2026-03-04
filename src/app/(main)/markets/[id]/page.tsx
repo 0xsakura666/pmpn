@@ -516,7 +516,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 height={0}
                 defaultTimeframe={selectedTimeframe}
                 onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                defaultChartMode="line"
+                defaultChartMode="candle"
               />
             </div>
           </div>

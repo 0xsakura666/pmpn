@@ -57,7 +57,7 @@ export function RealtimeCandlestickChart({
   autoHeight,
   defaultTimeframe = "1M",
   onTimeframeChange,
-  defaultChartMode = "line",
+  defaultChartMode = "candle",
 }: RealtimeCandlestickChartProps) {
   const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);

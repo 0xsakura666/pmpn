@@ -257,7 +257,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   height={400}
                   defaultTimeframe={selectedTimeframe}
                   onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                  defaultChartMode="line"
+                  defaultChartMode="candle"
                 />
               )}
             </div>
