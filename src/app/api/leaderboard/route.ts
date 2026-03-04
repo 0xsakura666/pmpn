@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const DATA_API = "https://data-api.polymarket.com";
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 
 export interface LeaderboardEntry {
   rank: number;
@@ -17,18 +15,6 @@ export interface LeaderboardEntry {
   lastTradeTimestamp: number;
 }
 
-async function fetchWithProxy<T>(url: string): Promise<T> {
-  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-  const response = await fetch(proxyUrl, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-  return response.json();
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -41,8 +27,8 @@ export async function GET(request: NextRequest) {
     params.set("offset", offset);
     if (window !== "all") params.set("window", window);
 
-    const url = `${DATA_API}/leaderboard?${params.toString()}`;
-    const data = await fetchWithProxy<LeaderboardEntry[]>(url);
+    const url = `${POLYMARKET_ENDPOINTS.data}/leaderboard?${params.toString()}`;
+    const data = await fetchPolymarketAPI<LeaderboardEntry[]>(url);
 
     return NextResponse.json({
       leaderboard: data,

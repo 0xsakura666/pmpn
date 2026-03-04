@@ -1,21 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Search } from "lucide-react";
-import { WalletButton } from "@/components/auth/ConnectWallet";
-import { WhaleScore, WhaleScoreBar, WhaleScoreBadge } from "@/components/ui/WhaleScore";
-import { SignalFeed } from "@/components/ui/LiveSignalCard";
+import { PageContainer, PageHeader } from "@/components/layout";
+import { Card, Tabs, TabsList, TabsTrigger, TabsContent, Badge } from "@/components/ui";
 import { SmartCollections, CreateCollectionModal } from "@/components/ui/SmartCollections";
 import { CopyTradePanel } from "@/components/trading/CopyTradePanel";
-
-const navItems = [
-  { href: "/", label: "市场" },
-  { href: "#", label: "交易" },
-  { href: "#", label: "钱包" },
-  { href: "/smart-money", label: "排行榜" },
-] as const;
+import { formatNumber, getTimeAgo } from "@/lib/utils";
 
 interface Trader {
   rank: number;
@@ -130,80 +120,32 @@ export default function SmartMoneyPage() {
     ? traders.reduce((sum, t) => sum + t.winRate, 0) / traders.length 
     : 0;
 
-  const pathname = usePathname();
-
   return (
-    <div className="min-h-screen bg-[#0c0c10] text-white">
-      {/* Header */}
-      <header className="shrink-0 border-b border-[#1a1a22] bg-[#0c0c10]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-gradient">Tectonic</span>
-            </Link>
-            <nav className="hidden items-center gap-1 text-sm md:flex">
-              {navItems.map(({ href, label }) => {
-                const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href) && href !== "#";
-                return (
-                  <Link
-                    key={label}
-                    href={href}
-                    className={`rounded-lg px-3.5 py-1.5 font-medium transition-all duration-150 ${
-                      isActive
-                        ? "bg-[#00D4AA]/15 text-[#00D4AA]"
-                        : "text-[#6b6b80] hover:bg-[#ffffff08] hover:text-white"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
+    <PageContainer>
+      <PageHeader
+        title="聪明钱追踪器"
+        description="追踪巨鲸动向，复制盈利策略"
+      />
 
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-xl bg-[#13131a] px-3.5 py-2 ring-1 ring-[#1e1e28] focus-within:ring-[#00D4AA]/40 md:flex transition-shadow">
-              <Search className="h-4 w-4 text-[#6b6b80]" />
-              <input
-                type="text"
-                placeholder="搜索..."
-                className="w-32 bg-transparent text-sm text-white placeholder-[#6b6b80] outline-none"
-              />
-            </div>
-            <WalletButton />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-[1440px] px-6 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-1">
-            聪明钱追踪器
-          </h1>
-          <p className="text-[#6b6b80] text-sm">
-            追踪巨鲸动向，复制盈利策略
-          </p>
-        </div>
-
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
-            <div className="text-sm text-[#6b6b80]">追踪巨鲸</div>
-            <div className="text-2xl font-bold text-[#7B61FF]">{traders.length}</div>
-          </div>
-          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
-            <div className="text-sm text-[#6b6b80]">巨鲸成交量</div>
-            <div className="text-2xl font-bold">${(totalWhaleVolume / 1e6).toFixed(1)}M</div>
-          </div>
-          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
-            <div className="text-sm text-[#6b6b80]">平均胜率</div>
-            <div className="text-2xl font-bold text-[#00D4AA]">{avgWhaleWinRate.toFixed(1)}%</div>
-          </div>
-          <div className="bg-[#13131a] border border-[#1e1e28] rounded-xl p-4">
-            <div className="text-sm text-[#6b6b80]">最近信号</div>
-            <div className="text-2xl font-bold">{activities.length}</div>
-          </div>
-        </div>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card padding="md">
+          <div className="text-sm text-[var(--text-disabled)]">追踪巨鲸</div>
+          <div className="text-2xl font-bold text-[var(--brand-accent)]">{traders.length}</div>
+        </Card>
+        <Card padding="md">
+          <div className="text-sm text-[var(--text-disabled)]">巨鲸成交量</div>
+          <div className="text-2xl font-bold">${(totalWhaleVolume / 1e6).toFixed(1)}M</div>
+        </Card>
+        <Card padding="md">
+          <div className="text-sm text-[var(--text-disabled)]">平均胜率</div>
+          <div className="text-2xl font-bold text-[var(--color-up)]">{avgWhaleWinRate.toFixed(1)}%</div>
+        </Card>
+        <Card padding="md">
+          <div className="text-sm text-[var(--text-disabled)]">最近信号</div>
+          <div className="text-2xl font-bold">{activities.length}</div>
+        </Card>
+      </div>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-[#1a1a22]">
@@ -349,7 +291,6 @@ export default function SmartMoneyPage() {
             </div>
           </div>
         </div>
-      </main>
 
       <CreateCollectionModal
         isOpen={showCreateCollection}
@@ -359,7 +300,7 @@ export default function SmartMoneyPage() {
           setShowCreateCollection(false);
         }}
       />
-    </div>
+    </PageContainer>
   );
 }
 
@@ -509,19 +450,3 @@ function ActivityCard({ activity }: { activity: Activity }) {
   );
 }
 
-function formatNumber(num: number): string {
-  const abs = Math.abs(num);
-  if (abs >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
-  if (abs >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
-  return num.toFixed(0);
-}
-
-function getTimeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}

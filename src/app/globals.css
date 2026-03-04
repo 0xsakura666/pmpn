@@ -1,56 +1,14 @@
 @import "tailwindcss";
-
-:root {
-  --background: 220 13% 5%;
-  --foreground: 210 20% 92%;
-  --card: 220 13% 9%;
-  --card-foreground: 210 20% 92%;
-  --popover: 220 13% 9%;
-  --popover-foreground: 210 20% 92%;
-  --primary: 166 76% 42%;
-  --primary-foreground: 220 13% 5%;
-  --secondary: 0 76% 71%;
-  --secondary-foreground: 220 13% 5%;
-  --muted: 220 13% 15%;
-  --muted-foreground: 215 14% 60%;
-  --accent: 259 100% 69%;
-  --accent-foreground: 220 13% 5%;
-  --destructive: 0 76% 71%;
-  --destructive-foreground: 210 20% 92%;
-  --border: 220 13% 15%;
-  --input: 220 13% 15%;
-  --ring: 166 76% 42%;
-  --radius: 0.75rem;
-
-  --up: #00D4AA;
-  --down: #FF6B6B;
-  --whale: #7B61FF;
-}
-
-@theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-border: hsl(var(--border));
-  --color-up: var(--up);
-  --color-down: var(--down);
-  --color-whale: var(--whale);
-}
+@import "../styles/tokens.css";
+@import "../styles/animations.css";
 
 * {
-  border-color: hsl(var(--border));
+  border-color: var(--border-default);
 }
 
 body {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background: var(--bg-base);
+  color: var(--text-primary);
   font-family: "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -59,29 +17,39 @@ body {
 }
 
 .glass {
-  background: hsl(var(--card) / 0.8);
+  background: var(--bg-elevated);
   backdrop-filter: blur(12px);
-  border: 1px solid hsl(var(--border) / 0.5);
+  border: 1px solid var(--border-default);
+  opacity: 0.9;
 }
 
 .glow-primary {
-  box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  box-shadow: var(--shadow-glow-primary);
 }
 
-.glow-whale {
-  box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
+.glow-whale,
+.glow-accent {
+  box-shadow: var(--shadow-glow-accent);
 }
 
 .text-gradient {
-  background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
+  background: linear-gradient(to right, var(--brand-primary), var(--brand-accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--accent) / 0.4); }
-  50% { box-shadow: 0 0 20px 5px hsl(var(--accent) / 0.6); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--brand-accent-muted); }
+  50% { box-shadow: 0 0 20px 5px var(--brand-accent); }
 }
 
 @keyframes slide-up {
@@ -91,12 +59,12 @@ body {
 
 @keyframes flash-green {
   0%, 100% { background-color: transparent; }
-  50% { background-color: hsl(166 76% 42% / 0.2); }
+  50% { background-color: var(--color-up-muted); }
 }
 
 @keyframes flash-red {
   0%, 100% { background-color: transparent; }
-  50% { background-color: hsl(0 76% 71% / 0.2); }
+  50% { background-color: var(--color-down-muted); }
 }
 
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
@@ -121,11 +89,11 @@ body {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    #1e1e28 0%,
-    #2a2a35 25%,
-    #1e1e28 50%,
-    #2a2a35 75%,
-    #1e1e28 100%
+    var(--bg-muted) 0%,
+    var(--bg-subtle) 25%,
+    var(--bg-muted) 50%,
+    var(--bg-subtle) 75%,
+    var(--bg-muted) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;

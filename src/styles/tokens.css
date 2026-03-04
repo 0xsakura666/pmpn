@@ -1,0 +1,156 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tectonic Design Tokens
+   统一的设计变量系统，所有颜色、间距、圆角等都在此定义
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── 品牌色 ─────────────────────────────────────────────────────────────── */
+  --brand-primary: #00D4AA;
+  --brand-primary-hover: #00c49a;
+  --brand-primary-muted: #00D4AA26;
+  --brand-primary-subtle: #00D4AA10;
+  
+  --brand-accent: #7B61FF;
+  --brand-accent-hover: #6b51ef;
+  --brand-accent-muted: #7B61FF26;
+  --brand-accent-subtle: #7B61FF10;
+
+  /* ─── 语义色 ─────────────────────────────────────────────────────────────── */
+  --color-success: #00D4AA;
+  --color-success-muted: #00D4AA26;
+  --color-error: #FF6B6B;
+  --color-error-muted: #FF6B6B26;
+  --color-warning: #FFB84D;
+  --color-warning-muted: #FFB84D26;
+  --color-info: #3B82F6;
+  --color-info-muted: #3B82F610;
+
+  /* ─── 交易色 ─────────────────────────────────────────────────────────────── */
+  --color-up: #00D4AA;
+  --color-up-muted: #00D4AA26;
+  --color-up-subtle: #00D4AA10;
+  --color-down: #FF6B6B;
+  --color-down-muted: #FF6B6B26;
+  --color-down-subtle: #FF6B6B10;
+
+  /* ─── 巨鲸等级色 ───────────────────────────────────────────────────────── */
+  --whale-mega: #FFD700;
+  --whale-large: #3B82F6;
+  --whale-dolphin: #06B6D4;
+  --whale-fish: #22C55E;
+  --whale-shrimp: #6B7280;
+
+  /* ─── 背景色 ─────────────────────────────────────────────────────────────── */
+  --bg-base: #0c0c10;
+  --bg-elevated: #13131a;
+  --bg-surface: #1a1a22;
+  --bg-muted: #1e1e28;
+  --bg-subtle: #2a2a36;
+  --bg-hover: #ffffff08;
+
+  /* ─── 边框色 ─────────────────────────────────────────────────────────────── */
+  --border-default: #1e1e28;
+  --border-muted: #1a1a22;
+  --border-subtle: #2d2d3a;
+  --border-focus: #00D4AA66;
+
+  /* ─── 文字色 ─────────────────────────────────────────────────────────────── */
+  --text-primary: #ffffff;
+  --text-secondary: #e4e4f0;
+  --text-muted: #c0c0d0;
+  --text-subtle: #8888a0;
+  --text-disabled: #6b6b80;
+  --text-placeholder: #5a5a70;
+
+  /* ─── 圆角 ─────────────────────────────────────────────────────────────── */
+  --radius-sm: 0.375rem;   /* 6px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.25rem;   /* 20px */
+  --radius-full: 9999px;
+
+  /* ─── 间距 ─────────────────────────────────────────────────────────────── */
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+
+  /* ─── 字体大小 ───────────────────────────────────────────────────────────── */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+
+  /* ─── 字重 ─────────────────────────────────────────────────────────────── */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* ─── 阴影 ─────────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-glow-primary: 0 0 20px #00D4AA4D;
+  --shadow-glow-accent: 0 0 20px #7B61FF4D;
+  --shadow-glow-error: 0 0 20px #FF6B6B4D;
+
+  /* ─── 动画 ─────────────────────────────────────────────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ─── Z-Index ───────────────────────────────────────────────────────────── */
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-fixed: 200;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-tooltip: 600;
+
+  /* ─── 容器 ─────────────────────────────────────────────────────────────── */
+  --container-max: 1440px;
+  --sidebar-width: 280px;
+  --header-height: 56px;
+  --mobile-nav-height: 64px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tailwind 扩展类
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* 品牌色 */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-accent: var(--brand-accent);
+  
+  /* 背景色 */
+  --color-surface-base: var(--bg-base);
+  --color-surface-elevated: var(--bg-elevated);
+  --color-surface-muted: var(--bg-muted);
+  
+  /* 边框色 */
+  --color-border-default: var(--border-default);
+  --color-border-focus: var(--border-focus);
+  
+  /* 文字色 */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
+  
+  /* 交易色 */
+  --color-trade-up: var(--color-up);
+  --color-trade-down: var(--color-down);
+}

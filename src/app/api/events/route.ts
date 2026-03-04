@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const GAMMA_API = "https://gamma-api.polymarket.com";
+import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 
 interface RawMarket {
   conditionId?: string;
@@ -23,26 +22,6 @@ interface RawEvent {
   volume?: string;
   liquidity?: string;
   markets?: RawMarket[];
-}
-
-async function fetchWithTimeout(url: string, timeout = 15000): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; TectonicBot/1.0)",
-      },
-      cache: "no-store",
-    });
-    clearTimeout(timeoutId);
-    return res;
-  } catch (e) {
-    clearTimeout(timeoutId);
-    throw e;
-  }
 }
 
 function isExpiredByDate(endDate: string): boolean {
@@ -87,18 +66,11 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get("limit") || "100");
 
   try {
-    const apiUrl = `${GAMMA_API}/events?limit=${limit}&active=true&closed=false&order=volume24hr&ascending=false`;
+    const apiUrl = `${POLYMARKET_ENDPOINTS.gamma}/events?limit=${limit}&active=true&closed=false&order=volume24hr&ascending=false`;
 
     console.log("[Events API] Fetching from:", apiUrl);
 
-    const res = await fetchWithTimeout(apiUrl);
-
-    if (!res.ok) {
-      console.error("[Events API] Failed:", res.status);
-      throw new Error(`API error: ${res.status}`);
-    }
-
-    const rawEvents: RawEvent[] = await res.json();
+    const rawEvents = await fetchPolymarketAPI<RawEvent[]>(apiUrl);
     console.log("[Events API] Got", rawEvents.length, "events");
 
     const events = [];

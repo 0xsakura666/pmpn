@@ -1,0 +1,93 @@
+export const theme = {
+  colors: {
+    brand: {
+      primary: "var(--brand-primary)",
+      primaryHover: "var(--brand-primary-hover)",
+      primaryMuted: "var(--brand-primary-muted)",
+      accent: "var(--brand-accent)",
+      accentHover: "var(--brand-accent-hover)",
+      accentMuted: "var(--brand-accent-muted)",
+    },
+    semantic: {
+      success: "var(--color-success)",
+      error: "var(--color-error)",
+      warning: "var(--color-warning)",
+      info: "var(--color-info)",
+    },
+    trade: {
+      up: "var(--color-up)",
+      upMuted: "var(--color-up-muted)",
+      down: "var(--color-down)",
+      downMuted: "var(--color-down-muted)",
+    },
+    whale: {
+      mega: "var(--whale-mega)",
+      large: "var(--whale-large)",
+      dolphin: "var(--whale-dolphin)",
+      fish: "var(--whale-fish)",
+      shrimp: "var(--whale-shrimp)",
+    },
+    background: {
+      base: "var(--bg-base)",
+      elevated: "var(--bg-elevated)",
+      surface: "var(--bg-surface)",
+      muted: "var(--bg-muted)",
+      subtle: "var(--bg-subtle)",
+      hover: "var(--bg-hover)",
+    },
+    border: {
+      default: "var(--border-default)",
+      muted: "var(--border-muted)",
+      subtle: "var(--border-subtle)",
+      focus: "var(--border-focus)",
+    },
+    text: {
+      primary: "var(--text-primary)",
+      secondary: "var(--text-secondary)",
+      muted: "var(--text-muted)",
+      subtle: "var(--text-subtle)",
+      disabled: "var(--text-disabled)",
+    },
+  },
+  spacing: {
+    0: "var(--space-0)",
+    1: "var(--space-1)",
+    2: "var(--space-2)",
+    3: "var(--space-3)",
+    4: "var(--space-4)",
+    5: "var(--space-5)",
+    6: "var(--space-6)",
+    8: "var(--space-8)",
+    10: "var(--space-10)",
+    12: "var(--space-12)",
+  },
+  radius: {
+    sm: "var(--radius-sm)",
+    md: "var(--radius-md)",
+    lg: "var(--radius-lg)",
+    xl: "var(--radius-xl)",
+    "2xl": "var(--radius-2xl)",
+    full: "var(--radius-full)",
+  },
+  shadow: {
+    sm: "var(--shadow-sm)",
+    md: "var(--shadow-md)",
+    lg: "var(--shadow-lg)",
+    glowPrimary: "var(--shadow-glow-primary)",
+    glowAccent: "var(--shadow-glow-accent)",
+    glowError: "var(--shadow-glow-error)",
+  },
+  transition: {
+    fast: "var(--transition-fast)",
+    normal: "var(--transition-normal)",
+    slow: "var(--transition-slow)",
+  },
+  layout: {
+    containerMax: "var(--container-max)",
+    sidebarWidth: "var(--sidebar-width)",
+    headerHeight: "var(--header-height)",
+    mobileNavHeight: "var(--mobile-nav-height)",
+  },
+} as const;
+
+export type Theme = typeof theme;

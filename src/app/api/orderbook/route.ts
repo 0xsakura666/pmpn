@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const CLOB_API = "https://clob.polymarket.com";
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 
 export interface OrderBookData {
   market: string;
@@ -16,18 +14,6 @@ export interface OrderBookData {
   last_trade_price: string;
 }
 
-async function fetchWithProxy<T>(url: string): Promise<T> {
-  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-  const response = await fetch(proxyUrl, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-  return response.json();
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -40,8 +26,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = `${CLOB_API}/book?token_id=${encodeURIComponent(tokenId)}`;
-    const orderbook = await fetchWithProxy<OrderBookData>(url);
+    const url = `${POLYMARKET_ENDPOINTS.clob}/book?token_id=${encodeURIComponent(tokenId)}`;
+    const orderbook = await fetchPolymarketAPI<OrderBookData>(url);
 
     return NextResponse.json(orderbook);
   } catch (error) {

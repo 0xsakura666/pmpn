@@ -1,23 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const CLOB_API = "https://clob.polymarket.com";
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 
 export interface PriceHistoryPoint {
   t: number;
   p: number;
-}
-
-async function fetchWithProxy<T>(url: string): Promise<T> {
-  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-  const response = await fetch(proxyUrl, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-  return response.json();
 }
 
 export async function GET(request: NextRequest) {
@@ -43,8 +29,8 @@ export async function GET(request: NextRequest) {
     if (startTs) params.set("startTs", startTs);
     if (endTs) params.set("endTs", endTs);
 
-    const url = `${CLOB_API}/prices-history?${params.toString()}`;
-    const data = await fetchWithProxy<{ history: PriceHistoryPoint[] }>(url);
+    const url = `${POLYMARKET_ENDPOINTS.clob}/prices-history?${params.toString()}`;
+    const data = await fetchPolymarketAPI<{ history: PriceHistoryPoint[] }>(url);
 
     return NextResponse.json(data);
   } catch (error) {

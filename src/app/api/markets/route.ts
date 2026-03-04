@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const GAMMA_API = "https://gamma-api.polymarket.com";
-
-const CORS_PROXIES = [
-  (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-];
+import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 
 interface TransformedMarket {
   id: string;
@@ -24,57 +17,14 @@ interface TransformedMarket {
   liquidity: number;
 }
 
-async function fetchWithTimeout(url: string, timeout = 12000): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  try {
-    const res = await fetch(url, { 
-      signal: controller.signal,
-      headers: { "Accept": "application/json" },
-    });
-    clearTimeout(timeoutId);
-    return res;
-  } catch (e) {
-    clearTimeout(timeoutId);
-    throw e;
-  }
-}
-
-async function fetchWithProxies(apiUrl: string): Promise<unknown[]> {
-  // 首先尝试直连
-  try {
-    const res = await fetchWithTimeout(apiUrl, 8000);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) return data;
-    }
-  } catch {}
-
-  // 直连失败，尝试代理
-  for (const makeProxy of CORS_PROXIES) {
-    try {
-      const proxyUrl = makeProxy(apiUrl);
-      const res = await fetchWithTimeout(proxyUrl, 12000);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) return data;
-      }
-    } catch {
-      continue;
-    }
-  }
-  
-  throw new Error("All methods failed");
-}
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const limit = parseInt(searchParams.get("limit") || "50");
 
   try {
-    const apiUrl = `${GAMMA_API}/events?limit=${limit}&active=true&closed=false`;
-    
-    const events = await fetchWithProxies(apiUrl);
+    const apiUrl = `${POLYMARKET_ENDPOINTS.gamma}/events?limit=${limit}&active=true&closed=false`;
+
+    const events = await fetchPolymarketAPI<Record<string, unknown>[]>(apiUrl);
 
     const markets: TransformedMarket[] = [];
     

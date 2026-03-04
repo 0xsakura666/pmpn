@@ -1,0 +1,338 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tectonic Animation System
+   统一的动画和过渡效果
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── 基础过渡 ──────────────────────────────────────────────────────────── */
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-normal {
+  transition: all var(--transition-normal);
+}
+
+.transition-slow {
+  transition: all var(--transition-slow);
+}
+
+/* ─── 渐入渐出 ──────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in var(--transition-normal) ease-out;
+}
+
+.animate-fade-out {
+  animation: fade-out var(--transition-normal) ease-in;
+}
+
+/* ─── 滑入 ──────────────────────────────────────────────────────────────── */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up var(--transition-normal) ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down var(--transition-normal) ease-out;
+}
+
+.animate-slide-left {
+  animation: slide-left var(--transition-normal) ease-out;
+}
+
+.animate-slide-right {
+  animation: slide-right var(--transition-normal) ease-out;
+}
+
+/* ─── 缩放 ──────────────────────────────────────────────────────────────── */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in var(--transition-normal) ease-out;
+}
+
+.animate-scale-out {
+  animation: scale-out var(--transition-fast) ease-in;
+}
+
+/* ─── 弹入 ──────────────────────────────────────────────────────────────── */
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ─── 旋转 ──────────────────────────────────────────────────────────────── */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+}
+
+/* ─── 脉动 ──────────────────────────────────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── 心跳 ──────────────────────────────────────────────────────────────── */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1s ease-in-out infinite;
+}
+
+/* ─── 闪烁点 ──────────────────────────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-blink {
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+/* ─── 抖动 ──────────────────────────────────────────────────────────────── */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* ─── 光芒 ──────────────────────────────────────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--brand-primary), 0 0 10px var(--brand-primary);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--brand-primary), 0 0 20px var(--brand-primary), 0 0 30px var(--brand-primary);
+  }
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ─── 进度条 ──────────────────────────────────────────────────────────────── */
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+.animate-progress {
+  animation: progress 1s ease-out forwards;
+}
+
+/* ─── 数字变化 ──────────────────────────────────────────────────────────────── */
+@keyframes number-flash {
+  0% {
+    color: inherit;
+  }
+  50% {
+    color: var(--brand-primary);
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+.animate-number-change {
+  animation: number-flash 0.5s ease-out;
+}
+
+/* ─── 悬浮 ──────────────────────────────────────────────────────────────── */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ─── 骨架屏闪烁 ──────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    90deg,
+    var(--bg-muted) 25%,
+    var(--bg-subtle) 50%,
+    var(--bg-muted) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ─── 交错动画延迟 ──────────────────────────────────────────────────────────── */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+
+/* ─── 减少动画（无障碍） ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
