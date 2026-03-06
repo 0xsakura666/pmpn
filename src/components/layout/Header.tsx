@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, Menu, X } from "lucide-react";
 import { useState, useCallback } from "react";
 import { mainNavItems, isActiveRoute } from "@/config/navigation";
@@ -16,15 +16,23 @@ interface HeaderProps {
 
 export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const pathname = usePathname();
-  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(() =>
+    pathname === "/" ? (searchParams.get("search") || "") : ""
+  );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/?search=${encodeURIComponent(searchQuery)}`;
+    const q = searchQuery.trim();
+    if (q) {
+      router.push(`/?search=${encodeURIComponent(q)}`);
+    } else {
+      router.push("/");
     }
-  }, [searchQuery]);
+    setIsSearchOpen(false);
+  }, [router, searchQuery]);
 
   return (
     <header className="shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-base)]/90 backdrop-blur-md sticky top-0 z-[var(--z-sticky)]">

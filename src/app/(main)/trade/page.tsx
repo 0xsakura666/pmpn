@@ -36,6 +36,24 @@ interface Market {
   negRisk?: boolean;
 }
 
+interface ApiMarketResponse {
+  id?: string;
+  conditionId?: string;
+  question?: string;
+  title?: string;
+  slug?: string;
+  image?: string;
+  yesPrice?: number | string;
+  noPrice?: number | string;
+  volume24h?: number | string;
+  totalVolume?: number | string;
+  endDate?: string;
+  yesTokenId?: string;
+  noTokenId?: string;
+  tickSize?: string;
+  negRisk?: boolean;
+}
+
 function TradePageContent() {
   const searchParams = useSearchParams();
   const initialMarketId = searchParams.get("market");
@@ -51,58 +69,52 @@ function TradePageContent() {
 
   const fetchMarkets = useCallback(async () => {
     try {
-      const res = await fetch("/api/markets?limit=50");
+      const res = await fetch("/api/markets?limit=1200");
       if (res.ok) {
         const data = await res.json();
-        const parsed: Market[] = data.events?.map((ev: any) => {
-          const m = ev.markets?.[0];
-          if (!m) return null;
-          let yesPrice = 0.5;
-          let yesTokenId = "";
-          let noTokenId = "";
-          try {
-            if (m.outcomePrices) {
-              const prices = JSON.parse(m.outcomePrices);
-              yesPrice = parseFloat(prices[0]) || 0.5;
-            }
-            if (m.clobTokenIds) {
-              const ids = JSON.parse(m.clobTokenIds);
-              yesTokenId = ids[0] || "";
-              noTokenId = ids[1] || "";
-            }
-          } catch {}
-          return {
-            conditionId: m.conditionId || m.condition_id,
-            question: m.question || ev.title,
-            slug: m.slug || ev.slug,
-            image: ev.image || "",
-            yesPrice,
-            noPrice: 1 - yesPrice,
-            volume24h: parseFloat(ev.volume24hr || "0"),
-            totalVolume: parseFloat(ev.volume || "0"),
-            endDate: m.endDate || ev.endDate,
-            yesTokenId,
-            noTokenId,
-            tickSize: m.minimum_tick_size || "0.01",
-            negRisk: m.negRisk || false,
-          };
-        }).filter(Boolean) || [];
+        const parsed: Market[] = Array.isArray(data)
+          ? data
+              .map((market: ApiMarketResponse) => ({
+                conditionId: market.conditionId || market.id || "",
+                question: market.question || market.title || "",
+                slug: market.slug || "",
+                image: market.image || "",
+                yesPrice: Number(market.yesPrice ?? 0.5),
+                noPrice: Number(market.noPrice ?? (1 - Number(market.yesPrice ?? 0.5))),
+                volume24h: Number(market.volume24h ?? 0),
+                totalVolume: Number(market.totalVolume ?? 0),
+                endDate: market.endDate || "",
+                yesTokenId: market.yesTokenId || "",
+                noTokenId: market.noTokenId || "",
+                tickSize: market.tickSize || "0.01",
+                negRisk: Boolean(market.negRisk),
+              }))
+              .filter((m: Market) => Boolean(m.conditionId))
+          : [];
         setMarkets(parsed);
         
         if (initialMarketId) {
           const found = parsed.find((m) => m.conditionId === initialMarketId);
-          if (found) setSelectedMarket(found);
+          if (found) {
+            setSelectedMarket(found);
+            return;
+          }
         }
-        if (!selectedMarket && parsed.length > 0 && !initialMarketId) {
-          setSelectedMarket(parsed[0]);
-        }
+
+        setSelectedMarket((prev) => {
+          if (prev) {
+            const updated = parsed.find((m) => m.conditionId === prev.conditionId);
+            if (updated) return updated;
+          }
+          return parsed[0] || null;
+        });
       }
     } catch (err) {
       console.error("Failed to fetch markets:", err);
     } finally {
       setLoading(false);
     }
-  }, [initialMarketId, selectedMarket]);
+  }, [initialMarketId]);
 
   useEffect(() => {
     fetchMarkets();

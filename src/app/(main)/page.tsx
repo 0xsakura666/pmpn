@@ -16,8 +16,10 @@ import {
 } from "@/components/market";
 import { calculateDaysLeft, isExpiredByDate } from "@/lib/utils";
 
-const CACHE_KEY = "pmpn_events_cache_v4";
+const CACHE_KEY = "pmpn_events_cache_v5";
 const CACHE_TTL = 3 * 60 * 1000;
+const DEFAULT_FETCH_LIMIT = 500;
+const SEARCH_FETCH_LIMIT = 200;
 
 interface CacheData {
   events: EventGroup[];
@@ -105,29 +107,38 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     }
   }, []);
 
-  const fetchFromAPI = useCallback(async (): Promise<EventGroup[]> => {
-    const res = await fetchWithTimeout("/api/events?limit=100", 15000);
+  const fetchFromAPI = useCallback(async (query: string): Promise<EventGroup[]> => {
+    const params = new URLSearchParams({
+      limit: query.trim() ? String(SEARCH_FETCH_LIMIT) : String(DEFAULT_FETCH_LIMIT),
+    });
+    if (query.trim()) {
+      params.set("search", query.trim());
+    }
+
+    const res = await fetchWithTimeout(`/api/events?${params.toString()}`, 20000);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || `API error: ${res.status}`);
     }
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("No events data");
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid events response");
     }
     return data as EventGroup[];
   }, [fetchWithTimeout]);
 
   const fetchEvents = useCallback(
-    async (useCache = true) => {
-      const cached = useCache ? getCache() : null;
+    async (query: string, useCache = true) => {
+      const normalizedQuery = query.trim();
+      const shouldUseCache = useCache && normalizedQuery === "";
+      const cached = shouldUseCache ? getCache() : null;
 
       if (cached && cached.events.length > 0) {
         setEvents(cached.events);
         setLoading(false);
         setIsRefreshing(true);
         try {
-          const fresh = await fetchFromAPI();
+          const fresh = await fetchFromAPI("");
           if (fresh.length > 0) {
             setEvents(fresh);
             setCache(fresh);
@@ -140,21 +151,28 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
       setLoading(true);
       setError(null);
       try {
-        const fresh = await fetchFromAPI();
+        const fresh = await fetchFromAPI(normalizedQuery);
         setEvents(fresh);
-        setCache(fresh);
+        if (normalizedQuery === "") {
+          setCache(fresh);
+        }
       } catch {
         setError("无法连接到 Polymarket API，请检查网络或稍后重试");
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     },
     [fetchFromAPI]
   );
 
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    setSearchQuery(initialSearch);
+  }, [initialSearch]);
+
+  useEffect(() => {
+    fetchEvents(searchQuery, true);
+  }, [fetchEvents, searchQuery]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -229,7 +247,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           isRefreshing={isRefreshing}
-          onRefresh={() => fetchEvents(false)}
+          onRefresh={() => fetchEvents(searchQuery, false)}
         />
       </div>
 
@@ -258,7 +276,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           <AlertCircle className="mb-4 h-12 w-12 text-[var(--color-down)]" />
           <p className="mb-2 text-lg font-semibold text-[var(--color-down)]">加载失败</p>
           <p className="mb-6 text-sm text-[var(--text-disabled)]">{error}</p>
-          <Button onClick={() => fetchEvents(false)}>重新加载</Button>
+          <Button onClick={() => fetchEvents(searchQuery, false)}>重新加载</Button>
         </div>
       ) : paginatedEvents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
