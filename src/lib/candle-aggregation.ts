@@ -13,6 +13,11 @@ export interface CandlePoint {
   close: number;
 }
 
+interface AggregateOptions {
+  fillMissingBuckets?: boolean;
+  maxOutputBars?: number;
+}
+
 export const CANDLE_INTERVAL_SECONDS: Record<CandleInterval, number> = {
   "1s": 1,
   "5s": 5,
@@ -40,10 +45,12 @@ export function normalizeHistoryPayload(data: unknown): PriceHistoryPoint[] {
 
 export function aggregatePriceHistoryToCandles(
   history: PriceHistoryPoint[],
-  interval: CandleInterval
+  interval: CandleInterval,
+  options: AggregateOptions = {}
 ): CandlePoint[] {
   if (history.length === 0) return [];
 
+  const { fillMissingBuckets = true, maxOutputBars = 5000 } = options;
   const intervalSeconds = CANDLE_INTERVAL_SECONDS[interval];
   const normalized = history
     .map((point) => {
@@ -87,44 +94,51 @@ export function aggregatePriceHistoryToCandles(
   }
 
   const sortedCandles = Array.from(grouped.values()).sort((a, b) => a.time - b.time);
+  if (sortedCandles.length === 0) return [];
 
-  // For higher timeframes, fill empty buckets with flat candles so the
-  // visual spacing remains strictly aligned to the selected interval.
-  if (intervalSeconds >= 3600 && sortedCandles.length > 1) {
-    const firstTime = sortedCandles[0].time;
-    const lastTime = sortedCandles[sortedCandles.length - 1].time;
-    const expectedBars = Math.floor((lastTime - firstTime) / intervalSeconds) + 1;
+  // Keep payload size bounded for both network and browser rendering cost.
+  const lastTime = sortedCandles[sortedCandles.length - 1].time;
+  const windowStart = Math.max(
+    sortedCandles[0].time,
+    lastTime - intervalSeconds * (Math.max(maxOutputBars, 1) - 1)
+  );
+  const windowedCandles = sortedCandles.filter((candle) => candle.time >= windowStart);
 
-    // Guardrail: avoid creating too many synthetic bars on extremely long ranges.
-    if (expectedBars <= 10000) {
-      const byTime = new Map<number, CandlePoint>(
-        sortedCandles.map((candle) => [candle.time, candle])
-      );
-      const filled: CandlePoint[] = [];
-      let previousClose = sortedCandles[0].close;
-
-      for (let time = firstTime; time <= lastTime; time += intervalSeconds) {
-        const existing = byTime.get(time);
-        if (existing) {
-          filled.push(existing);
-          previousClose = existing.close;
-          continue;
-        }
-
-        filled.push({
-          time,
-          open: previousClose,
-          high: previousClose,
-          low: previousClose,
-          close: previousClose,
-        });
-      }
-
-      return filled;
-    }
+  if (!fillMissingBuckets || windowedCandles.length <= 1) {
+    return windowedCandles;
   }
 
-  return sortedCandles;
+  const byTime = new Map<number, CandlePoint>(
+    windowedCandles.map((candle) => [candle.time, candle])
+  );
+  const previousSlice = sortedCandles.slice(
+    0,
+    Math.max(sortedCandles.length - windowedCandles.length, 0)
+  );
+  const previousBeforeWindow =
+    previousSlice.length > 0 ? previousSlice[previousSlice.length - 1] : undefined;
+
+  const filled: CandlePoint[] = [];
+  let previousClose = previousBeforeWindow?.close ?? windowedCandles[0].close;
+
+  for (let time = windowStart; time <= lastTime; time += intervalSeconds) {
+    const existing = byTime.get(time);
+    if (existing) {
+      filled.push(existing);
+      previousClose = existing.close;
+      continue;
+    }
+
+    filled.push({
+      time,
+      open: previousClose,
+      high: previousClose,
+      low: previousClose,
+      close: previousClose,
+    });
+  }
+
+  return filled;
 }
 
 export function candlesToHistory(candles: CandlePoint[]): PriceHistoryPoint[] {

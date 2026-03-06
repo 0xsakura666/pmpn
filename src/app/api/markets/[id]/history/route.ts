@@ -37,7 +37,11 @@ export async function GET(
     const timeframeConfig = getHistoryParamsForTimeframe(timeframe);
     const requestedInterval = searchParams.get("interval") || timeframeConfig.interval;
     const requestedFidelity = Number(searchParams.get("fidelity") || timeframeConfig.fidelity);
+    const startTs = searchParams.get("startTs");
+    const endTs = searchParams.get("endTs");
     const historyInterval = timeframeConfig.historyInterval;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const effectiveStartTs = startTs || String(nowSec - timeframeConfig.lookbackSeconds);
     let tokenId = searchParams.get("tokenId");
 
     console.log(
@@ -84,7 +88,7 @@ export async function GET(
       });
     }
 
-    const cacheKey = `market-history:${id}:${tokenId}:${timeframe}:${historyInterval}`;
+    const cacheKey = `market-history:${id}:${tokenId}:${timeframe}:${historyInterval}:${effectiveStartTs}:${endTs || ""}`;
     const cached = getCachedValue<HistoryPayload>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
@@ -99,7 +103,9 @@ export async function GET(
     // then enforce deterministic bucketing on our side.
     const url = `${CLOB_API}/prices-history?market=${encodeURIComponent(
       tokenId
-    )}&interval=max&fidelity=1`;
+    )}&interval=max&fidelity=1&startTs=${encodeURIComponent(effectiveStartTs)}${
+      endTs ? `&endTs=${encodeURIComponent(endTs)}` : ""
+    }`;
     console.log(`[Price History] Fetching: ${url}`);
     
     const response = await fetch(url, {

@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
     const startTs = searchParams.get("startTs");
     const endTs = searchParams.get("endTs");
     const historyInterval = timeframeConfig.historyInterval;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const effectiveStartTs = startTs || String(nowSec - timeframeConfig.lookbackSeconds);
 
     if (!market) {
       return NextResponse.json(
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cacheKey = `price-history:${market}:${timeframe}:${historyInterval}:${startTs || ""}:${endTs || ""}`;
+    const cacheKey = `price-history:${market}:${timeframe}:${historyInterval}:${effectiveStartTs}:${endTs || ""}`;
     const cached = getCachedValue<PriceHistoryPayload>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
     // Always fetch high-resolution data then aggregate server-side.
     params.set("interval", "max");
     params.set("fidelity", "1");
-    if (startTs) params.set("startTs", startTs);
+    params.set("startTs", effectiveStartTs);
     if (endTs) params.set("endTs", endTs);
 
     const url = `${POLYMARKET_ENDPOINTS.clob}/prices-history?${params.toString()}`;
