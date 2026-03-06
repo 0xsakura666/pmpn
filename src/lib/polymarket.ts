@@ -1,3 +1,5 @@
+import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
+
 const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || "https://clob.polymarket.com";
 const POLYMARKET_GAMMA_API = process.env.POLYMARKET_GAMMA_API || "https://gamma-api.polymarket.com";
 const POLYMARKET_DATA_API = process.env.POLYMARKET_DATA_API || "https://data-api.polymarket.com";
@@ -218,26 +220,30 @@ class PolymarketService {
   
   private parseTokens(market: any): Array<{ token_id: string; outcome: string; price: number; winner: boolean }> {
     const tokens: Array<{ token_id: string; outcome: string; price: number; winner: boolean }> = [];
-    
-    if (market.clobTokenIds) {
-      try {
-        const tokenIds = JSON.parse(market.clobTokenIds);
-        const outcomes = ["Yes", "No"];
-        const prices = market.outcomePrices ? JSON.parse(market.outcomePrices) : [0.5, 0.5];
-        
-        for (let i = 0; i < tokenIds.length && i < 2; i++) {
-          tokens.push({
-            token_id: tokenIds[i],
-            outcome: outcomes[i],
-            price: parseFloat(prices[i]) || 0.5,
-            winner: false,
-          });
-        }
-      } catch {
-        // Parse error
-      }
+
+    const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+      outcomes: market.outcomes,
+      outcomePrices: market.outcomePrices,
+      clobTokenIds: market.clobTokenIds,
+    });
+
+    if (yesTokenId) {
+      tokens.push({
+        token_id: yesTokenId,
+        outcome: "Yes",
+        price: yesPrice,
+        winner: false,
+      });
     }
-    
+    if (noTokenId) {
+      tokens.push({
+        token_id: noTokenId,
+        outcome: "No",
+        price: noPrice,
+        winner: false,
+      });
+    }
+
     return tokens;
   }
 

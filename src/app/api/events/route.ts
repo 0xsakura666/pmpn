@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
+import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
 
 const GAMMA_PAGE_SIZE = 500;
 const DEFAULT_EVENTS_LIMIT = 500;
@@ -11,6 +12,7 @@ interface RawMarket {
   conditionId?: string;
   condition_id?: string;
   question?: string;
+  outcomes?: string;
   outcomePrices?: string;
   clobTokenIds?: string;
   endDate?: string;
@@ -127,27 +129,17 @@ function transformEvent(event: RawEvent, fallbackId: number): EventGroup | null 
     const endDate = m.endDate || eventEndDate || "";
     if (isExpiredByDate(endDate)) continue;
 
-    let yesPrice = 0.5;
-    let yesTokenId = "";
-    let noTokenId = "";
-    try {
-      if (m.outcomePrices) {
-        yesPrice = parseFloat(JSON.parse(m.outcomePrices)[0]) || 0.5;
-      }
-      if (m.clobTokenIds) {
-        const tokenIds = JSON.parse(m.clobTokenIds);
-        yesTokenId = tokenIds[0] || "";
-        noTokenId = tokenIds[1] || "";
-      }
-    } catch {
-      // Ignore malformed outcome payloads from upstream API
-    }
+    const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+      outcomes: m.outcomes,
+      outcomePrices: m.outcomePrices,
+      clobTokenIds: m.clobTokenIds,
+    });
 
     subMarkets.push({
       conditionId: m.conditionId || m.condition_id || "",
       question: m.question || title,
       yesPrice,
-      noPrice: 1 - yesPrice,
+      noPrice,
       endDate,
       slug: m.slug || "",
       daysLeft: calculateDaysLeft(endDate),

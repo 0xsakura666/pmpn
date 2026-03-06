@@ -357,33 +357,38 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const fetchMarket = async () => {
     setLoading(true);
     setError(null);
+    let hasCache = false;
     try {
       // 首先尝试从 localStorage 读取
       const cached = localStorage.getItem(`market_${resolvedParams.id}`);
       if (cached) {
-        const cachedMarket = JSON.parse(cached);
-        const yesTokenId = cachedMarket.yesTokenId || "";
-        const noTokenId = cachedMarket.noTokenId || "";
-        setMarket({
-          id: cachedMarket.conditionId,
-          title: cachedMarket.title,
-          titleOriginal: cachedMarket.title,
-          description: cachedMarket.description || "",
-          slug: cachedMarket.slug,
-          endDate: cachedMarket.endDate,
-          image: cachedMarket.image || "",
-          tokens: [
-            { token_id: yesTokenId, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
-            { token_id: noTokenId, outcome: "No", price: cachedMarket.noPrice, winner: false },
-          ],
-          orderBooks: [],
-        });
-        setLoading(false);
-        return;
+        try {
+          const cachedMarket = JSON.parse(cached);
+          const yesTokenId = cachedMarket.yesTokenId || "";
+          const noTokenId = cachedMarket.noTokenId || "";
+          hasCache = true;
+          setMarket({
+            id: cachedMarket.conditionId,
+            title: cachedMarket.title,
+            titleOriginal: cachedMarket.title,
+            description: cachedMarket.description || "",
+            slug: cachedMarket.slug,
+            endDate: cachedMarket.endDate,
+            image: cachedMarket.image || "",
+            tokens: [
+              { token_id: yesTokenId, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
+              { token_id: noTokenId, outcome: "No", price: cachedMarket.noPrice, winner: false },
+            ],
+            orderBooks: [],
+          });
+          setLoading(false);
+        } catch {
+          localStorage.removeItem(`market_${resolvedParams.id}`);
+        }
       }
 
-      // 如果没有缓存，尝试从 API 获取
-      const res = await fetch(`/api/markets/${resolvedParams.id}`);
+      // 始终刷新一次 API，避免旧缓存里的 token 映射错误。
+      const res = await fetch(`/api/markets/${resolvedParams.id}`, { cache: "no-store" });
       const data = await res.json();
       
       if (data.error) {
@@ -395,10 +400,31 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       }
       
       setMarket(data);
+      const yesToken = (data.tokens || []).find((t: { outcome: string }) => t.outcome === "Yes");
+      const noToken = (data.tokens || []).find((t: { outcome: string }) => t.outcome === "No");
+      localStorage.setItem(
+        `market_${resolvedParams.id}`,
+        JSON.stringify({
+          conditionId: data.id,
+          title: data.titleOriginal || data.title || "",
+          description: data.descriptionOriginal || data.description || "",
+          slug: data.slug || "",
+          endDate: data.endDate || "",
+          image: data.image || "",
+          yesPrice: yesToken?.price ?? 0.5,
+          noPrice: noToken?.price ?? 0.5,
+          yesTokenId: yesToken?.token_id || "",
+          noTokenId: noToken?.token_id || "",
+        })
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load market");
+      if (!hasCache) {
+        setError(err instanceof Error ? err.message : "Failed to load market");
+      }
     } finally {
-      setLoading(false);
+      if (!hasCache) {
+        setLoading(false);
+      }
     }
   };
 

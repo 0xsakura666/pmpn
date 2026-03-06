@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
+import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
 
 const GAMMA_PAGE_SIZE = 500;
 const DEFAULT_MARKETS_LIMIT = 800;
@@ -13,6 +14,7 @@ interface RawMarket {
   description?: string;
   slug?: string;
   endDate?: string;
+  outcomes?: string;
   outcomePrices?: string;
   clobTokenIds?: string;
   minimum_tick_size?: string;
@@ -92,22 +94,11 @@ export async function GET(request: NextRequest) {
           const endDate = (market.endDate || event.endDate || "") as string;
           if (endDate && new Date(endDate).getTime() < now) continue;
 
-          let yesPrice = 0.5;
-          let yesTokenId = "";
-          let noTokenId = "";
-
-          try {
-            if (market.outcomePrices) {
-              yesPrice = parseFloat(JSON.parse(market.outcomePrices)[0]) || 0.5;
-            }
-            if (market.clobTokenIds) {
-              const tokenIds = JSON.parse(market.clobTokenIds);
-              yesTokenId = tokenIds[0] || "";
-              noTokenId = tokenIds[1] || "";
-            }
-          } catch {
-            // Ignore malformed token payloads from upstream API
-          }
+          const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+            outcomes: market.outcomes,
+            outcomePrices: market.outcomePrices,
+            clobTokenIds: market.clobTokenIds,
+          });
 
           const conditionId = (market.conditionId || market.condition_id || "") as string;
           if (!conditionId || seenConditionIds.has(conditionId)) continue;
@@ -125,7 +116,7 @@ export async function GET(request: NextRequest) {
             endDate,
             image: (event.image || "") as string,
             yesPrice,
-            noPrice: 1 - yesPrice,
+            noPrice,
             volume24h: parseFloat((event.volume24hr as string) || "0"),
             totalVolume: parseFloat((event.volume as string) || "0"),
             liquidity: parseFloat((event.liquidity as string) || "0"),

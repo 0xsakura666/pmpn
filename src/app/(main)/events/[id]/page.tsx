@@ -64,23 +64,60 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   );
 
   useEffect(() => {
+    let cancelled = false;
+    let hasCache = false;
+
     const cached = localStorage.getItem(`event_${resolvedParams.id}`);
     if (cached) {
       try {
-        const data = JSON.parse(cached);
+        const data = JSON.parse(cached) as EventData;
+        hasCache = true;
         setEvent(data);
         if (data.markets && data.markets.length > 0) {
           setSelectedMarket(data.markets[0]);
         }
         setLoading(false);
       } catch {
-        setError("无法加载事件数据");
-        setLoading(false);
+        localStorage.removeItem(`event_${resolvedParams.id}`);
       }
-    } else {
-      setError("事件未找到，请从首页进入");
-      setLoading(false);
     }
+
+    const fetchFresh = async () => {
+      try {
+        const res = await fetch(`/api/events/${resolvedParams.id}`, { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error("事件未找到");
+        }
+        const data = (await res.json()) as EventData;
+        if (cancelled) return;
+
+        setEvent(data);
+        if (data.markets && data.markets.length > 0) {
+          setSelectedMarket((prev) => {
+            if (!prev) return data.markets[0];
+            const matched = data.markets.find((m) => m.conditionId === prev.conditionId);
+            return matched || data.markets[0];
+          });
+        }
+        localStorage.setItem(`event_${resolvedParams.id}`, JSON.stringify(data));
+        setError(null);
+      } catch (err) {
+        if (cancelled) return;
+        if (!hasCache) {
+          setError(err instanceof Error ? err.message : "事件未找到，请从首页进入");
+        }
+      } finally {
+        if (!cancelled && !hasCache) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void fetchFresh();
+
+    return () => {
+      cancelled = true;
+    };
   }, [resolvedParams.id]);
 
   const fetchPriceHistory = useCallback(async (
