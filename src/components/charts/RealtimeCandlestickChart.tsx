@@ -43,6 +43,36 @@ function formatCents(value: number, precision = 2) {
   return `${(value * 100).toFixed(precision)}¢`;
 }
 
+function normalizeCandleTimeToSeconds(rawTime: Time): number | null {
+  const numeric = Number(rawTime as unknown);
+  if (!Number.isFinite(numeric)) return null;
+  const normalized = numeric > 10_000_000_000
+    ? Math.floor(numeric / 1000)
+    : Math.floor(numeric);
+  return normalized > 0 ? normalized : null;
+}
+
+function normalizeCandle(candle: CandlestickData<Time>): CandlestickData<Time> | null {
+  const normalizedTime = normalizeCandleTimeToSeconds(candle.time);
+  if (normalizedTime === null) return null;
+  if (
+    !Number.isFinite(candle.open) ||
+    !Number.isFinite(candle.high) ||
+    !Number.isFinite(candle.low) ||
+    !Number.isFinite(candle.close)
+  ) {
+    return null;
+  }
+
+  return {
+    time: normalizedTime as Time,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  };
+}
+
 function mergeCandlesByTime(
   historicalCandles: CandlestickData<Time>[],
   realtimeCandles: CandlestickData<Time>[]
@@ -77,6 +107,12 @@ export function RealtimeCandlestickChart({
   const config = TIMEFRAME_CONFIG[selectedTimeframe];
   const currentInterval = TIMEFRAME_TO_INTERVAL[selectedTimeframe];
 
+  const normalizedInitialData = useMemo(() => {
+    return initialData
+      .map(normalizeCandle)
+      .filter((candle): candle is CandlestickData<Time> => candle !== null);
+  }, [initialData]);
+
   const {
     isConnected,
     lastPrice,
@@ -86,11 +122,11 @@ export function RealtimeCandlestickChart({
     tickCount,
   } = useMultiTimeframeCandles({
     tokenId: tokenId || "",
-    initialData: initialData as CandleData[],
+    initialData: normalizedInitialData as CandleData[],
   });
 
   const historicalCandlesForInterval = useMemo(() => {
-    if (initialData.length === 0) return [];
+    if (normalizedInitialData.length === 0) return [];
 
     const targetSeconds = INTERVAL_SECONDS[currentInterval as IntervalType];
     const baseSeconds = INTERVAL_SECONDS[historyBaseInterval];
@@ -101,15 +137,15 @@ export function RealtimeCandlestickChart({
     }
 
     if (currentInterval === historyBaseInterval) {
-      return initialData;
+      return normalizedInitialData;
     }
 
     return aggregateCandlesToHigherTimeframe(
-      initialData as CandleData[],
+      normalizedInitialData as CandleData[],
       historyBaseInterval,
       currentInterval as IntervalType
     ) as CandlestickData<Time>[];
-  }, [initialData, currentInterval, historyBaseInterval]);
+  }, [normalizedInitialData, currentInterval, historyBaseInterval]);
 
   const displayCandles = useMemo(() => {
     const wsCandles = wsGetCandles(currentInterval);

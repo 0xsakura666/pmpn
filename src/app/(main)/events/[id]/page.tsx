@@ -37,6 +37,12 @@ interface EventData {
   markets: SubMarket[];
 }
 
+function normalizeCandleTime(raw: number): number | null {
+  if (!Number.isFinite(raw)) return null;
+  const normalized = raw > 10_000_000_000 ? Math.floor(raw / 1000) : Math.floor(raw);
+  return normalized > 0 ? normalized : null;
+}
+
 function formatMoney(vol: number): string {
   if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
   if (vol >= 1e3) return `$${Math.round(vol / 1e3)}K`;
@@ -110,13 +116,29 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         const resolvedInterval = (data.historyInterval || historyInterval) as CandleInterval;
 
         if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
-          const candles = data.candles.map((c: { time: number; open: number; high: number; low: number; close: number }) => ({
-            time: c.time as Time,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-          }));
+          type RawCandle = { time: number; open: number; high: number; low: number; close: number };
+          const normalized: Array<CandlestickData<Time> | null> = (data.candles as RawCandle[])
+            .map((c: { time: number; open: number; high: number; low: number; close: number }) => {
+              const normalizedTime = normalizeCandleTime(c.time);
+              if (
+                normalizedTime === null ||
+                !Number.isFinite(c.open) ||
+                !Number.isFinite(c.high) ||
+                !Number.isFinite(c.low) ||
+                !Number.isFinite(c.close)
+              ) {
+                return null;
+              }
+
+              return {
+                time: normalizedTime as Time,
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close,
+              };
+            });
+          const candles = normalized.filter((c): c is CandlestickData<Time> => c !== null);
 
           historyCacheRef.current.set(cacheKey, {
             candles,

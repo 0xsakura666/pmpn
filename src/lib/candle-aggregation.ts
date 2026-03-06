@@ -45,7 +45,25 @@ export function aggregatePriceHistoryToCandles(
   if (history.length === 0) return [];
 
   const intervalSeconds = CANDLE_INTERVAL_SECONDS[interval];
-  const sorted = [...history].sort((a, b) => a.t - b.t);
+  const normalized = history
+    .map((point) => {
+      const rawTime = Number(point.t);
+      const rawPrice = Number(point.p);
+      if (!Number.isFinite(rawTime) || !Number.isFinite(rawPrice)) return null;
+
+      const normalizedTime = rawTime > 1e12 ? Math.floor(rawTime / 1000) : Math.floor(rawTime);
+      if (normalizedTime <= 0) return null;
+
+      return {
+        t: normalizedTime,
+        p: rawPrice,
+      };
+    })
+    .filter((point): point is PriceHistoryPoint => point !== null);
+
+  if (normalized.length === 0) return [];
+
+  const sorted = [...normalized].sort((a, b) => a.t - b.t);
   const grouped = new Map<number, CandlePoint>();
 
   for (const point of sorted) {

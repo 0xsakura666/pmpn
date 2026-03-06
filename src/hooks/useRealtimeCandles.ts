@@ -48,6 +48,39 @@ interface ProcessPriceOptions {
   recordTick?: boolean;
 }
 
+function parseUnitPrice(value: unknown): number | null {
+  const price = Number(value);
+  if (!Number.isFinite(price)) return null;
+  if (price <= 0 || price > 1) return null;
+  return price;
+}
+
+function parseWsTimestampToMs(input: unknown): number {
+  if (typeof input === "number" && Number.isFinite(input)) {
+    return input > 1e12 ? input : input * 1000;
+  }
+
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    if (!trimmed) return Date.now();
+
+    // CLOB often sends numeric timestamps as strings.
+    if (/^\d+$/.test(trimmed)) {
+      const numeric = Number(trimmed);
+      if (Number.isFinite(numeric)) {
+        return numeric > 1e12 ? numeric : numeric * 1000;
+      }
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return Date.now();
+}
+
 export function useMultiTimeframeCandles({
   tokenId,
   initialData = [],
@@ -66,6 +99,7 @@ export function useMultiTimeframeCandles({
   const ticksRef = useRef<TickData[]>([]);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());
   const lastPriceRef = useRef<number | null>(null);
+  const reconnectRef = useRef<() => void>(() => {});
   
   const initializeStores = useCallback(() => {
     ALL_INTERVALS.forEach((interval) => {
@@ -90,6 +124,21 @@ export function useMultiTimeframeCandles({
     lastPriceRef.current = latest.close;
     setLastPrice(latest.close);
   }, [initialData]);
+
+  useEffect(() => {
+    // Avoid cross-market contamination when tokenId changes.
+    ticksRef.current = [];
+    lastPriceRef.current = null;
+    setLastPrice(null);
+    setLastUpdate(Date.now());
+
+    ALL_INTERVALS.forEach((interval) => {
+      candleStoresRef.current.set(interval, {
+        candles: new Map(),
+        currentCandle: null,
+      });
+    });
+  }, [tokenId]);
 
   const getTimeKey = useCallback((timestamp: number, intervalSeconds: number) => {
     return Math.floor(timestamp / 1000 / intervalSeconds) * intervalSeconds;
@@ -140,6 +189,9 @@ export function useMultiTimeframeCandles({
       timestamp: number = Date.now(),
       options: ProcessPriceOptions = {}
     ) => {
+      if (!Number.isFinite(price) || price <= 0) return;
+      if (!Number.isFinite(timestamp)) return;
+
       const { recordTick = true } = options;
       setLastPrice(price);
       lastPriceRef.current = price;
@@ -159,6 +211,19 @@ export function useMultiTimeframeCandles({
       setLastUpdate(Date.now());
     },
     [updateCandleForInterval]
+  );
+
+  const processQuotePrice = useCallback(
+    (price: number, timestamp: number) => {
+      const last = lastPriceRef.current;
+      if (last !== null && last > 0) {
+        const deviation = Math.abs(price - last) / last;
+        // Ignore clearly off-market quote spikes (deep book levels accidentally treated as trades).
+        if (deviation > 0.5) return;
+      }
+      processPrice(price, timestamp);
+    },
+    [processPrice]
   );
 
   const connect = useCallback(() => {
@@ -190,45 +255,61 @@ export function useMultiTimeframeCandles({
               const relevantChanges = msg.price_changes.filter(
                 (change: { asset_id?: string }) => change.asset_id === tokenId
               );
-              for (const change of relevantChanges) {
-                const price = parseFloat(change.price);
-                if (!isNaN(price) && price > 0) {
-                  const timestamp = msg.timestamp
-                    ? new Date(msg.timestamp).getTime()
-                    : Date.now();
-                  processPrice(price, timestamp);
+              if (relevantChanges.length > 0) {
+                const timestamp = parseWsTimestampToMs(msg.timestamp);
+                let bestBid: number | null = null;
+                let bestAsk: number | null = null;
+
+                for (const change of relevantChanges) {
+                  const bid = parseUnitPrice((change as { best_bid?: unknown }).best_bid);
+                  const ask = parseUnitPrice((change as { best_ask?: unknown }).best_ask);
+                  if (bid !== null) bestBid = bid;
+                  if (ask !== null) bestAsk = ask;
+                }
+
+                if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
+                  processQuotePrice((bestBid + bestAsk) / 2, timestamp);
+                } else if (bestBid !== null) {
+                  processQuotePrice(bestBid, timestamp);
+                } else if (bestAsk !== null) {
+                  processQuotePrice(bestAsk, timestamp);
                 }
               }
             }
 
             // Legacy schema: single change
             if (msg.event_type === "price_change" && msg.asset_id === tokenId) {
-              const price = parseFloat(msg.price);
-              if (!isNaN(price) && price > 0) {
-                const timestamp = msg.timestamp
-                  ? new Date(msg.timestamp).getTime()
-                  : Date.now();
-                processPrice(price, timestamp);
+              const bestBid = parseUnitPrice(msg.best_bid);
+              const bestAsk = parseUnitPrice(msg.best_ask);
+              const timestamp = parseWsTimestampToMs(msg.timestamp);
+
+              if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
+                processQuotePrice((bestBid + bestAsk) / 2, timestamp);
+              } else if (bestBid !== null) {
+                processQuotePrice(bestBid, timestamp);
+              } else if (bestAsk !== null) {
+                processQuotePrice(bestAsk, timestamp);
+              } else {
+                const price = parseUnitPrice(msg.price);
+                if (price === null) continue;
+                const timestamp = parseWsTimestampToMs(msg.timestamp);
+                processQuotePrice(price, timestamp);
               }
             }
 
             // Orderbook snapshot updates with last traded price
             if (msg.event_type === "book" && msg.asset_id === tokenId && msg.last_trade_price) {
-              const price = parseFloat(msg.last_trade_price);
-              if (!isNaN(price) && price > 0) {
-                const timestamp = msg.timestamp
-                  ? new Date(msg.timestamp).getTime()
-                  : Date.now();
+              const price = parseUnitPrice(msg.last_trade_price);
+              if (price !== null) {
+                const timestamp = parseWsTimestampToMs(msg.timestamp);
                 processPrice(price, timestamp);
               }
             }
 
-            if (msg.event_type === "last_trade_price") {
-              const price = parseFloat(msg.price);
-              if (!isNaN(price) && price > 0) {
-                const timestamp = msg.timestamp
-                  ? new Date(msg.timestamp).getTime()
-                  : Date.now();
+            if (msg.event_type === "last_trade_price" && msg.asset_id === tokenId) {
+              const price = parseUnitPrice(msg.price);
+              if (price !== null) {
+                const timestamp = parseWsTimestampToMs(msg.timestamp);
                 processPrice(price, timestamp);
               }
             }
@@ -248,7 +329,7 @@ export function useMultiTimeframeCandles({
       wsRef.current.onclose = () => {
         setIsConnected(false);
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          reconnectRef.current();
         }, 3000);
       };
 
@@ -258,7 +339,11 @@ export function useMultiTimeframeCandles({
     } catch (error) {
       console.error("WebSocket connection error:", error);
     }
-  }, [tokenId, wsUrl, processPrice]);
+  }, [tokenId, wsUrl, processPrice, processQuotePrice]);
+
+  useEffect(() => {
+    reconnectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

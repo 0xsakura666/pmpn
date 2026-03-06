@@ -331,6 +331,12 @@ function PositionsPanelCompact() {
   );
 }
 
+function normalizeCandleTime(raw: number): number | null {
+  if (!Number.isFinite(raw)) return null;
+  const normalized = raw > 10_000_000_000 ? Math.floor(raw / 1000) : Math.floor(raw);
+  return normalized > 0 ? normalized : null;
+}
+
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("1M");
@@ -428,13 +434,29 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         const resolvedInterval = (data.historyInterval || historyInterval) as CandleInterval;
 
         if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
-          const candlesticks = data.candles.map((c: { time: number; open: number; high: number; low: number; close: number }) => ({
-            time: c.time as Time,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-          }));
+          type RawCandle = { time: number; open: number; high: number; low: number; close: number };
+          const normalized: Array<CandlestickData<Time> | null> = (data.candles as RawCandle[])
+            .map((c: { time: number; open: number; high: number; low: number; close: number }) => {
+              const normalizedTime = normalizeCandleTime(c.time);
+              if (
+                normalizedTime === null ||
+                !Number.isFinite(c.open) ||
+                !Number.isFinite(c.high) ||
+                !Number.isFinite(c.low) ||
+                !Number.isFinite(c.close)
+              ) {
+                return null;
+              }
+
+              return {
+                time: normalizedTime as Time,
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close,
+              };
+            });
+          const candlesticks = normalized.filter((c): c is CandlestickData<Time> => c !== null);
 
           historyCacheRef.current.set(cacheKey, {
             candles: candlesticks,

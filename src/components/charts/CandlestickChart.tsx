@@ -8,7 +8,6 @@ import {
   CandlestickSeries,
   HistogramSeries,
   AreaSeries,
-  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -48,6 +47,35 @@ function formatCents(value: number, precision = 2) {
   return `${(value * 100).toFixed(precision)}¢`;
 }
 
+function normalizeTimeToUtcSeconds(rawTime: Time): number | null {
+  const numeric = Number(rawTime as unknown);
+  if (!Number.isFinite(numeric)) return null;
+
+  let ts = numeric;
+  // Defensive normalization: if any source accidentally passes milliseconds,
+  // convert to seconds so lightweight-charts receives UTCTimestamp.
+  if (ts > 10_000_000_000) {
+    ts = ts / 1000;
+  }
+
+  const normalized = Math.floor(ts);
+  if (!Number.isFinite(normalized) || normalized <= 0) return null;
+  return normalized;
+}
+
+function isValidNumericCandle(data: CandleData): boolean {
+  const normalizedTime = normalizeTimeToUtcSeconds(data.time);
+  const t = data.time as number;
+  return (
+    normalizedTime !== null &&
+    typeof t === "number" &&
+    Number.isFinite(data.open) &&
+    Number.isFinite(data.high) &&
+    Number.isFinite(data.low) &&
+    Number.isFinite(data.close)
+  );
+}
+
 export function CandlestickChart({
   data,
   volumeData,
@@ -64,7 +92,6 @@ export function CandlestickChart({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const areaSeriesRef = useRef<ISeriesApi<"Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const isInitializedRef = useRef(false);
@@ -204,34 +231,65 @@ export function CandlestickChart({
       chart.remove();
       candlestickSeriesRef.current = null;
       areaSeriesRef.current = null;
-      lineSeriesRef.current = null;
       isInitializedRef.current = false;
     };
   }, [height, autoHeight, onTimeRangeChange, volumeData, showSeconds, chartMode]);
 
   useEffect(() => {
     if (data.length === 0) return;
+
+    const safeData = data
+      .filter(isValidNumericCandle)
+      .map((d) => ({
+        ...d,
+        time: normalizeTimeToUtcSeconds(d.time) as Time,
+      }));
+
+    if (safeData.length === 0) return;
     
-    if (chartMode === "candle" && candlestickSeriesRef.current) {
-      candlestickSeriesRef.current.setData(data);
-      if (!isRealtime) {
-        chartRef.current?.timeScale().fitContent();
+    try {
+      if (chartMode === "candle" && candlestickSeriesRef.current) {
+        candlestickSeriesRef.current.setData(safeData);
+        if (!isRealtime) {
+          chartRef.current?.timeScale().fitContent();
+        }
+      } else if (chartMode === "line" && areaSeriesRef.current) {
+        const lineData = safeData.map(d => ({ time: d.time, value: d.close }));
+        areaSeriesRef.current.setData(lineData);
+        if (!isRealtime) {
+          chartRef.current?.timeScale().fitContent();
+        }
       }
-    } else if (chartMode === "line" && areaSeriesRef.current) {
-      const lineData = data.map(d => ({ time: d.time, value: d.close }));
-      areaSeriesRef.current.setData(lineData);
-      if (!isRealtime) {
-        chartRef.current?.timeScale().fitContent();
-      }
+    } catch (error) {
+      console.error("[CandlestickChart] setData failed", {
+        error,
+        mode: chartMode,
+        sampleTimes: safeData.slice(0, 5).map((d) => d.time),
+      });
     }
   }, [data, isRealtime, chartMode]);
 
   useEffect(() => {
     if (currentCandle && isRealtime) {
-      if (chartMode === "candle" && candlestickSeriesRef.current) {
-        candlestickSeriesRef.current.update(currentCandle);
-      } else if (chartMode === "line" && areaSeriesRef.current) {
-        areaSeriesRef.current.update({ time: currentCandle.time, value: currentCandle.close });
+      if (!isValidNumericCandle(currentCandle)) return;
+      const normalizedTime = normalizeTimeToUtcSeconds(currentCandle.time);
+      if (normalizedTime === null) return;
+      const safeCurrent = {
+        ...currentCandle,
+        time: normalizedTime as Time,
+      };
+      try {
+        if (chartMode === "candle" && candlestickSeriesRef.current) {
+          candlestickSeriesRef.current.update(safeCurrent);
+        } else if (chartMode === "line" && areaSeriesRef.current) {
+          areaSeriesRef.current.update({ time: safeCurrent.time, value: safeCurrent.close });
+        }
+      } catch (error) {
+        console.error("[CandlestickChart] update failed", {
+          error,
+          mode: chartMode,
+          time: safeCurrent.time,
+        });
       }
     }
   }, [currentCandle, isRealtime, chartMode]);
