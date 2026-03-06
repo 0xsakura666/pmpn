@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
+import { use, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
@@ -8,6 +8,11 @@ import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3, Check } from "lucide-react";
 import { Time, CandlestickData } from "lightweight-charts";
+import {
+  getHistoryParamsForTimeframe,
+  type CandleInterval,
+  type TimeframeType,
+} from "@/lib/chart-timeframe";
 
 interface SubMarket {
   conditionId: string;
@@ -33,8 +38,6 @@ interface EventData {
   markets: SubMarket[];
 }
 
-type TimeframeType = "1S" | "5S" | "15S" | "1M" | "5M" | "15M" | "1H" | "4H" | "1D";
-
 function formatMoney(vol: number): string {
   if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
   if (vol >= 1e3) return `$${Math.round(vol / 1e3)}K`;
@@ -49,7 +52,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const [selectedMarket, setSelectedMarket] = useState<SubMarket | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("5M");
   const [priceHistory, setPriceHistory] = useState<CandlestickData<Time>[]>([]);
+  const [historyBaseInterval, setHistoryBaseInterval] = useState<CandleInterval>("1m");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
+    new Map()
+  );
 
   useEffect(() => {
     const cached = localStorage.getItem(`event_${resolvedParams.id}`);
@@ -71,50 +78,87 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [resolvedParams.id]);
 
-  const fetchPriceHistory = useCallback(async (tokenId: string) => {
+  const fetchPriceHistory = useCallback(async (
+    tokenId: string,
+    timeframe: TimeframeType,
+    signal?: AbortSignal
+  ) => {
     if (!tokenId) {
       setPriceHistory([]);
       return;
     }
-    
+
+    const cacheKey = `${tokenId}:${timeframe}`;
+    const cached = historyCacheRef.current.get(cacheKey);
+    if (cached) {
+      setPriceHistory(cached.candles);
+      setHistoryBaseInterval(cached.interval);
+      return;
+    }
+
     setHistoryLoading(true);
+    const { historyInterval } = getHistoryParamsForTimeframe(timeframe);
+
     try {
-      const res = await fetch(`/api/price-history?market=${tokenId}&interval=max&fidelity=60`);
+      const params = new URLSearchParams({
+        market: tokenId,
+        timeframe,
+      });
+      const res = await fetch(`/api/price-history?${params.toString()}`, { signal });
+
       if (res.ok) {
         const data = await res.json();
-        if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-          const candles = data.history.map((point: { t: number; p: number }, index: number, arr: { t: number; p: number }[]) => {
-            const prevPrice = index > 0 ? arr[index - 1].p : point.p;
-            return {
-              time: point.t as Time,
-              open: prevPrice,
-              high: Math.max(point.p, prevPrice),
-              low: Math.min(point.p, prevPrice),
-              close: point.p,
-            };
+        const resolvedInterval = (data.historyInterval || historyInterval) as CandleInterval;
+
+        if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
+          const candles = data.candles.map((c: { time: number; open: number; high: number; low: number; close: number }) => ({
+            time: c.time as Time,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+          }));
+
+          historyCacheRef.current.set(cacheKey, {
+            candles,
+            interval: resolvedInterval,
           });
+
+          if (signal?.aborted) return;
           setPriceHistory(candles);
+          setHistoryBaseInterval(resolvedInterval);
         } else {
+          if (signal?.aborted) return;
           setPriceHistory([]);
+          setHistoryBaseInterval(resolvedInterval);
         }
       } else {
+        if (signal?.aborted) return;
         setPriceHistory([]);
+        setHistoryBaseInterval(historyInterval);
       }
     } catch (err) {
+      if (signal?.aborted) return;
       console.error("Failed to fetch price history:", err);
       setPriceHistory([]);
+      setHistoryBaseInterval(historyInterval);
     } finally {
-      setHistoryLoading(false);
+      if (!signal?.aborted) {
+        setHistoryLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     if (selectedMarket?.yesTokenId) {
-      fetchPriceHistory(selectedMarket.yesTokenId);
+      const controller = new AbortController();
+      fetchPriceHistory(selectedMarket.yesTokenId, selectedTimeframe, controller.signal);
+      return () => controller.abort();
     } else {
       setPriceHistory([]);
+      setHistoryBaseInterval("1m");
     }
-  }, [selectedMarket, fetchPriceHistory]);
+  }, [selectedMarket, selectedTimeframe, fetchPriceHistory]);
 
   if (loading) {
     return (
@@ -254,6 +298,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <RealtimeCandlestickChart
                   tokenId={selectedMarket.yesTokenId}
                   initialData={priceHistory}
+                  historyBaseInterval={historyBaseInterval}
                   height={400}
                   defaultTimeframe={selectedTimeframe}
                   onTimeframeChange={(tf) => setSelectedTimeframe(tf)}

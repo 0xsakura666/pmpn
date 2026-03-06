@@ -5,35 +5,24 @@ import { CandlestickChart, type ChartMode } from "./CandlestickChart";
 import {
   useMultiTimeframeCandles,
   aggregateCandlesToHigherTimeframe,
+  INTERVAL_SECONDS,
   type CandleData,
   type IntervalType,
 } from "@/hooks/useRealtimeCandles";
 import { Time, CandlestickData } from "lightweight-charts";
 import { TrendingUp, BarChart2 } from "lucide-react";
-
-type TimeframeType = "1S" | "5S" | "15S" | "1M" | "5M" | "15M" | "1H" | "4H" | "1D";
+import { TIMEFRAME_TO_INTERVAL, type TimeframeType } from "@/lib/chart-timeframe";
 
 interface RealtimeCandlestickChartProps {
   tokenId?: string;
   initialData?: CandlestickData<Time>[];
+  historyBaseInterval?: IntervalType;
   height?: number;
   autoHeight?: boolean;
   defaultTimeframe?: TimeframeType;
   onTimeframeChange?: (tf: TimeframeType) => void;
   defaultChartMode?: ChartMode;
 }
-
-const TIMEFRAME_TO_INTERVAL: Record<TimeframeType, IntervalType> = {
-  "1S": "1s",
-  "5S": "5s",
-  "15S": "15s",
-  "1M": "1m",
-  "5M": "5m",
-  "15M": "15m",
-  "1H": "1h",
-  "4H": "4h",
-  "1D": "1d",
-};
 
 const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: string }> = {
   "1S": { showSeconds: true, label: "1秒" },
@@ -50,9 +39,27 @@ const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: str
 const REALTIME_TIMEFRAMES: TimeframeType[] = ["1S", "5S", "15S", "1M"];
 const HIGHER_TIMEFRAMES: TimeframeType[] = ["5M", "15M", "1H", "4H", "1D"];
 
+function mergeCandlesByTime(
+  historicalCandles: CandlestickData<Time>[],
+  realtimeCandles: CandlestickData<Time>[]
+): CandlestickData<Time>[] {
+  const byTime = new Map<number, CandlestickData<Time>>();
+
+  historicalCandles.forEach((candle) => {
+    byTime.set(candle.time as number, candle);
+  });
+
+  realtimeCandles.forEach((candle) => {
+    byTime.set(candle.time as number, candle);
+  });
+
+  return Array.from(byTime.values()).sort((a, b) => (a.time as number) - (b.time as number));
+}
+
 export function RealtimeCandlestickChart({
   tokenId,
   initialData = [],
+  historyBaseInterval = "1m",
   height = 400,
   autoHeight,
   defaultTimeframe = "1M",
@@ -78,20 +85,42 @@ export function RealtimeCandlestickChart({
     initialData: initialData as CandleData[],
   });
 
-  const displayCandles = useMemo(() => {
-    // Priority: WebSocket real-time data > Initial historical data
-    const wsCandles = wsGetCandles(currentInterval);
-    if (wsCandles.length > 0) {
-      return wsCandles as CandlestickData<Time>[];
+  const historicalCandlesForInterval = useMemo(() => {
+    if (initialData.length === 0) return [];
+
+    const targetSeconds = INTERVAL_SECONDS[currentInterval as IntervalType];
+    const baseSeconds = INTERVAL_SECONDS[historyBaseInterval];
+
+    if (targetSeconds < baseSeconds) {
+      // Historical data cannot be safely downsampled below the fetched base interval.
+      return [] as CandlestickData<Time>[];
     }
-    
-    // Use initial historical data if available
-    if (initialData.length > 0) {
+
+    if (currentInterval === historyBaseInterval) {
       return initialData;
     }
-    
-    return [];
-  }, [wsGetCandles, currentInterval, lastUpdate, initialData]);
+
+    return aggregateCandlesToHigherTimeframe(
+      initialData as CandleData[],
+      historyBaseInterval,
+      currentInterval as IntervalType
+    ) as CandlestickData<Time>[];
+  }, [initialData, currentInterval, historyBaseInterval]);
+
+  const displayCandles = useMemo(() => {
+    const wsCandles = wsGetCandles(currentInterval);
+    const realtimeCandles = wsCandles as CandlestickData<Time>[];
+
+    if (historicalCandlesForInterval.length === 0) {
+      return realtimeCandles;
+    }
+
+    if (realtimeCandles.length === 0) {
+      return historicalCandlesForInterval;
+    }
+
+    return mergeCandlesByTime(historicalCandlesForInterval, realtimeCandles);
+  }, [wsGetCandles, currentInterval, lastUpdate, historicalCandlesForInterval]);
 
   const displayCurrentCandle = useMemo(() => {
     return wsGetCurrentCandle(currentInterval) as CandlestickData<Time> | null;
