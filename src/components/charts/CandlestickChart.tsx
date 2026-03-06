@@ -41,6 +41,11 @@ interface CandlestickChartProps {
   isRealtime?: boolean;
   lastPrice?: number | null;
   chartMode?: ChartMode;
+  resetViewKey?: string;
+}
+
+function formatCents(value: number, precision = 2) {
+  return `${(value * 100).toFixed(precision)}¢`;
 }
 
 export function CandlestickChart({
@@ -54,6 +59,7 @@ export function CandlestickChart({
   isRealtime = false,
   lastPrice,
   chartMode = "candle",
+  resetViewKey,
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -74,6 +80,11 @@ export function CandlestickChart({
     if (!chartContainerRef.current) return;
 
     const chartHeight = getChartHeight();
+    const centsPriceFormat = {
+      type: "custom" as const,
+      minMove: 0.0001,
+      formatter: (price: number) => formatCents(price, 2),
+    };
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -125,6 +136,7 @@ export function CandlestickChart({
         borderDownColor: "#FF6B6B",
         wickUpColor: "#00D4AA",
         wickDownColor: "#FF6B6B",
+        priceFormat: centsPriceFormat,
       });
       candlestickSeriesRef.current = candlestickSeries;
     } else {
@@ -135,6 +147,7 @@ export function CandlestickChart({
         lineWidth: 2,
         priceLineVisible: true,
         lastValueVisible: true,
+        priceFormat: centsPriceFormat,
       });
       areaSeriesRef.current = areaSeries;
     }
@@ -229,6 +242,12 @@ export function CandlestickChart({
     }
   }, [volumeData]);
 
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (!data || data.length === 0) return;
+    chartRef.current.timeScale().fitContent();
+  }, [resetViewKey, data.length]);
+
   const containerStyle = autoHeight || height === 0 
     ? { height: "100%", minHeight: 200 } 
     : { height };
@@ -255,7 +274,7 @@ export function CandlestickChart({
           <div className="w-2 h-2 rounded-full bg-[#00D4AA] animate-pulse" />
           <span className="text-xs text-[#888]">实时</span>
           <span className="text-sm font-mono font-bold text-white">
-            ${lastPrice.toFixed(4)}
+            {formatCents(lastPrice, 2)}
           </span>
         </div>
       )}

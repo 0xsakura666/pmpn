@@ -124,13 +124,13 @@ export function WalletButton() {
 
         {/* Wallet Selection Modal */}
         {showWalletModal && (
-          <>
-            <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+          <div className="fixed inset-0 z-[200] overflow-y-auto">
+            <div className="min-h-full flex items-start justify-center p-4 sm:items-center sm:p-6">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setShowWalletModal(false)}
             />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50">
-              <div className="bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="relative my-2 w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-3rem)] overflow-hidden bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-[hsl(var(--border))]">
                   <h2 className="text-xl font-['Space_Grotesk'] font-bold">连接钱包</h2>
@@ -145,7 +145,7 @@ export function WalletButton() {
                 </div>
 
                 {/* Wallet List */}
-                <div className="p-4 space-y-2">
+                <div className="p-4 space-y-2 overflow-y-auto max-h-[55vh]">
                   {connectors.map((connector) => (
                     <button
                       key={connector.uid}
@@ -183,9 +183,9 @@ export function WalletButton() {
                     连接钱包即表示您同意我们的服务条款和隐私政策
                   </p>
                 </div>
-              </div>
             </div>
-          </>
+            </div>
+          </div>
         )}
       </>
     );

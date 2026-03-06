@@ -39,6 +39,10 @@ const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: str
 const REALTIME_TIMEFRAMES: TimeframeType[] = ["1S", "5S", "15S", "1M"];
 const HIGHER_TIMEFRAMES: TimeframeType[] = ["5M", "15M", "1H", "4H", "1D"];
 
+function formatCents(value: number, precision = 2) {
+  return `${(value * 100).toFixed(precision)}¢`;
+}
+
 function mergeCandlesByTime(
   historicalCandles: CandlestickData<Time>[],
   realtimeCandles: CandlestickData<Time>[]
@@ -247,11 +251,11 @@ export function RealtimeCandlestickChart({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">H:</span>
-            <span className="font-mono text-[#00D4AA]">{candleStats.high.toFixed(4)}</span>
+            <span className="font-mono text-[#00D4AA]">{formatCents(candleStats.high, 2)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">L:</span>
-            <span className="font-mono text-[#FF6B6B]">{candleStats.low.toFixed(4)}</span>
+            <span className="font-mono text-[#FF6B6B]">{formatCents(candleStats.low, 2)}</span>
           </div>
         </div>
       )}
@@ -267,6 +271,7 @@ export function RealtimeCandlestickChart({
           isRealtime={true}
           lastPrice={lastPrice}
           chartMode={chartMode}
+          resetViewKey={`${selectedTimeframe}-${chartMode}`}
         />
       </div>
 
@@ -278,10 +283,10 @@ export function RealtimeCandlestickChart({
             <span className="text-[#666]">当前K线</span>
           </div>
           <div className="flex items-center gap-3 font-mono">
-            <span className="text-[#666]">O:<span className="text-white ml-1">{displayCurrentCandle.open.toFixed(4)}</span></span>
-            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{displayCurrentCandle.high.toFixed(4)}</span></span>
-            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{displayCurrentCandle.low.toFixed(4)}</span></span>
-            <span className="text-[#666]">C:<span className="text-white ml-1">{displayCurrentCandle.close.toFixed(4)}</span></span>
+            <span className="text-[#666]">O:<span className="text-white ml-1">{formatCents(displayCurrentCandle.open, 2)}</span></span>
+            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatCents(displayCurrentCandle.high, 2)}</span></span>
+            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatCents(displayCurrentCandle.low, 2)}</span></span>
+            <span className="text-[#666]">C:<span className="text-white ml-1">{formatCents(displayCurrentCandle.close, 2)}</span></span>
           </div>
         </div>
       )}

@@ -44,6 +44,10 @@ interface CandleStore {
   currentCandle: CandleData | null;
 }
 
+interface ProcessPriceOptions {
+  recordTick?: boolean;
+}
+
 export function useMultiTimeframeCandles({
   tokenId,
   initialData = [],
@@ -57,9 +61,11 @@ export function useMultiTimeframeCandles({
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const ticksRef = useRef<TickData[]>([]);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());
+  const lastPriceRef = useRef<number | null>(null);
   
   const initializeStores = useCallback(() => {
     ALL_INTERVALS.forEach((interval) => {
@@ -76,6 +82,15 @@ export function useMultiTimeframeCandles({
     initializeStores();
   }, [initializeStores]);
 
+  useEffect(() => {
+    if (lastPriceRef.current !== null) return;
+    if (!initialData.length) return;
+    const latest = initialData[initialData.length - 1];
+    if (!latest || typeof latest.close !== "number") return;
+    lastPriceRef.current = latest.close;
+    setLastPrice(latest.close);
+  }, [initialData]);
+
   const getTimeKey = useCallback((timestamp: number, intervalSeconds: number) => {
     return Math.floor(timestamp / 1000 / intervalSeconds) * intervalSeconds;
   }, []);
@@ -90,11 +105,8 @@ export function useMultiTimeframeCandles({
       const existing = store.candles.get(timeKey);
 
       if (!existing) {
-        const sortedCandles = Array.from(store.candles.values()).sort(
-          (a, b) => (a.time as number) - (b.time as number)
-        );
-        const lastCandle = sortedCandles[sortedCandles.length - 1];
-        const openPrice = lastCandle ? lastCandle.close : price;
+        // Use the first observed price in this bucket as the open.
+        const openPrice = price;
 
         const newCandle: CandleData = {
           time: timeKey as Time,
@@ -123,14 +135,21 @@ export function useMultiTimeframeCandles({
   );
 
   const processPrice = useCallback(
-    (price: number, timestamp: number = Date.now()) => {
+    (
+      price: number,
+      timestamp: number = Date.now(),
+      options: ProcessPriceOptions = {}
+    ) => {
+      const { recordTick = true } = options;
       setLastPrice(price);
-      
-      ticksRef.current.push({ price, timestamp });
-      
-      const maxTicks = 10000;
-      if (ticksRef.current.length > maxTicks) {
-        ticksRef.current = ticksRef.current.slice(-maxTicks);
+      lastPriceRef.current = price;
+
+      if (recordTick) {
+        ticksRef.current.push({ price, timestamp });
+        const maxTicks = 10000;
+        if (ticksRef.current.length > maxTicks) {
+          ticksRef.current = ticksRef.current.slice(-maxTicks);
+        }
       }
 
       ALL_INTERVALS.forEach((interval) => {
@@ -153,9 +172,9 @@ export function useMultiTimeframeCandles({
         setIsConnected(true);
         wsRef.current?.send(
           JSON.stringify({
-            type: "subscribe",
-            channel: "price",
+            type: "market",
             assets_ids: [tokenId],
+            custom_feature_enabled: true,
           })
         );
       };
@@ -166,8 +185,36 @@ export function useMultiTimeframeCandles({
           const messageArray = Array.isArray(messages) ? messages : [messages];
 
           for (const msg of messageArray) {
+            // New schema: batched changes under price_changes[]
+            if (msg.event_type === "price_change" && Array.isArray(msg.price_changes)) {
+              const relevantChanges = msg.price_changes.filter(
+                (change: { asset_id?: string }) => change.asset_id === tokenId
+              );
+              for (const change of relevantChanges) {
+                const price = parseFloat(change.price);
+                if (!isNaN(price) && price > 0) {
+                  const timestamp = msg.timestamp
+                    ? new Date(msg.timestamp).getTime()
+                    : Date.now();
+                  processPrice(price, timestamp);
+                }
+              }
+            }
+
+            // Legacy schema: single change
             if (msg.event_type === "price_change" && msg.asset_id === tokenId) {
               const price = parseFloat(msg.price);
+              if (!isNaN(price) && price > 0) {
+                const timestamp = msg.timestamp
+                  ? new Date(msg.timestamp).getTime()
+                  : Date.now();
+                processPrice(price, timestamp);
+              }
+            }
+
+            // Orderbook snapshot updates with last traded price
+            if (msg.event_type === "book" && msg.asset_id === tokenId && msg.last_trade_price) {
+              const price = parseFloat(msg.last_trade_price);
               if (!isNaN(price) && price > 0) {
                 const timestamp = msg.timestamp
                   ? new Date(msg.timestamp).getTime()
@@ -179,7 +226,10 @@ export function useMultiTimeframeCandles({
             if (msg.event_type === "last_trade_price") {
               const price = parseFloat(msg.price);
               if (!isNaN(price) && price > 0) {
-                processPrice(price);
+                const timestamp = msg.timestamp
+                  ? new Date(msg.timestamp).getTime()
+                  : Date.now();
+                processPrice(price, timestamp);
               }
             }
 
@@ -227,6 +277,26 @@ export function useMultiTimeframeCandles({
     }
     return () => disconnect();
   }, [tokenId, connect, disconnect]);
+
+  useEffect(() => {
+    if (!tokenId) return;
+
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (!isConnected) return;
+      const price = lastPriceRef.current;
+      if (price === null) return;
+
+      // Keep chart motion smooth even during quiet periods with no new trades.
+      processPrice(price, Date.now(), { recordTick: false });
+    }, 1000);
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+    };
+  }, [tokenId, isConnected, processPrice]);
 
   const getCandles = useCallback((interval: IntervalType): CandleData[] => {
     const store = candleStoresRef.current.get(interval);

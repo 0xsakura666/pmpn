@@ -6,59 +6,24 @@ import {
   type TimeframeType,
 } from "@/lib/chart-timeframe";
 import { getCachedValue, setCachedValue } from "@/lib/server-memory-cache";
+import {
+  aggregatePriceHistoryToCandles,
+  candlesToHistory,
+  normalizeHistoryPayload,
+  type CandlePoint,
+} from "@/lib/candle-aggregation";
 
 const CLOB_API = "https://clob.polymarket.com";
 const CACHE_TTL_MS = 15_000;
 
-interface HistoryPoint {
-  t: number;
-  p: number;
-}
-
-interface CandlestickPoint {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
-
 interface HistoryPayload {
-  history: HistoryPoint[];
-  candles: CandlestickPoint[];
+  history: Array<{ t: number; p: number }>;
+  candles: CandlePoint[];
   timeframe: TimeframeType;
   interval: string;
   fidelity: number;
   historyInterval: CandleInterval;
   tokenId: string;
-}
-
-function normalizeHistoryPayload(data: unknown): HistoryPoint[] {
-  if (Array.isArray(data)) {
-    return data as HistoryPoint[];
-  }
-
-  if (data && typeof data === "object" && "history" in data) {
-    const history = (data as { history?: unknown }).history;
-    if (Array.isArray(history)) return history as HistoryPoint[];
-  }
-
-  return [];
-}
-
-function toCandles(history: HistoryPoint[]): CandlestickPoint[] {
-  return history.map((point, index, arr) => {
-    const open = index > 0 ? arr[index - 1].p : point.p;
-    const close = point.p;
-
-    return {
-      time: point.t,
-      open,
-      high: Math.max(close, open),
-      low: Math.min(close, open),
-      close,
-    };
-  });
 }
 
 export async function GET(
@@ -70,13 +35,13 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const timeframe = normalizeTimeframe(searchParams.get("timeframe"));
     const timeframeConfig = getHistoryParamsForTimeframe(timeframe);
-    const interval = searchParams.get("interval") || timeframeConfig.interval;
-    const fidelity = Number(searchParams.get("fidelity") || timeframeConfig.fidelity);
+    const requestedInterval = searchParams.get("interval") || timeframeConfig.interval;
+    const requestedFidelity = Number(searchParams.get("fidelity") || timeframeConfig.fidelity);
     const historyInterval = timeframeConfig.historyInterval;
     let tokenId = searchParams.get("tokenId");
 
     console.log(
-      `[Price History] Request market=${id} tokenId=${tokenId} timeframe=${timeframe} interval=${interval} fidelity=${fidelity}`
+      `[Price History] Request market=${id} tokenId=${tokenId} timeframe=${timeframe} interval=${requestedInterval} fidelity=${requestedFidelity}`
     );
 
     if (!tokenId) {
@@ -112,14 +77,14 @@ export async function GET(
         history: [],
         candles: [],
         timeframe,
-        interval,
-        fidelity,
+        interval: requestedInterval,
+        fidelity: requestedFidelity,
         historyInterval,
         tokenId: "",
       });
     }
 
-    const cacheKey = `market-history:${id}:${tokenId}:${interval}:${fidelity}`;
+    const cacheKey = `market-history:${id}:${tokenId}:${timeframe}:${historyInterval}`;
     const cached = getCachedValue<HistoryPayload>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
@@ -130,9 +95,11 @@ export async function GET(
     }
 
     // Fetch price history directly from CLOB API
+    // Upstream fidelity is not a strict bucket size. Fetch high-resolution data,
+    // then enforce deterministic bucketing on our side.
     const url = `${CLOB_API}/prices-history?market=${encodeURIComponent(
       tokenId
-    )}&interval=${encodeURIComponent(interval)}&fidelity=${fidelity}`;
+    )}&interval=max&fidelity=1`;
     console.log(`[Price History] Fetching: ${url}`);
     
     const response = await fetch(url, {
@@ -147,37 +114,40 @@ export async function GET(
         history: [],
         candles: [],
         timeframe,
-        interval,
-        fidelity,
+        interval: requestedInterval,
+        fidelity: requestedFidelity,
         historyInterval,
         tokenId,
       });
     }
 
     const data: unknown = await response.json();
-    const history = normalizeHistoryPayload(data);
+    const rawHistory = normalizeHistoryPayload(data);
+    const candles = aggregatePriceHistoryToCandles(rawHistory, historyInterval);
 
-    if (history.length === 0) {
+    if (candles.length === 0) {
       console.log("[Price History] No history data returned");
       return NextResponse.json({
         history: [],
         candles: [],
         timeframe,
-        interval,
-        fidelity,
+        interval: requestedInterval,
+        fidelity: requestedFidelity,
         historyInterval,
         tokenId,
       });
     }
 
-    console.log(`[Price History] Got ${history.length} data points`);
+    console.log(
+      `[Price History] Raw points=${rawHistory.length} Aggregated candles=${candles.length} interval=${historyInterval}`
+    );
 
     const payload: HistoryPayload = {
-      history,
-      candles: toCandles(history),
+      history: candlesToHistory(candles),
+      candles,
       timeframe,
-      interval,
-      fidelity,
+      interval: requestedInterval,
+      fidelity: requestedFidelity,
       historyInterval,
       tokenId,
     };

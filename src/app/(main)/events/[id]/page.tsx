@@ -5,8 +5,7 @@ import Link from "next/link";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
-import { WalletButton } from "@/components/auth/ConnectWallet";
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3, Check } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, Check } from "lucide-react";
 import { Time, CandlestickData } from "lightweight-charts";
 import {
   getHistoryParamsForTimeframe,
@@ -185,26 +184,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0f] text-white">
-      {/* Header */}
-      <header className="border-b border-[#222] bg-[#0d0d0f] sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3">
-          <nav className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-xl font-bold text-[#00D4AA]">
-                Tectonic
-              </Link>
-              <Link href="/" className="flex items-center gap-1 text-[#666] hover:text-white text-sm">
-                <ArrowLeft className="w-4 h-4" />
-                返回
-              </Link>
-            </div>
-            <WalletButton />
-          </nav>
-        </div>
-      </header>
-
+    <div className="h-full bg-[#0d0d0f] text-white">
       <main className="container mx-auto px-4 py-6">
+        <div className="mb-4">
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-[#666] hover:text-white">
+            <ArrowLeft className="w-4 h-4" />
+            返回市场列表
+          </Link>
+        </div>
+
         {/* Event Header - Compact */}
         <div className="flex items-center gap-4 mb-6">
           {event.image && (
@@ -238,16 +226,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <button
                   key={market.conditionId}
                   onClick={() => setSelectedMarket(market)}
-                  className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all ${
+                  className={`flex-shrink-0 w-[280px] px-4 py-3 rounded-xl border transition-all ${
                     isSelected
                       ? "bg-[#00D4AA]/10 border-[#00D4AA] text-white"
                       : "bg-[#1a1a1f] border-[#222] text-[#888] hover:border-[#333] hover:text-white"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-left">
-                      <p className="text-sm font-medium max-w-[200px] truncate">
-                        {market.question.length > 30 ? market.question.slice(0, 30) + "..." : market.question}
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug min-h-[2.5rem] overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+                        {market.question}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-lg font-bold ${probability > 50 ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
@@ -266,24 +254,34 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
         {selectedMarket && (
           <>
-            {/* Price Cards */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-4 rounded-xl bg-[#00D4AA]/5 border border-[#00D4AA]/20">
+            {/* Compact Yes/No Cards */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-[#00D4AA]/5 border border-[#00D4AA]/20">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#888]">Yes</span>
+                  <span className="text-xs text-[#888] uppercase tracking-wide">Yes</span>
                   <TrendingUp className="w-4 h-4 text-[#00D4AA]" />
                 </div>
-                <div className="text-3xl font-bold text-[#00D4AA] mt-1">
-                  {Math.round(selectedMarket.yesPrice * 100)}¢
+                <div className="mt-1 flex items-end justify-between">
+                  <div className="text-2xl font-bold text-[#00D4AA]">
+                    {Math.round(selectedMarket.yesPrice * 100)}¢
+                  </div>
+                  <div className="text-xs text-[#666]">
+                    {Math.round(selectedMarket.yesPrice * 100)}%
+                  </div>
                 </div>
               </div>
-              <div className="p-4 rounded-xl bg-[#FF6B6B]/5 border border-[#FF6B6B]/20">
+              <div className="p-3 rounded-xl bg-[#FF6B6B]/5 border border-[#FF6B6B]/20">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#888]">No</span>
+                  <span className="text-xs text-[#888] uppercase tracking-wide">No</span>
                   <TrendingDown className="w-4 h-4 text-[#FF6B6B]" />
                 </div>
-                <div className="text-3xl font-bold text-[#FF6B6B] mt-1">
-                  {Math.round(selectedMarket.noPrice * 100)}¢
+                <div className="mt-1 flex items-end justify-between">
+                  <div className="text-2xl font-bold text-[#FF6B6B]">
+                    {Math.round(selectedMarket.noPrice * 100)}¢
+                  </div>
+                  <div className="text-xs text-[#666]">
+                    {Math.round(selectedMarket.noPrice * 100)}%
+                  </div>
                 </div>
               </div>
             </div>

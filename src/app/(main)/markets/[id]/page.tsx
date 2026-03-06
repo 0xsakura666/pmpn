@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
-import { OrderBook } from "@/components/trading/OrderBook";
+import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 import { Time, CandlestickData } from "lightweight-charts";
 import { usePolymarket, usePolymarketTrade, usePolymarketPositions, usePolymarketOrders } from "@/hooks/usePolymarket";
@@ -507,16 +507,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const yesPrice = yesToken?.price || 0.5;
   const noPrice = noToken?.price || 0.5;
 
-  const yesOrderBook = market.orderBooks?.find(ob => ob.outcome === "Yes");
-  const formattedBids = yesOrderBook?.bids?.map(b => ({
-    price: parseFloat(b.price),
-    size: parseFloat(b.size),
-  })) || [];
-  const formattedAsks = yesOrderBook?.asks?.map(a => ({
-    price: parseFloat(a.price),
-    size: parseFloat(a.size),
-  })) || [];
-
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#0d0d0f] text-white">
       {/* Compact Header */}
@@ -627,8 +617,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             {/* Order Book - compact */}
             <div className="bg-[#1a1a1f] rounded-lg p-3 border border-[#222]">
               <h3 className="font-semibold text-sm mb-2 text-white">订单簿</h3>
-              {formattedBids.length > 0 || formattedAsks.length > 0 ? (
-                <OrderBook bids={formattedBids} asks={formattedAsks} maxDepth={5} />
+              {yesToken?.token_id ? (
+                <RealtimeOrderBook
+                  tokenId={yesToken.token_id}
+                  maxDepth={8}
+                  showHeader
+                />
               ) : (
                 <p className="text-xs text-[#666] text-center py-2">暂无数据</p>
               )}

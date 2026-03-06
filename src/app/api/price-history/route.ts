@@ -7,23 +7,16 @@ import {
   type TimeframeType,
 } from "@/lib/chart-timeframe";
 import { getCachedValue, setCachedValue } from "@/lib/server-memory-cache";
-
-export interface PriceHistoryPoint {
-  t: number;
-  p: number;
-}
-
-interface CandlestickPoint {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
+import {
+  aggregatePriceHistoryToCandles,
+  candlesToHistory,
+  normalizeHistoryPayload,
+  type CandlePoint,
+} from "@/lib/candle-aggregation";
 
 interface PriceHistoryPayload {
-  history: PriceHistoryPoint[];
-  candles: CandlestickPoint[];
+  history: Array<{ t: number; p: number }>;
+  candles: CandlePoint[];
   timeframe: TimeframeType;
   interval: string;
   fidelity: number;
@@ -32,42 +25,14 @@ interface PriceHistoryPayload {
 
 const CACHE_TTL_MS = 15_000;
 
-function normalizeHistoryPayload(data: unknown): PriceHistoryPoint[] {
-  if (Array.isArray(data)) {
-    return data as PriceHistoryPoint[];
-  }
-
-  if (data && typeof data === "object" && "history" in data) {
-    const history = (data as { history?: unknown }).history;
-    if (Array.isArray(history)) return history as PriceHistoryPoint[];
-  }
-
-  return [];
-}
-
-function toCandles(history: PriceHistoryPoint[]): CandlestickPoint[] {
-  return history.map((point, index, arr) => {
-    const open = index > 0 ? arr[index - 1].p : point.p;
-    const close = point.p;
-
-    return {
-      time: point.t,
-      open,
-      high: Math.max(close, open),
-      low: Math.min(close, open),
-      close,
-    };
-  });
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const market = searchParams.get("market");
     const timeframe = normalizeTimeframe(searchParams.get("timeframe"));
     const timeframeConfig = getHistoryParamsForTimeframe(timeframe);
-    const interval = searchParams.get("interval") || timeframeConfig.interval;
-    const fidelity = Number(searchParams.get("fidelity") || timeframeConfig.fidelity);
+    const requestedInterval = searchParams.get("interval") || timeframeConfig.interval;
+    const requestedFidelity = Number(searchParams.get("fidelity") || timeframeConfig.fidelity);
     const startTs = searchParams.get("startTs");
     const endTs = searchParams.get("endTs");
     const historyInterval = timeframeConfig.historyInterval;
@@ -79,7 +44,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cacheKey = `price-history:${market}:${interval}:${fidelity}:${startTs || ""}:${endTs || ""}`;
+    const cacheKey = `price-history:${market}:${timeframe}:${historyInterval}:${startTs || ""}:${endTs || ""}`;
     const cached = getCachedValue<PriceHistoryPayload>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
@@ -91,8 +56,10 @@ export async function GET(request: NextRequest) {
 
     const params = new URLSearchParams();
     params.set("market", market);
-    params.set("interval", interval);
-    params.set("fidelity", String(fidelity));
+    // Upstream fidelity is not guaranteed to match strict bucket size.
+    // Always fetch high-resolution data then aggregate server-side.
+    params.set("interval", "max");
+    params.set("fidelity", "1");
     if (startTs) params.set("startTs", startTs);
     if (endTs) params.set("endTs", endTs);
 
@@ -107,13 +74,14 @@ export async function GET(request: NextRequest) {
     }
 
     const data: unknown = await response.json();
-    const history = normalizeHistoryPayload(data);
+    const rawHistory = normalizeHistoryPayload(data);
+    const candles = aggregatePriceHistoryToCandles(rawHistory, historyInterval);
     const payload: PriceHistoryPayload = {
-      history,
-      candles: toCandles(history),
+      history: candlesToHistory(candles),
+      candles,
       timeframe,
-      interval,
-      fidelity,
+      interval: requestedInterval,
+      fidelity: requestedFidelity,
       historyInterval,
     };
 
