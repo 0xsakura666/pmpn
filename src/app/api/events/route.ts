@@ -7,6 +7,8 @@ const DEFAULT_EVENTS_LIMIT = 500;
 const DEFAULT_SEARCH_LIMIT = 200;
 const MAX_EVENTS_LIMIT = 5000;
 const MAX_SEARCH_SCAN_EVENTS = 5000;
+const TRENDING_CANDIDATE_MULTIPLIER = 3;
+const MAX_TRENDING_MARKET_SCAN = 5000;
 
 interface RawMarket {
   conditionId?: string;
@@ -32,6 +34,12 @@ interface RawEvent {
   markets?: RawMarket[];
 }
 
+interface RawTrendingMarket {
+  events?: Array<{
+    id?: string | number;
+  }>;
+}
+
 interface EventGroup {
   id: string;
   title: string;
@@ -54,6 +62,7 @@ interface EventGroup {
     noTokenId: string;
   }>;
   daysLeft: number;
+  trendingRank?: number;
 }
 
 function isExpiredByDate(endDate: string): boolean {
@@ -168,19 +177,59 @@ function transformEvent(event: RawEvent, fallbackId: number): EventGroup | null 
   };
 }
 
+async function fetchTrendingEventRankMap(targetCount: number): Promise<Map<string, number>> {
+  const rankMap = new Map<string, number>();
+  const targetRanks = Math.max(targetCount, DEFAULT_EVENTS_LIMIT);
+
+  for (let offset = 0; offset < MAX_TRENDING_MARKET_SCAN && rankMap.size < targetRanks; offset += GAMMA_PAGE_SIZE) {
+    const apiUrl = `${POLYMARKET_ENDPOINTS.gamma}/markets?limit=${GAMMA_PAGE_SIZE}&offset=${offset}&active=true&closed=false&order=volume24hr&ascending=false`;
+    const markets = await fetchPolymarketAPI<RawTrendingMarket[]>(apiUrl);
+    if (!Array.isArray(markets) || markets.length === 0) break;
+
+    for (const market of markets) {
+      const eventId = market.events?.[0]?.id;
+      if (eventId === undefined || eventId === null) continue;
+
+      const key = String(eventId);
+      if (!rankMap.has(key)) {
+        rankMap.set(key, rankMap.size);
+      }
+
+      if (rankMap.size >= targetRanks) break;
+    }
+
+    if (markets.length < GAMMA_PAGE_SIZE) break;
+  }
+
+  return rankMap;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const search = (searchParams.get("search") || "").trim();
+  const sortMode = (searchParams.get("sort") || "trending").toLowerCase();
   const requestedLimit = parseInt(
     searchParams.get("limit") || (search ? String(DEFAULT_SEARCH_LIMIT) : String(DEFAULT_EVENTS_LIMIT))
   );
   const limit = clampNumber(requestedLimit, 1, MAX_EVENTS_LIMIT);
 
   try {
+    const shouldSyncTrending = !search && sortMode === "trending";
+    const candidateLimit = shouldSyncTrending ? Math.min(MAX_EVENTS_LIMIT, limit * TRENDING_CANDIDATE_MULTIPLIER) : limit;
     const events: EventGroup[] = [];
     const seenIds = new Set<string>();
+    let trendingRankMap = new Map<string, number>();
 
-    for (let offset = 0; offset < MAX_SEARCH_SCAN_EVENTS && events.length < limit; offset += GAMMA_PAGE_SIZE) {
+    if (shouldSyncTrending) {
+      try {
+        trendingRankMap = await fetchTrendingEventRankMap(candidateLimit);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.warn("[Events API] Failed to fetch trending rank map, fallback to volume ranking:", message);
+      }
+    }
+
+    for (let offset = 0; offset < MAX_SEARCH_SCAN_EVENTS && events.length < candidateLimit; offset += GAMMA_PAGE_SIZE) {
       const apiUrl = `${POLYMARKET_ENDPOINTS.gamma}/events?limit=${GAMMA_PAGE_SIZE}&offset=${offset}&active=true&closed=false&order=volume24hr&ascending=false`;
       const rawEvents = await fetchPolymarketAPI<RawEvent[]>(apiUrl);
       if (!Array.isArray(rawEvents) || rawEvents.length === 0) break;
@@ -193,14 +242,30 @@ export async function GET(request: NextRequest) {
         seenIds.add(transformed.id);
         events.push(transformed);
 
-        if (events.length >= limit) break;
+        if (events.length >= candidateLimit) break;
       }
 
       if (rawEvents.length < GAMMA_PAGE_SIZE) break;
     }
 
-    const finalEvents = events.slice(0, limit);
-    console.log("[Events API] Returning", finalEvents.length, "events", search ? `(search=${search})` : "");
+    const rankedEvents =
+      shouldSyncTrending && trendingRankMap.size > 0
+        ? events
+            .map((event, index) => ({
+              ...event,
+              trendingRank: trendingRankMap.get(String(event.id)) ?? MAX_EVENTS_LIMIT + index,
+            }))
+            .sort((a, b) => (a.trendingRank || 0) - (b.trendingRank || 0))
+        : events.map((event, index) => ({ ...event, trendingRank: index }));
+
+    const finalEvents = rankedEvents.slice(0, limit);
+    console.log(
+      "[Events API] Returning",
+      finalEvents.length,
+      "events",
+      search ? `(search=${search})` : "",
+      shouldSyncTrending ? "(synced-trending)" : ""
+    );
 
     return NextResponse.json(finalEvents, {
       headers: {

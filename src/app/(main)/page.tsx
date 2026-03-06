@@ -208,6 +208,14 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
   const sortedEvents = useMemo(() => {
     return [...filteredEvents].sort((a, b) => {
       switch (sortBy) {
+        case "Trending": {
+          const rankA = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
+          const rankB = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
+          if (rankA !== rankB) {
+            return rankA - rankB;
+          }
+          return b.volume24h - a.volume24h;
+        }
         case "Volume":
           return b.volume24h - a.volume24h;
         case "Newest":

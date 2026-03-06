@@ -22,6 +22,7 @@ export interface EventGroup {
   liquidity: number;
   markets: SubMarket[];
   daysLeft: number;
+  trendingRank?: number;
 }
 
 export type SortOption = "Trending" | "Volume" | "Newest" | "Ending Soon";
