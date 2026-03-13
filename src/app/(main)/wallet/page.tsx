@@ -382,12 +382,17 @@ function Header() {
   );
 }
 
+function getMarketHref(slug?: string, conditionId?: string) {
+  const identifier = (slug && slug.trim()) || (conditionId && conditionId.trim()) || "";
+  return identifier ? `/markets/${encodeURIComponent(identifier)}` : "/markets";
+}
+
 function PositionCard({ position }: { position: Position }) {
   const pnlColor = position.cashPnl >= 0 ? "text-[#00D4AA]" : "text-[#FF6B6B]";
-  const pnlBgColor = position.cashPnl >= 0 ? "bg-[#00D4AA]/10" : "bg-[#FF6B6B]/10";
+  const marketHref = getMarketHref(position.slug, position.conditionId);
 
   return (
-    <Link href={`/markets/${position.conditionId}`}>
+    <Link href={marketHref}>
       <div className="rounded-xl border border-[#1e1e28] bg-[#13131a] p-4 hover:border-[#2d2d3a] hover:bg-[#16161f] transition-all">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
@@ -454,6 +459,7 @@ function PositionCard({ position }: { position: Position }) {
 
 function TradeCard({ trade }: { trade: Trade }) {
   const isBuy = trade.side === "BUY";
+  const marketHref = getMarketHref(trade.slug, trade.conditionId);
   const time = new Date(trade.timestamp).toLocaleString("zh-CN", {
     month: "numeric",
     day: "numeric",
@@ -462,7 +468,8 @@ function TradeCard({ trade }: { trade: Trade }) {
   });
 
   return (
-    <div className="rounded-xl border border-[#1e1e28] bg-[#13131a] p-4">
+    <Link href={marketHref} className="block">
+      <div className="rounded-xl border border-[#1e1e28] bg-[#13131a] p-4 hover:border-[#2d2d3a] hover:bg-[#16161f] transition-all">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
           <div
@@ -520,7 +527,8 @@ function TradeCard({ trade }: { trade: Trade }) {
           </a>
         </div>
       )}
-    </div>
+      </div>
+    </Link>
   );
 }
 

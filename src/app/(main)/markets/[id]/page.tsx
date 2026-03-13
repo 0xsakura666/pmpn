@@ -39,6 +39,38 @@ interface MarketData {
   tickSize?: string;
 }
 
+function toSafePrice(value: unknown, fallback = 0.5): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeMarketData(raw: Partial<MarketData> & { id?: unknown; title?: unknown }): MarketData {
+  const tokens = Array.isArray(raw.tokens)
+    ? raw.tokens
+        .map((token) => ({
+          token_id: typeof token?.token_id === "string" ? token.token_id : "",
+          outcome: typeof token?.outcome === "string" ? token.outcome : "",
+          price: toSafePrice(token?.price),
+          winner: Boolean(token?.winner),
+        }))
+        .filter((token) => token.token_id && token.outcome)
+    : [];
+
+  return {
+    id: typeof raw.id === "string" ? raw.id : "",
+    title: typeof raw.title === "string" ? raw.title : "",
+    titleOriginal: typeof raw.titleOriginal === "string" ? raw.titleOriginal : (typeof raw.title === "string" ? raw.title : ""),
+    description: typeof raw.description === "string" ? raw.description : "",
+    slug: typeof raw.slug === "string" ? raw.slug : "",
+    endDate: typeof raw.endDate === "string" ? raw.endDate : "",
+    image: typeof raw.image === "string" ? raw.image : "",
+    tokens,
+    orderBooks: Array.isArray(raw.orderBooks) ? raw.orderBooks : [],
+    negRisk: Boolean(raw.negRisk),
+    tickSize: typeof raw.tickSize === "string" ? raw.tickSize : "0.01",
+  };
+}
+
 function QuickTradePanelCompact({
   yesPrice,
   noPrice,
@@ -367,7 +399,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           const yesTokenId = cachedMarket.yesTokenId || "";
           const noTokenId = cachedMarket.noTokenId || "";
           hasCache = true;
-          setMarket({
+          setMarket(normalizeMarketData({
             id: cachedMarket.conditionId,
             title: cachedMarket.title,
             titleOriginal: cachedMarket.title,
@@ -380,7 +412,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               { token_id: noTokenId, outcome: "No", price: cachedMarket.noPrice, winner: false },
             ],
             orderBooks: [],
-          });
+          }));
           setLoading(false);
         } catch {
           localStorage.removeItem(`market_${resolvedParams.id}`);
@@ -399,18 +431,23 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         throw new Error("Market not found");
       }
       
-      setMarket(data);
-      const yesToken = (data.tokens || []).find((t: { outcome: string }) => t.outcome === "Yes");
-      const noToken = (data.tokens || []).find((t: { outcome: string }) => t.outcome === "No");
+      const normalizedData = normalizeMarketData(data);
+      if (!normalizedData.id || !normalizedData.title) {
+        throw new Error("Market payload is incomplete");
+      }
+
+      setMarket(normalizedData);
+      const yesToken = normalizedData.tokens.find((t) => t.outcome === "Yes");
+      const noToken = normalizedData.tokens.find((t) => t.outcome === "No");
       localStorage.setItem(
         `market_${resolvedParams.id}`,
         JSON.stringify({
-          conditionId: data.id,
-          title: data.titleOriginal || data.title || "",
-          description: data.descriptionOriginal || data.description || "",
-          slug: data.slug || "",
-          endDate: data.endDate || "",
-          image: data.image || "",
+          conditionId: normalizedData.id,
+          title: normalizedData.titleOriginal || normalizedData.title || "",
+          description: data.descriptionOriginal || normalizedData.description || "",
+          slug: normalizedData.slug || "",
+          endDate: normalizedData.endDate || "",
+          image: normalizedData.image || "",
           yesPrice: yesToken?.price ?? 0.5,
           noPrice: noToken?.price ?? 0.5,
           yesTokenId: yesToken?.token_id || "",
@@ -554,6 +591,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const noToken = market.tokens?.find(t => t.outcome === "No");
   const yesPrice = yesToken?.price || 0.5;
   const noPrice = noToken?.price || 0.5;
+  const marketIdLabel = market.id ? `${market.id.slice(0, 12)}...` : "--";
+  const settlementLabel = market.endDate ? new Date(market.endDate).toLocaleDateString("zh-CN") : "--";
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#0d0d0f] text-white">
@@ -575,7 +614,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               {market.title}
             </h1>
             <span className="text-xs text-[#666]">
-              截止 {new Date(market.endDate).toLocaleDateString('zh-CN')}
+              截止 {settlementLabel}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -636,7 +675,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   <span className="font-mono text-[#666] text-[10px]">
                     {token.token_id.slice(0, 12)}...
                   </span>
-                  <span className="font-bold text-white">${token.price.toFixed(3)}</span>
+                  <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
                 </div>
               ))}
               {market.description && (
@@ -685,11 +724,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-[#666]">ID</span>
-                  <span className="font-mono text-[#888]">{market.id.slice(0, 12)}...</span>
+                  <span className="font-mono text-[#888]">{marketIdLabel}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#666]">结算</span>
-                  <span className="text-white">{new Date(market.endDate).toLocaleDateString('zh-CN')}</span>
+                  <span className="text-white">{settlementLabel}</span>
                 </div>
               </div>
             </div>
