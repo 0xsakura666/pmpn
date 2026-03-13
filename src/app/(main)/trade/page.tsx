@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useAccount } from "wagmi";
-import { WalletButton } from "@/components/auth/ConnectWallet";
 import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
@@ -64,8 +62,6 @@ function TradePageContent() {
   const [loading, setLoading] = useState(true);
   const [showMarketSelector, setShowMarketSelector] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
-
-  const { isConnected } = useAccount();
 
   const fetchMarkets = useCallback(async () => {
     try {
@@ -232,8 +228,6 @@ function TradePageContent() {
               </div>
             )}
           </div>
-
-          <WalletButton />
         </div>
       </header>
 

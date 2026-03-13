@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { WalletButton } from "@/components/auth/ConnectWallet";
 import {
   ArrowLeft,
   RefreshCw,
@@ -186,8 +185,6 @@ export default function WalletPage() {
               <span className="text-xs text-[#6b6b80]">或</span>
               <div className="flex-1 h-px bg-[#1e1e28]" />
             </div>
-            
-            <WalletButton />
           </div>
           
           <div className="mt-8 p-4 rounded-xl bg-[#13131a] border border-[#1e1e28]">
@@ -380,7 +377,6 @@ function Header() {
           </Link>
           <span className="text-xl font-bold text-gradient">钱包</span>
         </div>
-        <WalletButton />
       </div>
     </header>
   );
