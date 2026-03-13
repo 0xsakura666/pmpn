@@ -7,6 +7,7 @@ import { useState, useCallback } from "react";
 import { mainNavItems, isActiveRoute } from "@/config/navigation";
 import { WalletButton } from "@/components/auth/ConnectWallet";
 import { Button } from "@/components/ui";
+import { extractPolymarketEventSlug } from "@/lib/polymarket-reference";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -23,7 +24,11 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const q = searchQuery.trim();
-    if (q) {
+    const polymarketSlug = extractPolymarketEventSlug(q);
+
+    if (polymarketSlug) {
+      router.push(`/markets/${encodeURIComponent(polymarketSlug)}`);
+    } else if (q) {
       router.push(`/?search=${encodeURIComponent(q)}`);
     } else {
       router.push("/");
@@ -87,7 +92,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索市场..."
+                placeholder="搜索市场或粘贴 Polymarket 链接"
                 className="w-36 lg:w-44 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-placeholder)] outline-none"
               />
               {searchQuery && (
@@ -128,7 +133,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索市场..."
+                placeholder="搜索市场或粘贴 Polymarket 链接"
                 className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-placeholder)] outline-none"
                 autoFocus
               />

@@ -1,10 +1,9 @@
 import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
+import { extractPolymarketEventSlug, normalizePolymarketMarketIdentifier } from "@/lib/polymarket-reference";
 
 const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || "https://clob.polymarket.com";
 const POLYMARKET_GAMMA_API = process.env.POLYMARKET_GAMMA_API || "https://gamma-api.polymarket.com";
 const POLYMARKET_DATA_API = process.env.POLYMARKET_DATA_API || "https://data-api.polymarket.com";
-
-const API_TIMEOUT = parseInt(process.env.POLYMARKET_TIMEOUT || "20000");
 
 // 使用 CORS 代理绕过 DNS 污染
 const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
@@ -84,6 +83,31 @@ export interface Position {
   negativeRisk: boolean;
 }
 
+interface RawGammaMarket {
+  conditionId?: string;
+  condition_id?: string;
+  question?: string;
+  description?: string;
+  slug?: string;
+  endDate?: string;
+  negRisk?: boolean;
+  icon?: string;
+  image?: string;
+  outcomes?: string;
+  outcomePrices?: string;
+  clobTokenIds?: string;
+}
+
+interface RawGammaEvent {
+  title?: string;
+  description?: string;
+  slug?: string;
+  endDate?: string;
+  icon?: string;
+  image?: string;
+  markets?: RawGammaMarket[];
+}
+
 class PolymarketService {
   private baseUrl: string;
 
@@ -118,9 +142,10 @@ class PolymarketService {
       console.error(`[Polymarket] Fetch error:`, error);
 
       if (error instanceof Error) {
-        const cause = (error as any).cause;
+        const cause = error.cause;
         if (cause) {
-          console.error(`[Polymarket] Cause:`, cause.message || cause);
+          const causeMessage = cause instanceof Error ? cause.message : String(cause);
+          console.error(`[Polymarket] Cause:`, causeMessage);
         }
         throw new Error(`Fetch failed: ${error.message}`);
       }
@@ -133,7 +158,7 @@ class PolymarketService {
   async getMarkets(limit: number = 100, offset: number = 0): Promise<PolymarketMarket[]> {
     // 首先尝试 /events 端点（返回包含 markets 的事件）
     try {
-      const events = await this.request<any[]>(
+      const events = await this.request<RawGammaEvent[]>(
         `${POLYMARKET_GAMMA_API}/events?limit=${limit}&offset=${offset}&active=true&closed=false`
       );
       
@@ -142,26 +167,15 @@ class PolymarketService {
       for (const event of events) {
         if (event.markets && Array.isArray(event.markets)) {
           for (const market of event.markets) {
-            markets.push({
-              condition_id: market.conditionId || market.condition_id,
+            markets.push(this.transformMarket({
+              ...market,
               question: market.question || event.title,
               description: market.description || event.description || "",
-              market_slug: market.slug || event.slug,
-              end_date_iso: market.endDate || event.endDate,
-              game_start_time: "",
-              seconds_delay: 0,
-              fpmm: "",
-              maker_base_fee: 0,
-              taker_base_fee: 0,
-              notifications_enabled: false,
-              neg_risk: market.negRisk || false,
-              neg_risk_market_id: "",
-              neg_risk_request_id: "",
-              icon: event.icon || "",
-              image: event.image || "",
-              rewards: { total_rewards: 0, daily_rewards: 0, end_date: "" },
-              tokens: this.parseTokens(market),
-            });
+              slug: market.slug || event.slug,
+              endDate: market.endDate || event.endDate,
+              icon: event.icon || market.icon,
+              image: event.image || market.image,
+            }, market.conditionId || market.condition_id || event.slug || "unknown-market"));
           }
         }
       }
@@ -176,49 +190,77 @@ class PolymarketService {
   }
 
   async getMarket(conditionId: string): Promise<PolymarketMarket | null> {
+    const identifier = normalizePolymarketMarketIdentifier(conditionId);
+
     try {
-      // 尝试通过 condition_id 查询
-      const markets = await this.request<any[]>(
-        `${POLYMARKET_GAMMA_API}/markets?condition_id=${conditionId}`
-      );
-      
-      if (markets && markets.length > 0) {
-        // 精确匹配 conditionId
-        const market = markets.find(m => 
-          (m.conditionId === conditionId) || 
-          (m.condition_id === conditionId)
-        ) || markets[0];
-        
-        return {
-          condition_id: market.conditionId || market.condition_id || conditionId,
-          question: market.question,
-          description: market.description || "",
-          market_slug: market.slug,
-          end_date_iso: market.endDate,
-          game_start_time: "",
-          seconds_delay: 0,
-          fpmm: "",
-          maker_base_fee: 0,
-          taker_base_fee: 0,
-          notifications_enabled: false,
-          neg_risk: market.negRisk || false,
-          neg_risk_market_id: "",
-          neg_risk_request_id: "",
-          icon: market.icon || "",
-          image: market.image || "",
-          rewards: { total_rewards: 0, daily_rewards: 0, end_date: "" },
-          tokens: this.parseTokens(market),
-        };
+      const marketByCondition = await this.getMarketByConditionId(identifier);
+      if (marketByCondition) {
+        return marketByCondition;
       }
-      
-      return null;
+
+      const slug = extractPolymarketEventSlug(conditionId) || identifier;
+      return this.getMarketBySlug(slug);
     } catch (error) {
       console.error("[Polymarket] getMarket error:", error);
       return null;
     }
   }
+
+  private async getMarketByConditionId(conditionId: string): Promise<PolymarketMarket | null> {
+    const markets = await this.request<RawGammaMarket[]>(
+      `${POLYMARKET_GAMMA_API}/markets?condition_id=${encodeURIComponent(conditionId)}`
+    );
+
+    if (!markets || markets.length === 0) {
+      return null;
+    }
+
+    const market = markets.find(
+      (item) => (item.conditionId === conditionId) || (item.condition_id === conditionId)
+    ) || markets[0];
+
+    return this.transformMarket(market, conditionId);
+  }
+
+  private async getMarketBySlug(slug: string): Promise<PolymarketMarket | null> {
+    if (!slug) return null;
+
+    const markets = await this.request<RawGammaMarket[]>(
+      `${POLYMARKET_GAMMA_API}/markets?slug=${encodeURIComponent(slug)}`
+    );
+
+    if (!markets || markets.length === 0) {
+      return null;
+    }
+
+    const market = markets.find((item) => item.slug === slug) || markets[0];
+    return this.transformMarket(market, market.conditionId || market.condition_id || slug);
+  }
+
+  private transformMarket(market: RawGammaMarket, fallbackId: string): PolymarketMarket {
+    return {
+      condition_id: market.conditionId || market.condition_id || fallbackId,
+      question: market.question || fallbackId,
+      description: market.description || "",
+      market_slug: market.slug || "",
+      end_date_iso: market.endDate || "",
+      game_start_time: "",
+      seconds_delay: 0,
+      fpmm: "",
+      maker_base_fee: 0,
+      taker_base_fee: 0,
+      notifications_enabled: false,
+      neg_risk: market.negRisk || false,
+      neg_risk_market_id: "",
+      neg_risk_request_id: "",
+      icon: market.icon || "",
+      image: market.image || "",
+      rewards: { total_rewards: 0, daily_rewards: 0, end_date: "" },
+      tokens: this.parseTokens(market),
+    };
+  }
   
-  private parseTokens(market: any): Array<{ token_id: string; outcome: string; price: number; winner: boolean }> {
+  private parseTokens(market: RawGammaMarket): Array<{ token_id: string; outcome: string; price: number; winner: boolean }> {
     const tokens: Array<{ token_id: string; outcome: string; price: number; winner: boolean }> = [];
 
     const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
