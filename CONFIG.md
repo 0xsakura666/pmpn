@@ -123,3 +123,5 @@ npm run dev             # 打开 http://localhost:3000
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | 在 [Reown Cloud](https://cloud.reown.com) 创建项目后得到的 Project ID |
 
 保存后到 **Deployments** 对最新部署做一次 **Redeploy**，环境变量才会在新构建中生效。
+
+当前前端已切换到 RainbowKit；如果不配置 `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`，页面仍可本地打开，但 WalletConnect 会退回示例 Project ID，不建议用于正式环境。

@@ -1,21 +1,15 @@
-import { http, createConfig } from "wagmi";
+import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { http } from "wagmi";
 import { polygon } from "wagmi/chains";
-import { injected, metaMask, coinbaseWallet, walletConnect } from "wagmi/connectors";
 
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID";
 
-export const config = createConfig({
+export const config = getDefaultConfig({
+  appName: "Tectonic",
+  appDescription: "Polymarket trading platform with wallet-based authentication",
+  appUrl: "https://pmpn-one.vercel.app",
+  projectId,
   chains: [polygon],
-  connectors: [
-    metaMask(),
-    coinbaseWallet({
-      appName: "Tectonic",
-    }),
-    ...(projectId ? [walletConnect({ projectId })] : []),
-    injected({
-      shimDisconnect: true,
-    }),
-  ],
   transports: {
     [polygon.id]: http(),
   },

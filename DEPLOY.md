@@ -26,8 +26,7 @@
 | `POLYMARKET_PASSPHRASE` | ✅ | Polymarket Passphrase |
 | `POLYMARKET_API_URL` | 可选 | 默认 `https://clob.polymarket.com`，可不填 |
 | `NEXT_PUBLIC_WS_URL` | 可选 | 默认已内置 CLOB WebSocket 地址，可不填 |
-
-**注意：** 当前使用 Injected 钱包，无需 `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`。
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | 推荐 | RainbowKit / WalletConnect 的 Project ID；未配置时将退回示例 ID，仅适合本地调试 |
 
 ### 3. 部署
 
@@ -65,6 +64,7 @@
 | `POLYMARKET_PASSPHRASE` | ✅ | Polymarket Passphrase |
 | `POLYMARKET_API_URL` | 可选 | 默认 `https://clob.polymarket.com` |
 | `NEXT_PUBLIC_WS_URL` | 可选 | 默认已内置，可不填 |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | 推荐 | RainbowKit / WalletConnect 的 Project ID；未配置时将退回示例 ID，仅适合本地调试 |
 
 ### 4. 构建与启动
 

@@ -92,6 +92,9 @@ POLYMARKET_API_URL=https://clob.polymarket.com
 
 # WebSocket
 NEXT_PUBLIC_WS_URL=wss://ws-subscriptions-clob.polymarket.com/ws/market
+
+# Wallet
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-reown-project-id
 ```
 
 ### Database Setup

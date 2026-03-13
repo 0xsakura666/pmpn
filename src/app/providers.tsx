@@ -1,5 +1,6 @@
 "use client";
 
+import { RainbowKitProvider, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { useState, type ReactNode } from "react";
@@ -30,17 +31,33 @@ export function Providers({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border-default)",
-                color: "var(--text-primary)",
-              },
+          <RainbowKitProvider
+            appInfo={{
+              appName: "Tectonic",
+              learnMoreUrl: "https://learn.rainbow.me/understanding-web3?utm_source=rainbowkit&utm_campaign=learnmore",
             }}
-          />
+            modalSize="compact"
+            showRecentTransactions
+            theme={lightTheme({
+              accentColor: "#00D4AA",
+              accentColorForeground: "#0A0D14",
+              borderRadius: "large",
+              fontStack: "system",
+              overlayBlur: "small",
+            })}
+          >
+            {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border-default)",
+                  color: "var(--text-primary)",
+                },
+              }}
+            />
+          </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </ErrorBoundary>
