@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
+import { categorizeMarket } from "@/lib/market-category";
 
 interface RawMarket {
   conditionId?: string;
@@ -38,29 +39,6 @@ function calculateDaysLeft(endDate: string): number {
   const endTime = new Date(endDate).getTime();
   if (Number.isNaN(endTime)) return -1;
   return Math.ceil((endTime - Date.now()) / 86400000);
-}
-
-function categorizeMarket(question: string): string {
-  const q = question.toLowerCase();
-  if (/trump|biden|election|president|vote|congress|senate|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan|governor|republican|democrat|kamala|harris/.test(q)) {
-    return "政治";
-  }
-  if (/crypto|bitcoin|ethereum|btc|eth|sol|coin|defi|nft|solana|xrp|doge/.test(q)) {
-    return "加密";
-  }
-  if (/sport|nba|nfl|soccer|football|tennis|championship|playoffs|game|match|team|player|super bowl|champion/.test(q)) {
-    return "体育";
-  }
-  if (/economy|fed|inflation|gdp|rate|recession|unemployment|oil|gold|stock|market/.test(q)) {
-    return "经济";
-  }
-  if (/ai|openai|gpt|tech|apple|google|microsoft|nvidia|tesla|meta|amazon|software|startup/.test(q)) {
-    return "科技";
-  }
-  if (/movie|oscar|grammy|music|celebrity|tv|show|netflix|disney|streaming/.test(q)) {
-    return "娱乐";
-  }
-  return "其他";
 }
 
 export async function GET(
@@ -127,7 +105,12 @@ export async function GET(
         description: rawEvent.description || "",
         image: rawEvent.image || "",
         slug: rawEvent.slug || "",
-        category: categorizeMarket(title),
+        category: categorizeMarket(
+          title,
+          rawEvent.description,
+          rawEvent.slug,
+          ...markets.flatMap((market) => [market.question, market.slug])
+        ),
         volume24h: parseFloat(rawEvent.volume24hr || "0"),
         totalVolume: parseFloat(rawEvent.volume || "0"),
         liquidity: parseFloat(rawEvent.liquidity || "0"),

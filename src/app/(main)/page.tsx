@@ -15,8 +15,9 @@ import {
   PAGE_SIZE,
 } from "@/components/market";
 import { calculateDaysLeft, isExpiredByDate } from "@/lib/utils";
+import { categorizeMarket } from "@/lib/market-category";
 
-const CACHE_KEY = "pmpn_events_cache_v5";
+const CACHE_KEY = "pmpn_events_cache_v6";
 const CACHE_TTL = 3 * 60 * 1000;
 const DEFAULT_FETCH_LIMIT = 500;
 const SEARCH_FETCH_LIMIT = 200;
@@ -70,17 +71,6 @@ function setCache(events: EventGroup[]) {
       }
     }
   } catch {}
-}
-
-function categorizeMarket(question: string): string {
-  const q = question.toLowerCase();
-  if (/trump|biden|election|president|senate|congress|vote|poll|governor|republican|democrat|kamala|harris|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan/.test(q)) return "政治";
-  if (/crypto|bitcoin|ethereum|btc|eth|token|solana|sol|xrp|doge|coin|defi|nft/.test(q)) return "加密";
-  if (/sport|nba|nfl|soccer|football|tennis|championship|playoffs|game|match|team|player|lebron|curry/.test(q)) return "体育";
-  if (/ai|openai|google|apple|microsoft|nvidia|tesla|meta|amazon|tech|software|startup|ipo/.test(q)) return "科技";
-  if (/fed|rate|inflation|gdp|stock|market|economy|recession|unemployment|oil|gold/.test(q)) return "经济";
-  if (/movie|oscar|grammy|music|celebrity|tv|show|netflix|disney|streaming/.test(q)) return "娱乐";
-  return "其他";
 }
 
 function MarketsPageContent({ initialSearch }: { initialSearch: string }) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
+import { categorizeMarket } from "@/lib/market-category";
 
 const GAMMA_PAGE_SIZE = 500;
 const DEFAULT_EVENTS_LIMIT = 500;
@@ -79,29 +80,6 @@ function calculateDaysLeft(endDate: string): number {
   return Math.ceil((endTime - Date.now()) / 86400000);
 }
 
-function categorizeMarket(question: string): string {
-  const q = question.toLowerCase();
-  if (/trump|biden|election|president|vote|congress|senate|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan|governor|republican|democrat|kamala|harris/.test(q)) {
-    return "政治";
-  }
-  if (/crypto|bitcoin|ethereum|btc|eth|sol|coin|defi|nft|solana|xrp|doge/.test(q)) {
-    return "加密";
-  }
-  if (/sport|nba|nfl|soccer|football|tennis|championship|playoffs|game|match|team|player|super bowl|champion/.test(q)) {
-    return "体育";
-  }
-  if (/economy|fed|inflation|gdp|rate|recession|unemployment|oil|gold|stock|market/.test(q)) {
-    return "经济";
-  }
-  if (/ai|openai|gpt|tech|apple|google|microsoft|nvidia|tesla|meta|amazon|software|startup/.test(q)) {
-    return "科技";
-  }
-  if (/movie|oscar|grammy|music|celebrity|tv|show|netflix|disney|streaming/.test(q)) {
-    return "娱乐";
-  }
-  return "其他";
-}
-
 function clampNumber(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
@@ -168,7 +146,12 @@ function transformEvent(event: RawEvent, fallbackId: number): EventGroup | null 
     description: event.description || "",
     image: event.image || "",
     slug: event.slug || "",
-    category: categorizeMarket(title),
+    category: categorizeMarket(
+      title,
+      event.description,
+      event.slug,
+      ...subMarkets.flatMap((market) => [market.question, market.slug])
+    ),
     volume24h,
     totalVolume: parseFloat(event.volume || "0"),
     liquidity: parseFloat(event.liquidity || "0"),

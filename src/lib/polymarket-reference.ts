@@ -9,7 +9,7 @@ export function extractPolymarketEventSlug(input: string): string | null {
   if (!normalized) return null;
 
   if (!normalized.includes("://")) {
-    return null;
+    return normalized;
   }
 
   try {
@@ -20,9 +20,13 @@ export function extractPolymarketEventSlug(input: string): string | null {
 
     const segments = url.pathname.split("/").filter(Boolean);
     const eventIndex = segments.findIndex((segment) => segment === "event");
-    if (eventIndex === -1) return null;
+    if (eventIndex !== -1) {
+      const eventSlug = segments[eventIndex + 1];
+      return eventSlug ? eventSlug.trim() : null;
+    }
 
-    const slug = segments[eventIndex + 1];
+    const filteredSegments = segments.filter((segment) => segment.toLowerCase() !== "zh");
+    const slug = filteredSegments[filteredSegments.length - 1];
     return slug ? slug.trim() : null;
   } catch {
     return null;

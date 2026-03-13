@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
 import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
+import { categorizeMarket } from "@/lib/market-category";
 
 const GAMMA_PAGE_SIZE = 500;
 const DEFAULT_MARKETS_LIMIT = 800;
@@ -112,7 +113,13 @@ export async function GET(request: NextRequest) {
             question,
             description: (market.description || event.description || "") as string,
             slug: (market.slug || event.slug || "") as string,
-            category: categorizeMarket(question),
+            category: categorizeMarket(
+              question,
+              market.description,
+              event.description,
+              market.slug,
+              event.slug
+            ),
             endDate,
             image: (event.image || "") as string,
             yesPrice,
@@ -153,27 +160,4 @@ export async function GET(request: NextRequest) {
       { status: 503 }
     );
   }
-}
-
-function categorizeMarket(question: string): string {
-  const q = question.toLowerCase();
-  if (/trump|biden|election|president|vote|congress|senate|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan|governor|republican|democrat|kamala|harris/.test(q)) {
-    return "政治";
-  }
-  if (/crypto|bitcoin|ethereum|btc|eth|sol|coin|defi|nft|solana|xrp|doge/.test(q)) {
-    return "加密货币";
-  }
-  if (/sport|nba|nfl|soccer|football|tennis|championship|playoffs|game|match|team|player|super bowl|champion|win/.test(q)) {
-    return "体育";
-  }
-  if (/economy|fed|inflation|gdp|rate|recession|unemployment|oil|gold|stock|market/.test(q)) {
-    return "经济";
-  }
-  if (/ai|openai|gpt|tech|apple|google|microsoft|nvidia|tesla|meta|amazon|software|startup/.test(q)) {
-    return "科技";
-  }
-  if (/movie|oscar|grammy|music|celebrity|tv|show|netflix|disney|streaming/.test(q)) {
-    return "娱乐";
-  }
-  return "其他";
 }
