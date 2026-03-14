@@ -12,6 +12,10 @@ import {
   type CandleInterval,
   type TimeframeType,
 } from "@/lib/chart-timeframe";
+import {
+  getRecommendedChartTimeframe,
+  getShortTermStartTs,
+} from "@/lib/short-term-chart";
 
 interface SubMarket {
   conditionId: string;
@@ -62,6 +66,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
+
+  useEffect(() => {
+    if (!selectedMarket?.endDate) return;
+    setSelectedTimeframe((current) => {
+      if (current !== "5M") return current;
+      return getRecommendedChartTimeframe(selectedMarket.endDate);
+    });
+  }, [selectedMarket?.endDate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,7 +142,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
 
-    const cacheKey = `${tokenId}:${timeframe}`;
+    const startTs = getShortTermStartTs(selectedMarket?.endDate, timeframe);
+    const cacheKey = `${tokenId}:${timeframe}:${startTs || "default"}`;
     const cached = historyCacheRef.current.get(cacheKey);
     if (cached) {
       setPriceHistory(cached.candles);
@@ -146,6 +159,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         market: tokenId,
         timeframe,
       });
+      if (startTs) {
+        params.set("startTs", String(startTs));
+      }
       const res = await fetch(`/api/price-history?${params.toString()}`, { signal });
 
       if (res.ok) {
@@ -205,7 +221,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         setHistoryLoading(false);
       }
     }
-  }, []);
+  }, [selectedMarket?.endDate]);
 
   useEffect(() => {
     if (selectedMarket?.yesTokenId) {

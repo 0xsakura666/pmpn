@@ -13,6 +13,10 @@ import {
   type CandleInterval,
   type TimeframeType,
 } from "@/lib/chart-timeframe";
+import {
+  getRecommendedChartTimeframe,
+  getShortTermStartTs,
+} from "@/lib/short-term-chart";
 
 interface MarketToken {
   token_id: string;
@@ -386,6 +390,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     fetchMarket();
   }, [resolvedParams.id]);
 
+  useEffect(() => {
+    if (!market?.endDate) return;
+    setSelectedTimeframe((current) => {
+      if (current !== "1M") return current;
+      return getRecommendedChartTimeframe(market.endDate);
+    });
+  }, [market?.endDate]);
+
   const fetchMarket = async () => {
     setLoading(true);
     setError(null);
@@ -475,7 +487,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       return;
     }
 
-    const cacheKey = `${tokenId}:${timeframe}`;
+    const startTs = getShortTermStartTs(market?.endDate, timeframe);
+    const cacheKey = `${tokenId}:${timeframe}:${startTs || "default"}`;
     const cached = historyCacheRef.current.get(cacheKey);
     if (cached) {
       setPriceHistory(cached.candles);
@@ -491,6 +504,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         tokenId,
         timeframe,
       });
+      if (startTs) {
+        params.set("startTs", String(startTs));
+      }
       const res = await fetch(`/api/markets/${resolvedParams.id}/history?${params.toString()}`, { signal });
       if (res.ok) {
         const data = await res.json();
@@ -548,7 +564,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         setHistoryLoading(false);
       }
     }
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, market?.endDate]);
 
   useEffect(() => {
     const yesTokenId = market?.tokens?.find((t) => t.outcome === "Yes")?.token_id;

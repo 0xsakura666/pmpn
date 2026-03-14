@@ -1,5 +1,5 @@
 import { and, asc, eq, gte, lte } from "drizzle-orm";
-import { db } from "@/db";
+import { db, hasDatabase } from "@/db";
 import { intradayMarketBars } from "@/db/schema";
 import type { CandlePoint } from "@/lib/candle-aggregation";
 import { CANDLE_INTERVAL_SECONDS } from "@/lib/candle-aggregation";
@@ -85,7 +85,7 @@ export async function getIntradayCandles(
   options: IntradayFetchOptions
 ): Promise<CandlePoint[]> {
   const { timeframe, startTs, endTs } = options;
-  if (!tokenId || !supportsIntradayCollector(timeframe)) return [];
+  if (!tokenId || !supportsIntradayCollector(timeframe) || !hasDatabase) return [];
 
   const historyConfig = getHistoryParamsForTimeframe(timeframe);
   const nowSec = Math.floor(Date.now() / 1000);

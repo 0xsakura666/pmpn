@@ -55,6 +55,27 @@ function parseUnitPrice(value: unknown): number | null {
   return price;
 }
 
+function getTopBookPrice(levels: Array<{ price?: unknown }> | undefined, mode: "bestBid" | "bestAsk"): number | null {
+  if (!Array.isArray(levels) || levels.length === 0) return null;
+
+  let selected: number | null = null;
+  for (const level of levels) {
+    const price = parseUnitPrice(level?.price);
+    if (price === null) continue;
+    if (selected === null) {
+      selected = price;
+      continue;
+    }
+    if (mode === "bestBid") {
+      selected = Math.max(selected, price);
+    } else {
+      selected = Math.min(selected, price);
+    }
+  }
+
+  return selected;
+}
+
 function parseWsTimestampToMs(input: unknown): number {
   if (typeof input === "number" && Number.isFinite(input)) {
     return input > 1e12 ? input : input * 1000;
@@ -94,7 +115,6 @@ export function useMultiTimeframeCandles({
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const ticksRef = useRef<TickData[]>([]);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());
@@ -297,12 +317,19 @@ export function useMultiTimeframeCandles({
               }
             }
 
-            // Orderbook snapshot updates with last traded price
-            if (msg.event_type === "book" && msg.asset_id === tokenId && msg.last_trade_price) {
-              const price = parseUnitPrice(msg.last_trade_price);
-              if (price !== null) {
-                const timestamp = parseWsTimestampToMs(msg.timestamp);
-                processPrice(price, timestamp);
+            // Orderbook snapshot updates should prefer mid-price from top of book.
+            if (msg.event_type === "book" && msg.asset_id === tokenId) {
+              const timestamp = parseWsTimestampToMs(msg.timestamp);
+              const bestBid = getTopBookPrice(msg.bids, "bestBid");
+              const bestAsk = getTopBookPrice(msg.asks, "bestAsk");
+
+              if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
+                processQuotePrice((bestBid + bestAsk) / 2, timestamp);
+              } else {
+                const lastTrade = parseUnitPrice(msg.last_trade_price);
+                if (lastTrade !== null) {
+                  processPrice(lastTrade, timestamp);
+                }
               }
             }
 
@@ -362,20 +389,6 @@ export function useMultiTimeframeCandles({
     }
     return () => disconnect();
   }, [tokenId, connect, disconnect]);
-
-  useEffect(() => {
-    if (!tokenId) return;
-
-    // Do not synthesize fake ticks every second.
-    // Short-term charts now prefer collector-backed 1s bars; when the market is quiet,
-    // the chart should stay honest instead of animating invented candles.
-    return () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-        heartbeatIntervalRef.current = null;
-      }
-    };
-  }, [tokenId]);
 
   const getCandles = useCallback((interval: IntervalType): CandleData[] => {
     const store = candleStoresRef.current.get(interval);

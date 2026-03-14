@@ -90,6 +90,12 @@ function mergeCandlesByTime(
   return Array.from(byTime.values()).sort((a, b) => (a.time as number) - (b.time as number));
 }
 
+function getLatestCandleTime(candles: CandlestickData<Time>[]): number | null {
+  if (candles.length === 0) return null;
+  const last = candles[candles.length - 1];
+  return Number(last.time as unknown);
+}
+
 export function RealtimeCandlestickChart({
   tokenId,
   initialData = [],
@@ -147,24 +153,33 @@ export function RealtimeCandlestickChart({
     ) as CandlestickData<Time>[];
   }, [normalizedInitialData, currentInterval, historyBaseInterval]);
 
-  const displayCandles = useMemo(() => {
-    const wsCandles = wsGetCandles(currentInterval);
-    const realtimeCandles = wsCandles as CandlestickData<Time>[];
-
-    if (historicalCandlesForInterval.length === 0) {
-      return realtimeCandles;
-    }
-
-    if (realtimeCandles.length === 0) {
-      return historicalCandlesForInterval;
-    }
-
-    return mergeCandlesByTime(historicalCandlesForInterval, realtimeCandles);
-  }, [wsGetCandles, currentInterval, lastUpdate, historicalCandlesForInterval]);
-
   const displayCurrentCandle = useMemo(() => {
     return wsGetCurrentCandle(currentInterval) as CandlestickData<Time> | null;
   }, [wsGetCurrentCandle, currentInterval, lastUpdate]);
+
+  const displayCandles = useMemo(() => {
+    const wsCandles = wsGetCandles(currentInterval) as CandlestickData<Time>[];
+    const latestHistoricalTime = getLatestCandleTime(historicalCandlesForInterval);
+    const currentRealtimeTime = displayCurrentCandle ? Number(displayCurrentCandle.time as unknown) : null;
+
+    const finalizedRealtimeCandles = wsCandles.filter((candle) => {
+      const candleTime = Number(candle.time as unknown);
+      if (!Number.isFinite(candleTime)) return false;
+      if (currentRealtimeTime !== null && candleTime === currentRealtimeTime) return false;
+      if (latestHistoricalTime !== null && candleTime <= latestHistoricalTime) return false;
+      return true;
+    });
+
+    if (historicalCandlesForInterval.length === 0) {
+      return finalizedRealtimeCandles;
+    }
+
+    if (finalizedRealtimeCandles.length === 0) {
+      return historicalCandlesForInterval;
+    }
+
+    return mergeCandlesByTime(historicalCandlesForInterval, finalizedRealtimeCandles);
+  }, [wsGetCandles, currentInterval, lastUpdate, historicalCandlesForInterval, displayCurrentCandle]);
 
   const handleTimeframeChange = (tf: TimeframeType) => {
     setSelectedTimeframe(tf);
