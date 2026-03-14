@@ -217,7 +217,11 @@ class PolymarketService {
 
     const market = markets.find(
       (item) => (item.conditionId === conditionId) || (item.condition_id === conditionId)
-    ) || markets[0];
+    );
+
+    if (!market) {
+      return null;
+    }
 
     return this.transformMarket(market, conditionId);
   }
