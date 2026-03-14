@@ -92,6 +92,7 @@ interface EventGroup {
     noTokenId: string;
   }>;
   daysLeft: number;
+  isShortTerm: boolean;
   trendingRank?: number;
 }
 
@@ -213,6 +214,7 @@ function transformEvent(event: RawEvent, fallbackId: number): EventGroup | null 
     liquidity: parseFloat(event.liquidity || "0"),
     markets: subMarkets,
     daysLeft: eventDaysLeft,
+    isShortTerm: eventDaysLeft >= 0 && eventDaysLeft <= 2,
   };
 }
 
@@ -259,6 +261,7 @@ function transformPriorityMarket(market: RawPriorityMarket, fallbackId: number):
       },
     ],
     daysLeft: calculateDaysLeft(endDate),
+    isShortTerm: true,
   };
 }
 

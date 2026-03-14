@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCw, LayoutGrid, List, Flame, BarChart3, Clock, Timer } from "lucide-react";
-import { Button, Badge } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { CATEGORIES, type SortOption, type ViewMode } from "./types";
 
@@ -13,6 +13,10 @@ const sortOptions: { value: SortOption; label: string; Icon: typeof Flame }[] = 
 ];
 
 interface MarketToolbarProps {
+  marketScope: "all" | "short-term";
+  onMarketScopeChange: (scope: "all" | "short-term") => void;
+  totalCount: number;
+  shortTermCount: number;
   categoryFilter: string;
   onCategoryChange: (category: string) => void;
   categoryCounts: Record<string, number>;
@@ -25,6 +29,10 @@ interface MarketToolbarProps {
 }
 
 export function MarketToolbar({
+  marketScope,
+  onMarketScopeChange,
+  totalCount,
+  shortTermCount,
   categoryFilter,
   onCategoryChange,
   categoryCounts,
@@ -37,6 +45,33 @@ export function MarketToolbar({
 }: MarketToolbarProps) {
   return (
     <div className="space-y-3">
+      {/* Scope Filters */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {[
+          { value: "all", label: "全部市场", count: totalCount },
+          { value: "short-term", label: "短期市场", count: shortTermCount },
+        ].map(({ value, label, count }) => {
+          const isActive = marketScope === value;
+          return (
+            <button
+              key={value}
+              onClick={() => onMarketScopeChange(value as "all" | "short-term")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
+                isActive
+                  ? "bg-[var(--brand-primary)] text-black"
+                  : "bg-[var(--bg-elevated)] text-[var(--text-subtle)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)]"
+              )}
+            >
+              {label}
+              <span className={cn("text-xs", isActive ? "text-black/60" : "text-[var(--text-disabled)]")}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Category Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {CATEGORIES.map(({ value, label }) => {

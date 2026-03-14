@@ -29,6 +29,11 @@ export const EventRow = memo(function EventRow({ event }: { event: EventGroup })
                 <Clock className="h-3 w-3" />
                 {event.daysLeft}天
               </span>
+              {event.isShortTerm && (
+                <Badge variant="success" size="xs">
+                  短期
+                </Badge>
+              )}
               {event.markets.length > 1 && (
                 <Badge variant="default" size="xs">
                   {event.markets.length} 个市场

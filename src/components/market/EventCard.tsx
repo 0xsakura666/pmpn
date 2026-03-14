@@ -36,9 +36,16 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
           {event.image && (
             <img src={event.image} alt="" className="h-8 w-8 shrink-0 rounded-[var(--radius-lg)] object-cover" />
           )}
-          <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors">
-            {event.title}
-          </h3>
+          <div className="min-w-0 flex-1">
+            {event.isShortTerm && (
+              <div className="mb-1 inline-flex rounded-full bg-[var(--brand-primary-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-primary)]">
+                短期
+              </div>
+            )}
+            <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors">
+              {event.title}
+            </h3>
+          </div>
         </Link>
 
         <div className="flex flex-1 flex-col justify-end">
@@ -82,9 +89,16 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
         {event.image && (
           <img src={event.image} alt="" className="h-8 w-8 shrink-0 rounded-[var(--radius-lg)] object-cover" />
         )}
-        <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors">
-          {event.title}
-        </h3>
+        <div className="min-w-0 flex-1">
+          {event.isShortTerm && (
+            <div className="mb-1 inline-flex rounded-full bg-[var(--brand-primary-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-primary)]">
+              短期
+            </div>
+          )}
+          <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors">
+            {event.title}
+          </h3>
+        </div>
       </Link>
 
       <div className="mb-3 flex flex-1 flex-col gap-2.5">

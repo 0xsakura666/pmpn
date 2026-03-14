@@ -13,6 +13,7 @@ import {
   normalizeHistoryPayload,
   type CandlePoint,
 } from "@/lib/candle-aggregation";
+import { getIntradayCandles, supportsIntradayCollector } from "@/lib/intraday-bars";
 
 interface PriceHistoryPayload {
   history: Array<{ t: number; p: number }>;
@@ -38,12 +39,44 @@ export async function GET(request: NextRequest) {
     const historyInterval = timeframeConfig.historyInterval;
     const nowSec = Math.floor(Date.now() / 1000);
     const effectiveStartTs = startTs || String(nowSec - timeframeConfig.lookbackSeconds);
+    const resolvedStartTs = Number(effectiveStartTs);
+    const resolvedEndTs = endTs ? Number(endTs) : nowSec;
 
     if (!market) {
       return NextResponse.json(
         { error: "Missing required parameter: market (token_id)" },
         { status: 400 }
       );
+    }
+
+    if (supportsIntradayCollector(timeframe)) {
+      try {
+        const intradayCandles = await getIntradayCandles(market, {
+          timeframe,
+          startTs: Number.isFinite(resolvedStartTs) ? resolvedStartTs : undefined,
+          endTs: Number.isFinite(resolvedEndTs) ? resolvedEndTs : undefined,
+        });
+
+        if (intradayCandles.length > 0) {
+          const payload: PriceHistoryPayload = {
+            history: candlesToHistory(intradayCandles),
+            candles: intradayCandles,
+            timeframe,
+            interval: requestedInterval,
+            fidelity: requestedFidelity,
+            historyInterval,
+          };
+
+          return NextResponse.json(payload, {
+            headers: {
+              "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=10",
+              "X-PMPN-History-Source": "intraday-db",
+            },
+          });
+        }
+      } catch (intradayError) {
+        console.warn("[Price History] Intraday DB fallback failed:", intradayError);
+      }
     }
 
     const cacheKey = `price-history:${market}:${timeframe}:${historyInterval}:${effectiveStartTs}:${endTs || ""}`;

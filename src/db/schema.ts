@@ -170,6 +170,43 @@ export const whaleSignals = pgTable(
   ]
 );
 
+// Intraday 1s bars collected from Polymarket WebSocket for short-term markets.
+// Railway collector writes these rows; the app aggregates them to 5s/15s/1m/5m K-lines.
+export const intradayMarketBars = pgTable(
+  "intraday_market_bars",
+  {
+    tokenId: text("token_id").notNull(),
+    interval: text("interval").notNull().default("1s"),
+    bucketStart: timestamp("bucket_start").notNull(),
+    tradingDay: text("trading_day").notNull(),
+
+    conditionId: text("condition_id"),
+    marketTitle: text("market_title"),
+    eventSlug: text("event_slug"),
+    outcome: text("outcome"),
+
+    open: decimal("open", { precision: 18, scale: 6 }).notNull(),
+    high: decimal("high", { precision: 18, scale: 6 }).notNull(),
+    low: decimal("low", { precision: 18, scale: 6 }).notNull(),
+    close: decimal("close", { precision: 18, scale: 6 }).notNull(),
+    bestBid: decimal("best_bid", { precision: 18, scale: 6 }),
+    bestAsk: decimal("best_ask", { precision: 18, scale: 6 }),
+    lastTradePrice: decimal("last_trade_price", { precision: 18, scale: 6 }),
+    sampleCount: integer("sample_count").default(0),
+
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tokenId, table.interval, table.bucketStart] }),
+    index("intraday_bars_token_bucket_idx").on(table.tokenId, table.bucketStart),
+    index("intraday_bars_trading_day_idx").on(table.tradingDay, table.bucketStart),
+    index("intraday_bars_condition_idx").on(table.conditionId),
+    index("intraday_bars_expires_idx").on(table.expiresAt),
+  ]
+);
+
 // Types
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -178,3 +215,5 @@ export type TradeHistoryRecord = typeof tradeHistory.$inferSelect;
 export type CopyTradeSetting = typeof copyTradeSettings.$inferSelect;
 export type SmartCollection = typeof smartCollections.$inferSelect;
 export type WhaleSignal = typeof whaleSignals.$inferSelect;
+export type IntradayMarketBar = typeof intradayMarketBars.$inferSelect;
+export type NewIntradayMarketBar = typeof intradayMarketBars.$inferInsert;

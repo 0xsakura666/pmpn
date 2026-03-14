@@ -12,6 +12,7 @@ import {
   normalizeHistoryPayload,
   type CandlePoint,
 } from "@/lib/candle-aggregation";
+import { getIntradayCandles, supportsIntradayCollector } from "@/lib/intraday-bars";
 
 const CLOB_API = "https://clob.polymarket.com";
 const CACHE_TTL_MS = 15_000;
@@ -42,6 +43,8 @@ export async function GET(
     const historyInterval = timeframeConfig.historyInterval;
     const nowSec = Math.floor(Date.now() / 1000);
     const effectiveStartTs = startTs || String(nowSec - timeframeConfig.lookbackSeconds);
+    const resolvedStartTs = Number(effectiveStartTs);
+    const resolvedEndTs = endTs ? Number(endTs) : nowSec;
     let tokenId = searchParams.get("tokenId");
 
     console.log(
@@ -86,6 +89,37 @@ export async function GET(
         historyInterval,
         tokenId: "",
       });
+    }
+
+    if (supportsIntradayCollector(timeframe)) {
+      try {
+        const intradayCandles = await getIntradayCandles(tokenId, {
+          timeframe,
+          startTs: Number.isFinite(resolvedStartTs) ? resolvedStartTs : undefined,
+          endTs: Number.isFinite(resolvedEndTs) ? resolvedEndTs : undefined,
+        });
+
+        if (intradayCandles.length > 0) {
+          const payload: HistoryPayload = {
+            history: candlesToHistory(intradayCandles),
+            candles: intradayCandles,
+            timeframe,
+            interval: requestedInterval,
+            fidelity: requestedFidelity,
+            historyInterval,
+            tokenId,
+          };
+
+          return NextResponse.json(payload, {
+            headers: {
+              "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=10",
+              "X-PMPN-History-Source": "intraday-db",
+            },
+          });
+        }
+      } catch (intradayError) {
+        console.warn("[Price History] Intraday DB fallback failed:", intradayError);
+      }
     }
 
     const cacheKey = `market-history:${id}:${tokenId}:${timeframe}:${historyInterval}:${effectiveStartTs}:${endTs || ""}`;

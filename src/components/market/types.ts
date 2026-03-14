@@ -22,6 +22,7 @@ export interface EventGroup {
   liquidity: number;
   markets: SubMarket[];
   daysLeft: number;
+  isShortTerm?: boolean;
   trendingRank?: number;
 }
 

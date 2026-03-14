@@ -80,7 +80,59 @@
 
 ---
 
-## 三、两边都要注意的
+## 三、Railway 上单独跑短期 K 线采集器（推荐）
+
+如果你要做 **比赛 / 分钟级 BTC / 日内短期市场的丝滑 K 线**，建议把 Next.js 主站和采集器分开：
+
+- **Web/App 服务**：Next.js（可在 Vercel 或 Railway）
+- **Collector 服务**：Railway 常驻 Node 进程
+- **数据库**：Neon PostgreSQL（和主站共用同一个 `DATABASE_URL`）
+
+### 1. 新建一个 Railway Worker / Service
+
+在同一个 Railway Project 里再建一个服务，指向同一个仓库。
+
+建议配置：
+
+- **Build Command**: `npm install`
+- **Start Command**: `npm run collector:intraday`
+
+### 2. Collector 环境变量
+
+在这个 Collector 服务里至少配置：
+
+| 变量名 | 必填 | 说明 |
+|--------|------|------|
+| `DATABASE_URL` | ✅ | 直接填你的 Neon 连接串 |
+| `POLYMARKET_GAMMA_API` | 可选 | 默认 `https://gamma-api.polymarket.com` |
+| `NEXT_PUBLIC_WS_URL` | 可选 | 默认 `wss://ws-subscriptions-clob.polymarket.com/ws/market` |
+| `INTRADAY_COLLECTOR_MAX_MARKETS` | 推荐 | 默认 `120`，控制最多追踪多少个短期 token |
+| `INTRADAY_COLLECTOR_SHORT_TERM_HOURS` | 推荐 | 默认 `36`，只采未来 36 小时内结算/开赛的市场 |
+| `INTRADAY_COLLECTOR_REFRESH_MS` | 推荐 | 默认 `300000`（5 分钟）刷新一次追踪列表 |
+| `INTRADAY_COLLECTOR_RETENTION_HOURS` | 推荐 | 默认 `12`，市场结束后保留 12 小时再清理 |
+
+### 3. 先同步表结构
+
+Collector 启动前，先对 Neon 执行一次表结构同步：
+
+```bash
+DATABASE_URL="你的 Neon 连接串" npm run db:push
+```
+
+这会创建 `intraday_market_bars` 表，供 Collector 持续写入 1 秒 K 线基础 bar。
+
+### 4. 运行方式
+
+Collector 会：
+
+- 自动扫描短期活跃市场
+- 订阅 Polymarket WebSocket
+- 把 **1s OHLC** 写入 Neon
+- 过期市场自动清理
+
+前端 `/api/markets/[id]/history` 和 `/api/price-history` 会优先读这张表，短周期图表就会优先走你自己的日内数据，而不是依赖官方稀疏历史接口。
+
+## 四、两边都要注意的
 
 1. **NEXTAUTH_URL** 必须与最终访问的域名一致（含 `https://`），否则登录回调会失败。
 2. **AUTH_SECRET** 生产环境务必用新生成的随机串，不要和本地相同。

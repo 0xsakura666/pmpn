@@ -14,10 +14,8 @@ import {
   type ViewMode,
   PAGE_SIZE,
 } from "@/components/market";
-import { calculateDaysLeft, isExpiredByDate } from "@/lib/utils";
-import { categorizeMarket } from "@/lib/market-category";
 
-const CACHE_KEY = "pmpn_events_cache_v6";
+const CACHE_KEY = "pmpn_events_cache_v8";
 const CACHE_TTL = 3 * 60 * 1000;
 const DEFAULT_FETCH_LIMIT = 500;
 const SEARCH_FETCH_LIMIT = 200;
@@ -79,6 +77,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("Trending");
+  const [marketScope, setMarketScope] = useState<"all" | "short-term">("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [currentPage, setCurrentPage] = useState(1);
@@ -166,10 +165,14 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, sortBy, categoryFilter]);
+  }, [searchQuery, sortBy, categoryFilter, marketScope]);
 
   const filteredEvents = useMemo(() => {
     let result = events;
+
+    if (marketScope === "short-term") {
+      result = result.filter((ev) => Boolean(ev.isShortTerm));
+    }
 
     if (categoryFilter !== "all") {
       result = result.filter((ev) => ev.category === categoryFilter);
@@ -185,15 +188,18 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     }
 
     return result;
-  }, [events, searchQuery, categoryFilter]);
+  }, [events, searchQuery, categoryFilter, marketScope]);
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: events.length };
-    for (const ev of events) {
+    const scopedEvents = marketScope === "short-term" ? events.filter((ev) => Boolean(ev.isShortTerm)) : events;
+    const counts: Record<string, number> = { all: scopedEvents.length };
+    for (const ev of scopedEvents) {
       counts[ev.category] = (counts[ev.category] || 0) + 1;
     }
     return counts;
-  }, [events]);
+  }, [events, marketScope]);
+
+  const shortTermCount = useMemo(() => events.filter((ev) => Boolean(ev.isShortTerm)).length, [events]);
 
   const sortedEvents = useMemo(() => {
     return [...filteredEvents].sort((a, b) => {
@@ -237,6 +243,10 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
       {/* Toolbar */}
       <div className="mb-4 border-b border-[var(--border-muted)] pb-4">
         <MarketToolbar
+          marketScope={marketScope}
+          onMarketScopeChange={setMarketScope}
+          totalCount={events.length}
+          shortTermCount={shortTermCount}
           categoryFilter={categoryFilter}
           onCategoryChange={setCategoryFilter}
           categoryCounts={categoryCounts}
@@ -256,6 +266,12 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
             <TrendingUp className="h-3 w-3" />
             共 {sortedEvents.length} 个事件
           </span>
+          {marketScope === "short-term" && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--brand-primary-muted)] text-[var(--brand-primary)]">
+              短期市场
+              <button onClick={() => setMarketScope("all")} className="hover:text-[var(--text-primary)]">×</button>
+            </span>
+          )}
           {categoryFilter !== "all" && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--brand-primary-muted)] text-[var(--brand-primary)]">
               {categoryFilter}
