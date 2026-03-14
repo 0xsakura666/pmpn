@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, TrendingUp, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageContainer } from "@/components/layout";
-import { Button, LoadingOverlay, SkeletonCard, SkeletonRow } from "@/components/ui";
+import { Button, LoadingOverlay } from "@/components/ui";
 import {
   EventCard,
   EventRow,
@@ -15,14 +15,22 @@ import {
   PAGE_SIZE,
 } from "@/components/market";
 
-const CACHE_KEY = "pmpn_events_cache_v8";
+const CACHE_KEY = "pmpn_events_cache_v9";
 const CACHE_TTL = 3 * 60 * 1000;
-const DEFAULT_FETCH_LIMIT = 500;
-const SEARCH_FETCH_LIMIT = 200;
+const INITIAL_FETCH_LIMIT = 48;
+const SEARCH_FETCH_LIMIT = 48;
 
 interface CacheData {
   events: EventGroup[];
+  hasMore: boolean;
+  nextOffset: number | null;
   timestamp: number;
+}
+
+interface EventsResponse {
+  items: EventGroup[];
+  hasMore: boolean;
+  nextOffset: number | null;
 }
 
 function getCache(): CacheData | null {
@@ -37,9 +45,9 @@ function getCache(): CacheData | null {
   }
 }
 
-function setCache(events: EventGroup[]) {
+function setCache(events: EventGroup[], hasMore: boolean, nextOffset: number | null) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ events, timestamp: Date.now() }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ events, hasMore, nextOffset, timestamp: Date.now() }));
     for (const ev of events) {
       localStorage.setItem(`event_${ev.id}`, JSON.stringify(ev));
       for (const m of ev.markets) {
@@ -71,9 +79,18 @@ function setCache(events: EventGroup[]) {
   } catch {}
 }
 
+function appendUniqueEvents(current: EventGroup[], incoming: EventGroup[]) {
+  const byId = new Map(current.map((event) => [event.id, event]));
+  for (const item of incoming) {
+    byId.set(item.id, item);
+  }
+  return Array.from(byId.values());
+}
+
 function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
   const [events, setEvents] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("Trending");
@@ -82,6 +99,9 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
   const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const fetchWithTimeout = useCallback(async (url: string, timeout = 12000): Promise<Response> => {
     const controller = new AbortController();
@@ -96,42 +116,56 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     }
   }, []);
 
-  const fetchFromAPI = useCallback(async (query: string): Promise<EventGroup[]> => {
-    const params = new URLSearchParams({
-      limit: query.trim() ? String(SEARCH_FETCH_LIMIT) : String(DEFAULT_FETCH_LIMIT),
-    });
-    if (query.trim()) {
-      params.set("search", query.trim());
-    }
+  const fetchFromAPI = useCallback(
+    async (query: string, scope: "all" | "short-term", offset = 0): Promise<EventsResponse> => {
+      const params = new URLSearchParams({
+        limit: query.trim() ? String(SEARCH_FETCH_LIMIT) : String(INITIAL_FETCH_LIMIT),
+        offset: String(offset),
+        scope,
+      });
+      if (query.trim()) {
+        params.set("search", query.trim());
+      }
 
-    const res = await fetchWithTimeout(`/api/events?${params.toString()}`, 20000);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `API error: ${res.status}`);
-    }
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      throw new Error("Invalid events response");
-    }
-    return data as EventGroup[];
-  }, [fetchWithTimeout]);
+      const res = await fetchWithTimeout(`/api/events?${params.toString()}`, 20000);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `API error: ${res.status}`);
+      }
 
-  const fetchEvents = useCallback(
-    async (query: string, useCache = true) => {
+      const data = await res.json();
+      if (!data || !Array.isArray(data.items)) {
+        throw new Error("Invalid events response");
+      }
+
+      return {
+        items: data.items as EventGroup[],
+        hasMore: Boolean(data.hasMore),
+        nextOffset: typeof data.nextOffset === "number" ? data.nextOffset : null,
+      };
+    },
+    [fetchWithTimeout]
+  );
+
+  const resetAndFetch = useCallback(
+    async (query: string, scope: "all" | "short-term", useCache = true) => {
       const normalizedQuery = query.trim();
-      const shouldUseCache = useCache && normalizedQuery === "";
+      const shouldUseCache = useCache && normalizedQuery === "" && scope === "all";
       const cached = shouldUseCache ? getCache() : null;
 
       if (cached && cached.events.length > 0) {
         setEvents(cached.events);
+        setHasMore(cached.hasMore);
+        setNextOffset(cached.nextOffset);
         setLoading(false);
+        setError(null);
         setIsRefreshing(true);
         try {
-          const fresh = await fetchFromAPI("");
-          if (fresh.length > 0) {
-            setEvents(fresh);
-            setCache(fresh);
-          }
+          const fresh = await fetchFromAPI("", "all", 0);
+          setEvents(fresh.items);
+          setHasMore(fresh.hasMore);
+          setNextOffset(fresh.nextOffset);
+          setCache(fresh.items, fresh.hasMore, fresh.nextOffset);
         } catch {}
         setIsRefreshing(false);
         return;
@@ -140,13 +174,18 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
       setLoading(true);
       setError(null);
       try {
-        const fresh = await fetchFromAPI(normalizedQuery);
-        setEvents(fresh);
-        if (normalizedQuery === "") {
-          setCache(fresh);
+        const fresh = await fetchFromAPI(normalizedQuery, scope, 0);
+        setEvents(fresh.items);
+        setHasMore(fresh.hasMore);
+        setNextOffset(fresh.nextOffset);
+        if (normalizedQuery === "" && scope === "all") {
+          setCache(fresh.items, fresh.hasMore, fresh.nextOffset);
         }
       } catch {
         setError("无法连接到 Polymarket API，请检查网络或稍后重试");
+        setEvents([]);
+        setHasMore(false);
+        setNextOffset(null);
       } finally {
         setLoading(false);
         setIsRefreshing(false);
@@ -155,24 +194,44 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     [fetchFromAPI]
   );
 
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || nextOffset === null) return false;
+
+    setLoadingMore(true);
+    try {
+      const response = await fetchFromAPI(searchQuery, marketScope, nextOffset);
+      setEvents((prev) => {
+        const merged = appendUniqueEvents(prev, response.items);
+        if (searchQuery.trim() === "" && marketScope === "all") {
+          setCache(merged, response.hasMore, response.nextOffset);
+        }
+        return merged;
+      });
+      setHasMore(response.hasMore);
+      setNextOffset(response.nextOffset);
+      return response.items.length > 0;
+    } catch {
+      return false;
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loading, loadingMore, hasMore, nextOffset, fetchFromAPI, searchQuery, marketScope]);
+
   useEffect(() => {
     setSearchQuery(initialSearch);
   }, [initialSearch]);
 
   useEffect(() => {
-    fetchEvents(searchQuery, true);
-  }, [fetchEvents, searchQuery]);
+    setCurrentPage(1);
+    void resetAndFetch(searchQuery, marketScope, true);
+  }, [resetAndFetch, searchQuery, marketScope]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, sortBy, categoryFilter, marketScope]);
+  }, [sortBy, categoryFilter]);
 
   const filteredEvents = useMemo(() => {
     let result = events;
-
-    if (marketScope === "short-term") {
-      result = result.filter((ev) => Boolean(ev.isShortTerm));
-    }
 
     if (categoryFilter !== "all") {
       result = result.filter((ev) => ev.category === categoryFilter);
@@ -188,16 +247,15 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     }
 
     return result;
-  }, [events, searchQuery, categoryFilter, marketScope]);
+  }, [events, searchQuery, categoryFilter]);
 
   const categoryCounts = useMemo(() => {
-    const scopedEvents = marketScope === "short-term" ? events.filter((ev) => Boolean(ev.isShortTerm)) : events;
-    const counts: Record<string, number> = { all: scopedEvents.length };
-    for (const ev of scopedEvents) {
+    const counts: Record<string, number> = { all: events.length };
+    for (const ev of events) {
       counts[ev.category] = (counts[ev.category] || 0) + 1;
     }
     return counts;
-  }, [events, marketScope]);
+  }, [events]);
 
   const shortTermCount = useMemo(() => events.filter((ev) => Boolean(ev.isShortTerm)).length, [events]);
 
@@ -224,7 +282,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     });
   }, [filteredEvents, sortBy]);
 
-  const totalPages = Math.ceil(sortedEvents.length / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(sortedEvents.length / PAGE_SIZE));
 
   const paginatedEvents = useMemo(
     () => sortedEvents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
@@ -238,9 +296,47 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     return [1, -1, current - 1, current, current + 1, -1, total];
   };
 
+  const handleNextPage = useCallback(async () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((p) => p + 1);
+      return;
+    }
+
+    if (hasMore) {
+      const nextPage = totalPages + 1;
+      const loaded = await loadMore();
+      if (loaded) {
+        setCurrentPage(nextPage);
+      }
+    }
+  }, [currentPage, totalPages, hasMore, loadMore]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    if (currentPage < totalPages - 1) return;
+    void loadMore();
+  }, [currentPage, totalPages, hasMore, loadMore]);
+
+  useEffect(() => {
+    if (viewMode !== "card") return;
+    if (!loadMoreRef.current) return;
+    if (!hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [viewMode, hasMore, loadMore, paginatedEvents.length]);
+
   return (
     <PageContainer>
-      {/* Toolbar */}
       <div className="mb-4 border-b border-[var(--border-muted)] pb-4">
         <MarketToolbar
           marketScope={marketScope}
@@ -255,16 +351,15 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           isRefreshing={isRefreshing}
-          onRefresh={() => fetchEvents(searchQuery, false)}
+          onRefresh={() => resetAndFetch(searchQuery, marketScope, false)}
         />
       </div>
 
-      {/* Stats */}
       {!loading && !error && (
         <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-disabled)]">
           <span className="inline-flex items-center gap-1">
             <TrendingUp className="h-3 w-3" />
-            共 {sortedEvents.length} 个事件
+            已加载 {sortedEvents.length} 个事件{hasMore ? " · 继续滚动会自动加载更多" : ""}
           </span>
           {marketScope === "short-term" && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--brand-primary-muted)] text-[var(--brand-primary)]">
@@ -282,7 +377,6 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
         </div>
       )}
 
-      {/* Content */}
       {loading ? (
         <LoadingOverlay message="正在加载市场数据" />
       ) : error ? (
@@ -290,7 +384,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           <AlertCircle className="mb-4 h-12 w-12 text-[var(--color-down)]" />
           <p className="mb-2 text-lg font-semibold text-[var(--color-down)]">加载失败</p>
           <p className="mb-6 text-sm text-[var(--text-disabled)]">{error}</p>
-          <Button onClick={() => fetchEvents(searchQuery, false)}>重新加载</Button>
+          <Button onClick={() => resetAndFetch(searchQuery, marketScope, false)}>重新加载</Button>
         </div>
       ) : paginatedEvents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
@@ -303,11 +397,14 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           )}
         </div>
       ) : viewMode === "card" ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {paginatedEvents.map((ev) => (
-            <EventCard key={ev.id} event={ev} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {paginatedEvents.map((ev) => (
+              <EventCard key={ev.id} event={ev} />
+            ))}
+          </div>
+          <div ref={loadMoreRef} className="h-8" />
+        </>
       ) : (
         <>
           <div className="mb-1 hidden md:grid grid-cols-[1fr_100px_100px_100px_140px] gap-4 px-4 text-[11px] font-medium uppercase tracking-wider text-[var(--text-placeholder)]">
@@ -325,12 +422,11 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
         </>
       )}
 
-      {/* Pagination */}
-      {!loading && !error && totalPages > 1 && (
+      {!loading && !error && totalPages > 0 && (
         <div className="mt-6 pt-4 border-t border-[var(--border-muted)]">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <span className="text-xs text-[var(--text-disabled)]">
-              第 {currentPage}/{totalPages} 页
+              第 {currentPage}/{totalPages} 页{hasMore ? " · 后面还有更多" : ""}
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -364,14 +460,18 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => void handleNextPage()}
+                disabled={!hasMore && currentPage === totalPages}
               >
                 <span className="hidden sm:inline">下一页</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
+
+          {loadingMore && (
+            <div className="mt-3 text-center text-xs text-[var(--text-disabled)]">正在加载更多市场…</div>
+          )}
         </div>
       )}
     </PageContainer>

@@ -4,17 +4,19 @@ import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
 import { categorizeMarket } from "@/lib/market-category";
 
 const GAMMA_PAGE_SIZE = 500;
-const DEFAULT_EVENTS_LIMIT = 500;
-const DEFAULT_SEARCH_LIMIT = 200;
+const DEFAULT_EVENTS_LIMIT = 48;
+const DEFAULT_SEARCH_LIMIT = 48;
 const MAX_EVENTS_LIMIT = 5000;
 const MAX_SEARCH_SCAN_EVENTS = 5000;
-const TRENDING_CANDIDATE_MULTIPLIER = 3;
 const MAX_TRENDING_MARKET_SCAN = 5000;
+const TRENDING_CANDIDATE_MULTIPLIER = 3;
 
-// 短期市场优先级：让比赛/分钟级市场能在首页热榜露出来
 const SHORT_TERM_HOURS = 36;
-const SHORT_TERM_PRIORITY_LIMIT = 24;
+const SHORT_TERM_PRIORITY_LIMIT_ALL = 6;
+const SHORT_TERM_PRIORITY_LIMIT_SCOPE = 36;
 const SHORT_TERM_PER_EVENT_CAP = 2;
+
+type MarketScope = "all" | "short-term";
 
 interface RawMarket {
   conditionId?: string;
@@ -232,7 +234,7 @@ function transformPriorityMarket(market: RawPriorityMarket, fallbackId: number):
   });
 
   return {
-    id: conditionId || `priority-${fallbackId}`,
+    id: conditionId,
     title,
     description: market.description || "",
     image: market.image || market.icon || market.events?.[0]?.image || "",
@@ -333,6 +335,8 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const search = (searchParams.get("search") || "").trim();
   const sortMode = (searchParams.get("sort") || "trending").toLowerCase();
+  const scope = (searchParams.get("scope") || "all") as MarketScope;
+  const offset = clampNumber(parseInt(searchParams.get("offset") || "0"), 0, MAX_EVENTS_LIMIT);
   const requestedLimit = parseInt(
     searchParams.get("limit") || (search ? String(DEFAULT_SEARCH_LIMIT) : String(DEFAULT_EVENTS_LIMIT))
   );
@@ -340,7 +344,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const shouldSyncTrending = !search && sortMode === "trending";
-    const candidateLimit = shouldSyncTrending ? Math.min(MAX_EVENTS_LIMIT, limit * TRENDING_CANDIDATE_MULTIPLIER) : limit;
+    const requestedWindow = Math.min(MAX_EVENTS_LIMIT, offset + limit);
+    const candidateLimit = shouldSyncTrending
+      ? Math.min(MAX_EVENTS_LIMIT, requestedWindow * TRENDING_CANDIDATE_MULTIPLIER)
+      : requestedWindow;
+
     const events: EventGroup[] = [];
     const seenIds = new Set<string>();
     const seenConditionIds = new Set<string>();
@@ -356,9 +364,10 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        priorityShortTermMarkets = await fetchPriorityShortTermMarkets(
-          Math.min(SHORT_TERM_PRIORITY_LIMIT, Math.max(8, Math.ceil(limit * 0.35)))
-        );
+        const priorityLimit = scope === "short-term"
+          ? Math.min(SHORT_TERM_PRIORITY_LIMIT_SCOPE, requestedWindow)
+          : Math.min(SHORT_TERM_PRIORITY_LIMIT_ALL, limit);
+        priorityShortTermMarkets = await fetchPriorityShortTermMarkets(priorityLimit);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         console.warn("[Events API] Failed to fetch priority short-term markets:", message);
@@ -376,8 +385,8 @@ export async function GET(request: NextRequest) {
 
     const insertedPriorityCount = events.length;
 
-    for (let offset = 0; offset < MAX_SEARCH_SCAN_EVENTS && events.length < candidateLimit; offset += GAMMA_PAGE_SIZE) {
-      const apiUrl = `${POLYMARKET_ENDPOINTS.gamma}/events?limit=${GAMMA_PAGE_SIZE}&offset=${offset}&active=true&closed=false&order=volume24hr&ascending=false`;
+    for (let scanOffset = 0; scanOffset < MAX_SEARCH_SCAN_EVENTS && events.length < candidateLimit; scanOffset += GAMMA_PAGE_SIZE) {
+      const apiUrl = `${POLYMARKET_ENDPOINTS.gamma}/events?limit=${GAMMA_PAGE_SIZE}&offset=${scanOffset}&active=true&closed=false&order=volume24hr&ascending=false`;
       const rawEvents = await fetchPolymarketAPI<RawEvent[]>(apiUrl);
       if (!Array.isArray(rawEvents) || rawEvents.length === 0) break;
 
@@ -386,6 +395,7 @@ export async function GET(request: NextRequest) {
 
         const transformed = transformEvent(rawEvent, events.length);
         if (!transformed || seenIds.has(transformed.id)) continue;
+        if (scope === "short-term" && !transformed.isShortTerm) continue;
 
         const transformedConditions = transformed.markets
           .map((market) => market.conditionId)
@@ -424,20 +434,22 @@ export async function GET(request: NextRequest) {
           .sort((a, b) => (a.trendingRank || 0) - (b.trendingRank || 0))
       : events.map((event, index) => ({ ...event, trendingRank: index }));
 
-    const finalEvents = rankedEvents.slice(0, limit);
-    console.log(
-      "[Events API] Returning",
-      finalEvents.length,
-      "events",
-      search ? `(search=${search})` : "",
-      shouldSyncTrending ? `(synced-trending priority-short=${priorityCount})` : ""
-    );
+    const pageItems = rankedEvents.slice(offset, offset + limit);
+    const hasMore = rankedEvents.length > offset + limit;
+    const nextOffset = hasMore ? offset + pageItems.length : null;
 
-    return NextResponse.json(finalEvents, {
-      headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    return NextResponse.json(
+      {
+        items: pageItems,
+        hasMore,
+        nextOffset,
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[Events API] Error:", errorMessage);

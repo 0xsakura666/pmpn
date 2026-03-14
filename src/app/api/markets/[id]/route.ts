@@ -1,6 +1,126 @@
 import { NextRequest, NextResponse } from "next/server";
 import { polymarket } from "@/lib/polymarket";
 import { translateToZh } from "@/lib/translate";
+import { fetchPolymarketAPI, POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
+import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
+
+const GAMMA_PAGE_SIZE = 500;
+const MAX_SCAN_EVENTS = 5000;
+
+interface RawGammaMarket {
+  conditionId?: string;
+  condition_id?: string;
+  question?: string;
+  description?: string;
+  slug?: string;
+  endDate?: string;
+  image?: string;
+  icon?: string;
+  outcomes?: string;
+  outcomePrices?: string;
+  clobTokenIds?: string;
+  negRisk?: boolean;
+}
+
+interface RawGammaEvent {
+  title?: string;
+  description?: string;
+  slug?: string;
+  image?: string;
+  markets?: RawGammaMarket[];
+}
+
+interface NormalizedMarketPayload {
+  id: string;
+  title: string;
+  titleOriginal: string;
+  description: string;
+  descriptionOriginal: string;
+  slug: string;
+  endDate: string;
+  image: string;
+  tokens: Array<{
+    token_id: string;
+    outcome: string;
+    price: number;
+    winner: boolean;
+  }>;
+  orderBooks: Array<{
+    outcome: string;
+    bids: Array<{ price: string; size: string }>;
+    asks: Array<{ price: string; size: string }>;
+  }>;
+  negRisk: boolean;
+  tickSize: string;
+}
+
+function buildTokens(market: RawGammaMarket) {
+  const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+    outcomes: market.outcomes,
+    outcomePrices: market.outcomePrices,
+    clobTokenIds: market.clobTokenIds,
+  });
+
+  return [
+    yesTokenId
+      ? { token_id: yesTokenId, outcome: "Yes", price: yesPrice, winner: false }
+      : null,
+    noTokenId
+      ? { token_id: noTokenId, outcome: "No", price: noPrice, winner: false }
+      : null,
+  ].filter((token): token is NonNullable<typeof token> => token !== null);
+}
+
+async function fallbackFindMarketByConditionId(id: string): Promise<NormalizedMarketPayload | null> {
+  for (let offset = 0; offset < MAX_SCAN_EVENTS; offset += GAMMA_PAGE_SIZE) {
+    const events = await fetchPolymarketAPI<RawGammaEvent[]>(
+      `${POLYMARKET_ENDPOINTS.gamma}/events?limit=${GAMMA_PAGE_SIZE}&offset=${offset}&active=true&closed=false&order=volume24hr&ascending=false`
+    );
+
+    if (!Array.isArray(events) || events.length === 0) break;
+
+    for (const event of events) {
+      const matched = event.markets?.find((market) => {
+        const conditionId = market.conditionId || market.condition_id || "";
+        return conditionId === id;
+      });
+
+      if (!matched) continue;
+
+      return {
+        id,
+        title: matched.question || event.title || id,
+        titleOriginal: matched.question || event.title || id,
+        description: matched.description || event.description || "",
+        descriptionOriginal: matched.description || event.description || "",
+        slug: matched.slug || event.slug || "",
+        endDate: matched.endDate || "",
+        image: matched.image || matched.icon || event.image || "",
+        tokens: buildTokens(matched),
+        orderBooks: [],
+        negRisk: Boolean(matched.negRisk),
+        tickSize: "0.01",
+      };
+    }
+
+    if (events.length < GAMMA_PAGE_SIZE) break;
+  }
+
+  return null;
+}
+
+async function buildOrderBooks(tokens: NormalizedMarketPayload["tokens"]) {
+  return Promise.all(
+    tokens.map(async (token) => {
+      try {
+        const book = await polymarket.getOrderBook(token.token_id);
+        return { outcome: token.outcome, ...book };
+      } catch {
+        return { outcome: token.outcome, bids: [], asks: [] };
+      }
+    })
+  );
+}
 
 export async function GET(
   request: NextRequest,
@@ -11,65 +131,62 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const locale = searchParams.get("locale") || "zh";
 
-    const market = await polymarket.getMarket(id);
+    let payload: NormalizedMarketPayload | null = null;
 
-    if (!market) {
+    const market = await polymarket.getMarket(id);
+    if (market) {
+      payload = {
+        id: market.condition_id,
+        title: market.question,
+        titleOriginal: market.question,
+        description: market.description,
+        descriptionOriginal: market.description,
+        slug: market.market_slug,
+        endDate: market.end_date_iso,
+        image: market.image || market.icon,
+        tokens: market.tokens,
+        orderBooks: [],
+        negRisk: market.neg_risk || false,
+        tickSize: "0.01",
+      };
+    }
+
+    if (!payload) {
+      payload = await fallbackFindMarketByConditionId(id);
+    }
+
+    if (!payload) {
       return NextResponse.json(
         { error: "MARKET_NOT_FOUND", message: "市场不存在" },
         { status: 404 }
       );
     }
 
-    // Get order book for each token
-    const orderBooks = await Promise.all(
-      (market.tokens || []).map(async (token) => {
-        try {
-          const book = await polymarket.getOrderBook(token.token_id);
-          return { outcome: token.outcome, ...book };
-        } catch {
-          return { outcome: token.outcome, bids: [], asks: [] };
-        }
-      })
-    );
+    payload.orderBooks = await buildOrderBooks(payload.tokens);
 
-    // 翻译标题和描述
-    let title = market.question;
-    let description = market.description;
-    
     if (locale === "zh") {
       try {
-        [title, description] = await Promise.all([
-          translateToZh(market.question),
-          translateToZh(market.description),
+        const [title, description] = await Promise.all([
+          translateToZh(payload.titleOriginal),
+          translateToZh(payload.descriptionOriginal),
         ]);
+        payload.title = title;
+        payload.description = description;
       } catch {
-        // 翻译失败使用原文
+        // ignore translation failures
       }
     }
 
-    return NextResponse.json({
-      id: market.condition_id,
-      title,
-      titleOriginal: market.question,
-      description,
-      descriptionOriginal: market.description,
-      slug: market.market_slug,
-      endDate: market.end_date_iso,
-      image: market.image || market.icon,
-      tokens: market.tokens,
-      orderBooks,
-      negRisk: market.neg_risk || false,
-      tickSize: "0.01",
-    });
+    return NextResponse.json(payload);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Market detail API error:", errorMessage);
-    
+
     return NextResponse.json(
-      { 
-        error: "API_ERROR", 
+      {
+        error: "API_ERROR",
         message: "无法获取市场详情",
-        details: errorMessage 
+        details: errorMessage,
       },
       { status: 500 }
     );
