@@ -366,22 +366,16 @@ export function useMultiTimeframeCandles({
   useEffect(() => {
     if (!tokenId) return;
 
-    heartbeatIntervalRef.current = setInterval(() => {
-      if (!isConnected) return;
-      const price = lastPriceRef.current;
-      if (price === null) return;
-
-      // Keep chart motion smooth even during quiet periods with no new trades.
-      processPrice(price, Date.now(), { recordTick: false });
-    }, 1000);
-
+    // Do not synthesize fake ticks every second.
+    // Short-term charts now prefer collector-backed 1s bars; when the market is quiet,
+    // the chart should stay honest instead of animating invented candles.
     return () => {
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
         heartbeatIntervalRef.current = null;
       }
     };
-  }, [tokenId, isConnected, processPrice]);
+  }, [tokenId]);
 
   const getCandles = useCallback((interval: IntervalType): CandleData[] => {
     const store = candleStoresRef.current.get(interval);
