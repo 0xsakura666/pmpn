@@ -41,6 +41,21 @@ function parseUnitPrice(value) {
   return price;
 }
 
+function getTopBookPrice(levels, mode) {
+  if (!Array.isArray(levels) || levels.length === 0) return null;
+  let selected = null;
+  for (const level of levels) {
+    const price = parseUnitPrice(level?.price);
+    if (price === null) continue;
+    if (selected === null) {
+      selected = price;
+      continue;
+    }
+    selected = mode === "bestBid" ? Math.max(selected, price) : Math.min(selected, price);
+  }
+  return selected;
+}
+
 function isReasonablePriceJump(nextPrice, previousPrice, maxDeviation = 0.35) {
   if (previousPrice == null || previousPrice <= 0) return true;
   const deviation = Math.abs(nextPrice - previousPrice) / previousPrice;
@@ -333,33 +348,39 @@ class Collector {
   updatePrice(tokenId, second, { bestBid, bestAsk, lastTrade }) {
     const state = this.ensureState(tokenId);
 
-    if (Number.isFinite(bestBid)) state.lastBid = bestBid;
-    if (Number.isFinite(bestAsk)) state.lastAsk = bestAsk;
-    if (Number.isFinite(lastTrade)) state.lastTrade = lastTrade;
+    const parsedBid = parseUnitPrice(bestBid);
+    const parsedAsk = parseUnitPrice(bestAsk);
+    const parsedTrade = parseUnitPrice(lastTrade);
 
-    let mid = null;
-    if (Number.isFinite(state.lastBid) && Number.isFinite(state.lastAsk) && state.lastAsk >= state.lastBid) {
-      mid = (state.lastBid + state.lastAsk) / 2;
+    if (parsedBid !== null) state.lastBid = parsedBid;
+    if (parsedAsk !== null) state.lastAsk = parsedAsk;
+    if (parsedTrade !== null) state.lastTrade = parsedTrade;
+
+    let nextPrice = null;
+    if (
+      Number.isFinite(state.lastBid) &&
+      Number.isFinite(state.lastAsk) &&
+      state.lastAsk >= state.lastBid &&
+      state.lastAsk - state.lastBid <= 0.2
+    ) {
+      nextPrice = (state.lastBid + state.lastAsk) / 2;
     } else if (Number.isFinite(state.lastTrade)) {
-      mid = state.lastTrade;
-    } else if (Number.isFinite(state.lastBid)) {
-      mid = state.lastBid;
-    } else if (Number.isFinite(state.lastAsk)) {
-      mid = state.lastAsk;
+      nextPrice = state.lastTrade;
     }
 
-    if (!Number.isFinite(mid)) return;
+    if (!Number.isFinite(nextPrice)) return;
+    if (!isReasonablePriceJump(nextPrice, state.lastMid, 0.4)) return;
 
-    state.lastMid = mid;
+    state.lastMid = nextPrice;
 
     if (state.activeSecond !== second) {
-      this.startSecond(state, second, mid);
+      this.startSecond(state, second, nextPrice);
       return;
     }
 
-    state.high = Math.max(state.high, mid);
-    state.low = Math.min(state.low, mid);
-    state.close = mid;
+    state.high = Math.max(state.high, nextPrice);
+    state.low = Math.min(state.low, nextPrice);
+    state.close = nextPrice;
     state.sampleCount += 1;
   }
 
@@ -384,8 +405,8 @@ class Collector {
 
     if (message.event_type === "book" && this.trackedTokens.has(message.asset_id)) {
       this.updatePrice(message.asset_id, second, {
-        bestBid: Number(message.bids?.[0]?.price),
-        bestAsk: Number(message.asks?.[0]?.price),
+        bestBid: getTopBookPrice(message.bids, "bestBid"),
+        bestAsk: getTopBookPrice(message.asks, "bestAsk"),
         lastTrade: Number(message.last_trade_price),
       });
       return;
