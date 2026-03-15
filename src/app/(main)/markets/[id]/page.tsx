@@ -23,6 +23,7 @@ import {
   getRecommendedChartTimeframe,
   getShortTermStartTs,
 } from "@/lib/short-term-chart";
+import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
 
 interface MarketToken {
   token_id: string;
@@ -141,6 +142,11 @@ function QuickTradePanelCompact({
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
 
+  const normalizedYesLabel = normalizeOutcomeLabel(yesLabel, "Yes");
+  const normalizedNoLabel = normalizeOutcomeLabel(noLabel, "No");
+  const compactYesLabel = getCompactOutcomeLabel(normalizedYesLabel, 9);
+  const compactNoLabel = getCompactOutcomeLabel(normalizedNoLabel, 9);
+
   const price =
     orderType === "limit" && limitPrice
       ? parseFloat(limitPrice)
@@ -253,7 +259,7 @@ function QuickTradePanelCompact({
                   : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#F6465D]/15"
               }`}
             >
-              买 {noLabel} {formatPriceInt(noPrice)}
+              买 {compactNoLabel} {formatPriceInt(noPrice)}
             </button>
           </div>
 
@@ -665,8 +671,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   const yesToken = market?.tokens?.[0];
   const noToken = market?.tokens?.[1];
-  const yesLabel = yesToken?.outcome || "Yes";
-  const noLabel = noToken?.outcome || "No";
+  const yesLabel = normalizeOutcomeLabel(yesToken?.outcome, "Yes");
+  const noLabel = normalizeOutcomeLabel(noToken?.outcome, "No");
+  const yesCompactLabel = getCompactOutcomeLabel(yesLabel, 10);
+  const noCompactLabel = getCompactOutcomeLabel(noLabel, 10);
   const yesPrice = yesToken?.price || 0.5;
   const noPrice = noToken?.price || 0.5;
   const allowedTimeframes: TimeframeType[] = market?.endDate
@@ -992,7 +1000,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               onClick={() => jumpToTradePanel("no")}
               className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
             >
-              买入 {noLabel} · {formatPriceInt(noPrice)}
+              买入 {noCompactLabel} · {formatPriceInt(noPrice)}
             </button>
           </div>
         </div>

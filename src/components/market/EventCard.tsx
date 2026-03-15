@@ -3,8 +3,9 @@
 import { memo } from "react";
 import Link from "next/link";
 import { Bookmark } from "lucide-react";
-import { Card, Button, Badge } from "@/components/ui";
+import { Card, Badge } from "@/components/ui";
 import { formatMoney } from "@/lib/utils";
+import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
 import type { EventGroup } from "./types";
 
 function getSubMarketLabel(question: string, eventTitle: string): string {
@@ -30,8 +31,10 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
   if (isSingle) {
     const yp = Math.round(primary.yesPrice * 100);
     const np = Math.round(primary.noPrice * 100);
-    const yesLabel = primary.yesLabel || "Yes";
-    const noLabel = primary.noLabel || "No";
+    const yesLabel = normalizeOutcomeLabel(primary.yesLabel, "Yes");
+    const noLabel = normalizeOutcomeLabel(primary.noLabel, "No");
+    const yesCompact = getCompactOutcomeLabel(yesLabel, 11);
+    const noCompact = getCompactOutcomeLabel(noLabel, 11);
     return (
       <Card hover padding="lg" className="group flex h-full flex-col">
         <Link href={primaryLink} className="mb-4 flex items-start gap-3">
@@ -58,22 +61,27 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
         </Link>
 
         <div className="flex flex-1 flex-col justify-end">
-          <div className="mb-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
-            <Link href={primaryLink} className="flex-1">
-              <Button variant="success" fullWidth size="md">
-                买入 {yesLabel}
-              </Button>
+          <div className="mb-4 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+            <Link href={primaryLink} className="block min-w-0">
+              <div className="rounded-[18px] border border-[var(--color-up)]/20 bg-[var(--color-up-muted)]/70 p-3 transition-all hover:border-[var(--color-up)]/35 hover:bg-[var(--color-up-muted)]">
+                <div className="truncate text-[11px] font-medium text-[var(--color-up)]" title={yesLabel}>{yesCompact}</div>
+                <div className="mt-1 text-2xl font-bold leading-none text-[var(--text-primary)]">{yp}%</div>
+                <div className="mt-2 text-[11px] text-[var(--text-subtle)]">买入 {yesCompact}</div>
+              </div>
             </Link>
-            <Link href={primaryLink} className="flex-1">
-              <Button variant="danger" fullWidth size="md">
-                买入 {noLabel}
-              </Button>
+            <Link href={primaryLink} className="block min-w-0">
+              <div className="rounded-[18px] border border-[var(--color-down)]/20 bg-[var(--color-down-muted)]/70 p-3 transition-all hover:border-[var(--color-down)]/35 hover:bg-[var(--color-down-muted)]">
+                <div className="truncate text-[11px] font-medium text-[var(--color-down)]" title={noLabel}>{noCompact}</div>
+                <div className="mt-1 text-2xl font-bold leading-none text-[var(--text-primary)]">{np}%</div>
+                <div className="mt-2 text-[11px] text-[var(--text-subtle)]">买入 {noCompact}</div>
+              </div>
             </Link>
           </div>
 
-          <div className="mb-4 flex justify-between text-xs">
-            <span className="text-[var(--text-subtle)]">{yesLabel} {yp}%</span>
-            <span className="text-[var(--text-subtle)]">{noLabel} {np}%</span>
+          <div className="mb-4 flex items-center justify-between rounded-[16px] bg-[var(--bg-elevated)] px-3 py-2 text-xs">
+            <span className="truncate text-[var(--text-subtle)]" title={yesLabel}>{yesLabel}</span>
+            <span className="mx-3 h-3 w-px shrink-0 bg-[var(--border-default)]" />
+            <span className="truncate text-right text-[var(--text-subtle)]" title={noLabel}>{noLabel}</span>
           </div>
 
           <div className="flex items-center justify-between border-t border-[var(--border-default)] pt-3">
@@ -113,27 +121,36 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
       <div className="mb-3 flex flex-1 flex-col gap-2.5">
         {displayMarkets.map((m) => {
           const yp = Math.round(m.yesPrice * 100);
+          const np = Math.round(m.noPrice * 100);
           const label = getSubMarketLabel(m.question, event.title) || m.question;
-          const yesLabel = m.yesLabel || "Yes";
-          const noLabel = m.noLabel || "No";
+          const yesLabel = normalizeOutcomeLabel(m.yesLabel, "Yes");
+          const noLabel = normalizeOutcomeLabel(m.noLabel, "No");
+          const yesCompact = getCompactOutcomeLabel(yesLabel, 8);
+          const noCompact = getCompactOutcomeLabel(noLabel, 8);
           const mLink = m.conditionId ? `/markets/${m.conditionId}` : "#";
           return (
-            <div key={m.conditionId} className="flex items-center gap-2">
-              <Link
-                href={mLink}
-                className="min-w-0 flex-1 truncate text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                {label}
-              </Link>
-              <span className="shrink-0 w-12 text-right text-sm font-semibold text-[var(--text-primary)]">
-                {yp}%
-              </span>
-              <div className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
-                <Link href={mLink}>
-                  <Badge variant="success" size="sm">{yesLabel}</Badge>
+            <div key={m.conditionId} className="rounded-[16px] bg-[var(--bg-elevated)] p-2.5">
+              <div className="flex items-center gap-2">
+                <Link
+                  href={mLink}
+                  className="min-w-0 flex-1 truncate text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  {label}
                 </Link>
-                <Link href={mLink}>
-                  <Badge variant="error" size="sm">{noLabel}</Badge>
+                <span className="shrink-0 text-sm font-semibold text-[var(--text-primary)]">{yp}%</span>
+              </div>
+              <div className="mt-2 flex shrink-0 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <Link href={mLink} className="min-w-0 flex-1">
+                  <Badge variant="success" size="sm" className="flex w-full justify-between px-2" title={yesLabel}>
+                    <span className="truncate">{yesCompact}</span>
+                    <span className="ml-1 shrink-0">{yp}%</span>
+                  </Badge>
+                </Link>
+                <Link href={mLink} className="min-w-0 flex-1">
+                  <Badge variant="error" size="sm" className="flex w-full justify-between px-2" title={noLabel}>
+                    <span className="truncate">{noCompact}</span>
+                    <span className="ml-1 shrink-0">{np}%</span>
+                  </Badge>
                 </Link>
               </div>
             </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePolymarket, usePolymarketTrade } from "@/hooks/usePolymarket";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
 
 interface QuickTradePanelProps {
   marketTitle: string;
@@ -41,6 +42,11 @@ export function QuickTradePanel({
   const { disconnect } = useDisconnect();
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
+
+  const normalizedYesLabel = normalizeOutcomeLabel(yesLabel, "Yes");
+  const normalizedNoLabel = normalizeOutcomeLabel(noLabel, "No");
+  const compactYesLabel = getCompactOutcomeLabel(normalizedYesLabel, 10);
+  const compactNoLabel = getCompactOutcomeLabel(normalizedNoLabel, 10);
 
   const price = orderType === "limit" && limitPrice 
     ? parseFloat(limitPrice) 
@@ -271,7 +277,7 @@ export function QuickTradePanel({
                 : "bg-[var(--down)] hover:bg-[var(--down)]/90 text-black"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {isSubmitting ? "提交中..." : `买入 ${selectedSide === "yes" ? yesLabel : noLabel}`}
+            {isSubmitting ? "提交中..." : `买入 ${selectedSide === "yes" ? compactYesLabel : compactNoLabel}`}
           </button>
 
           {/* Warning for missing token IDs */}

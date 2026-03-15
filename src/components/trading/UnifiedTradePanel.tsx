@@ -6,6 +6,7 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Button, Card, Input, Badge } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
 
 interface UnifiedTradePanelProps {
   marketTitle?: string;
@@ -47,6 +48,10 @@ export function UnifiedTradePanel({
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
 
   const isCompact = variant === "compact";
+  const normalizedYesLabel = normalizeOutcomeLabel(yesLabel, "Yes");
+  const normalizedNoLabel = normalizeOutcomeLabel(noLabel, "No");
+  const compactYesLabel = getCompactOutcomeLabel(normalizedYesLabel, isCompact ? 8 : 10);
+  const compactNoLabel = getCompactOutcomeLabel(normalizedNoLabel, isCompact ? 8 : 10);
   const price = orderType === "limit" && limitPrice
     ? parseFloat(limitPrice)
     : selectedSide === "yes" ? yesPrice : noPrice;
@@ -173,7 +178,7 @@ export function UnifiedTradePanel({
                   : "bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--color-up-muted)]"
               )}
             >
-              {yesLabel} {Math.round(yesPrice * 100)}
+              <span className="truncate" title={normalizedYesLabel}>{compactYesLabel}</span> {Math.round(yesPrice * 100)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}

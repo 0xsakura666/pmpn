@@ -18,6 +18,7 @@ import {
   getRecommendedChartTimeframe,
   getShortTermStartTs,
 } from "@/lib/short-term-chart";
+import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
 
 interface SubMarket {
   conditionId: string;
@@ -112,6 +113,11 @@ function QuickTradePanelCompact({
   const { disconnect } = useDisconnect();
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
+
+  const normalizedYesLabel = normalizeOutcomeLabel(yesLabel, "Yes");
+  const normalizedNoLabel = normalizeOutcomeLabel(noLabel, "No");
+  const compactYesLabel = getCompactOutcomeLabel(normalizedYesLabel, 9);
+  const compactNoLabel = getCompactOutcomeLabel(normalizedNoLabel, 9);
 
   const price =
     orderType === "limit" && limitPrice
@@ -215,7 +221,7 @@ function QuickTradePanelCompact({
                   : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#0ECB81]/15"
               }`}
             >
-              买 {yesLabel} {formatPriceInt(yesPrice)}
+              买 {compactYesLabel} {formatPriceInt(yesPrice)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
@@ -602,8 +608,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const yesPrice = selectedMarket?.yesPrice || 0.5;
   const noPrice = selectedMarket?.noPrice || 0.5;
-  const yesLabel = selectedMarket?.yesLabel || "Yes";
-  const noLabel = selectedMarket?.noLabel || "No";
+  const yesLabel = normalizeOutcomeLabel(selectedMarket?.yesLabel, "Yes");
+  const noLabel = normalizeOutcomeLabel(selectedMarket?.noLabel, "No");
+  const yesCompactLabel = getCompactOutcomeLabel(yesLabel, 10);
+  const noCompactLabel = getCompactOutcomeLabel(noLabel, 10);
   const allowedTimeframes: TimeframeType[] = selectedMarket?.endDate
     ? getAvailableChartTimeframes(selectedMarket.endDate)
     : ["5M"];
@@ -923,13 +931,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               onClick={() => jumpToTradePanel("yes")}
               className="rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black"
             >
-              买入 {yesLabel} · {formatPriceInt(yesPrice)}
+              买入 {yesCompactLabel} · {formatPriceInt(yesPrice)}
             </button>
             <button
               onClick={() => jumpToTradePanel("no")}
               className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
             >
-              买入 {noLabel} · {formatPriceInt(noPrice)}
+              买入 {noCompactLabel} · {formatPriceInt(noPrice)}
             </button>
           </div>
         </div>
