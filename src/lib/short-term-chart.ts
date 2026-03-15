@@ -30,9 +30,9 @@ export function getAvailableChartTimeframes(endDate?: string | null): TimeframeT
   if (hours === null) return ["1M", "5M", "15M", "1H", "4H", "1D"];
   if (hours <= 3) return ["15S", "1M", "5M", "15M", "1H"];
   if (hours <= 12) return ["1M", "5M", "15M", "1H", "4H"];
-  if (hours <= 48) return ["5M", "15M", "1H", "4H", "1D"];
-  if (hours <= 24 * 7) return ["15M", "1H", "4H", "1D"];
-  return ["1H", "4H", "1D"];
+  if (hours <= 48) return ["1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours <= 24 * 7) return ["1M", "5M", "15M", "1H", "4H", "1D"];
+  return ["1M", "5M", "15M", "1H", "4H", "1D"];
 }
 
 export function getShortTermStartTs(endDate: string | null | undefined, timeframe: TimeframeType): number | undefined {
