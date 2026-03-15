@@ -380,6 +380,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                   defaultChartMode="candle"
                   allowedTimeframes={allowedTimeframes}
+                  enableRealtime={false}
                 />
               )}
             </div>

@@ -118,6 +118,7 @@ export function RealtimeCandlestickChart({
   onTimeframeChange,
   defaultChartMode = "candle",
   allowedTimeframes,
+  enableRealtime = true,
 }: RealtimeCandlestickChartProps) {
   const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
@@ -361,3 +362,4 @@ export function RealtimeCandlestickChart({
 }
 
 export { aggregateCandlesToHigherTimeframe };
+};

@@ -357,19 +357,21 @@ class Collector {
     if (parsedTrade !== null) state.lastTrade = parsedTrade;
 
     let nextPrice = null;
-    if (
+
+    // Prefer real trades. Book-derived midpoint is only a conservative fallback.
+    if (Number.isFinite(state.lastTrade)) {
+      nextPrice = state.lastTrade;
+    } else if (
       Number.isFinite(state.lastBid) &&
       Number.isFinite(state.lastAsk) &&
       state.lastAsk >= state.lastBid &&
-      state.lastAsk - state.lastBid <= 0.2
+      state.lastAsk - state.lastBid <= 0.03
     ) {
       nextPrice = (state.lastBid + state.lastAsk) / 2;
-    } else if (Number.isFinite(state.lastTrade)) {
-      nextPrice = state.lastTrade;
     }
 
     if (!Number.isFinite(nextPrice)) return;
-    if (!isReasonablePriceJump(nextPrice, state.lastMid, 0.4)) return;
+    if (!isReasonablePriceJump(nextPrice, state.lastMid, 0.15)) return;
 
     state.lastMid = nextPrice;
 
