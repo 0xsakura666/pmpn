@@ -460,10 +460,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const [historyBaseInterval, setHistoryBaseInterval] = useState<CandleInterval>("1m");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [mobileTradeSide, setMobileTradeSide] = useState<"yes" | "no">("yes");
+  const [mobileTab, setMobileTab] = useState<"price" | "info" | "trade-data" | "trade">("price");
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
-  const tradePanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchMarket();
@@ -659,14 +659,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     return () => controller.abort();
   }, [market, selectedTimeframe, fetchPriceHistory]);
 
-  const jumpToSection = (id: string) => {
-    const element = document.getElementById(id);
-    element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   const jumpToTradePanel = (side: "yes" | "no") => {
     setMobileTradeSide(side);
-    tradePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setMobileTab("trade");
   };
 
   const yesToken = market?.tokens?.[0];
@@ -784,163 +779,165 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max gap-2 text-xs">
+              <div className="flex min-w-max gap-1 rounded-full bg-[#11151b] p-1 text-xs">
                 {[
-                  ["price-panel", "价格"],
-                  ["depth-panel", "盘口"],
-                  ["trade-panel", "交易"],
-                  ["info-panel", "信息"],
-                ].map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => jumpToSection(id)}
-                    className="rounded-full border border-[#242733] bg-[#14161d] px-3 py-1.5 text-[#c3c7d1]"
-                  >
-                    {label}
-                  </button>
-                ))}
+                  ["price", "价格"],
+                  ["info", "信息"],
+                  ["trade-data", "交易数据"],
+                  ["trade", "交易"],
+                ].map(([id, label]) => {
+                  const active = mobileTab === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setMobileTab(id as "price" | "info" | "trade-data" | "trade")}
+                      className={`rounded-full px-3 py-1.5 transition ${active ? "bg-[#0ECB81] text-black" : "text-[#c3c7d1]"}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col overflow-y-auto pb-24 lg:flex-row lg:overflow-hidden lg:pb-0">
-          <section className="order-1 flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#1d2028]">
-            <div className="px-3 pt-2 lg:hidden" id="price-panel">
-              <div className="overflow-hidden rounded-[22px] border border-[#20242d] bg-[#12161c]">
-                <div className="border-b border-[#20242d] px-4 py-3">
-                  <div className="flex items-end justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11px] uppercase tracking-[0.18em] text-[#6f7682]">{heroLabel}</div>
-                      <div className={`mt-1 text-[42px] font-semibold leading-none tracking-tight ${heroColor}`}>
-                        {formatPriceInt(heroPrice)}
+        <main className="flex-1 pb-24 lg:flex lg:overflow-hidden lg:pb-0">
+          <div className="lg:hidden">
+            {mobileTab === "price" && (
+              <div className="space-y-3 px-3 pt-2">
+                <div className="overflow-hidden rounded-[22px] border border-[#20242d] bg-[#12161c]">
+                  <div className="border-b border-[#20242d] px-4 py-3">
+                    <div className="flex items-end justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-[#6f7682]">{heroLabel}</div>
+                        <div className={`mt-1 text-[42px] font-semibold leading-none tracking-tight ${heroColor}`}>
+                          {formatPriceInt(heroPrice)}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 text-sm">
+                          <span className="font-medium text-white">${heroPrice.toFixed(3)}</span>
+                          <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                            {priceStats.changePct >= 0 ? "+" : ""}
+                            {priceStats.changePct.toFixed(2)}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="mt-2 flex items-center gap-2 text-sm">
-                        <span className="font-medium text-white">${heroPrice.toFixed(3)}</span>
-                        <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
-                          {priceStats.changePct >= 0 ? "+" : ""}
-                          {priceStats.changePct.toFixed(2)}%
-                        </span>
+                      <div className="shrink-0 rounded-2xl bg-[#0d1015] px-3 py-2 text-right text-[11px]">
+                        <div className="text-[#6f7682]">结算</div>
+                        <div className="mt-1 text-white">{settlementLabel}</div>
                       </div>
                     </div>
-                    <div className="shrink-0 rounded-2xl bg-[#0d1015] px-3 py-2 text-right text-[11px]">
-                      <div className="text-[#6f7682]">结算</div>
-                      <div className="mt-1 text-white">{settlementLabel}</div>
+
+                    <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
+                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                        <div className="text-[#6f7682]">24h 高</div>
+                        <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.high)}</div>
+                      </div>
+                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                        <div className="text-[#6f7682]">24h 低</div>
+                        <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.low)}</div>
+                      </div>
+                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                        <div className="text-[#6f7682]">Tick</div>
+                        <div className="mt-1 text-white">{market.tickSize || "0.01"}</div>
+                      </div>
+                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                        <div className="text-[#6f7682]">盘口</div>
+                        <div className="mt-1 text-white">{market.negRisk ? "Neg" : "Std"}</div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
-                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                      <div className="text-[#6f7682]">24h 高</div>
-                      <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.high)}</div>
-                    </div>
-                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                      <div className="text-[#6f7682]">24h 低</div>
-                      <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.low)}</div>
-                    </div>
-                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                      <div className="text-[#6f7682]">Tick</div>
-                      <div className="mt-1 text-white">{market.tickSize || "0.01"}</div>
-                    </div>
-                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                      <div className="text-[#6f7682]">盘口</div>
-                      <div className="mt-1 text-white">{market.negRisk ? "Neg" : "Std"}</div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
+                    <button
+                      onClick={() => setMobileTradeSide("yes")}
+                      className={`px-4 py-3 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
+                    >
+                      <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
+                      <div className="mt-1 text-[26px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
+                    </button>
+                    <button
+                      onClick={() => setMobileTradeSide("no")}
+                      className={`px-4 py-3 text-left transition ${mobileTradeSide === "no" ? "bg-[#2a171d]" : "bg-[#11151b]"}`}
+                    >
+                      <div className="text-[11px] text-[#79808d]">{noLabel}</div>
+                      <div className="mt-1 text-[26px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}</div>
+                    </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
-                  <button
-                    onClick={() => setMobileTradeSide("yes")}
-                    className={`px-4 py-3 text-left transition ${
-                      mobileTradeSide === "yes"
-                        ? "bg-[#10251d]"
-                        : "bg-[#11151b]"
-                    }`}
-                  >
-                    <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
-                    <div className="mt-1 text-[26px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
-                  </button>
-                  <button
-                    onClick={() => setMobileTradeSide("no")}
-                    className={`px-4 py-3 text-left transition ${
-                      mobileTradeSide === "no"
-                        ? "bg-[#2a171d]"
-                        : "bg-[#11151b]"
-                    }`}
-                  >
-                    <div className="text-[11px] text-[#79808d]">{noLabel}</div>
-                    <div className="mt-1 text-[26px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}</div>
-                  </button>
+                <div className="overflow-hidden rounded-[24px] bg-transparent">
+                  <div className="h-[460px]">
+                    {historyLoading ? (
+                      <div className="flex h-full items-center justify-center">
+                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
+                      </div>
+                    ) : (
+                      <RealtimeCandlestickChart
+                        tokenId={yesToken?.token_id}
+                        initialData={priceHistory}
+                        historyBaseInterval={historyBaseInterval}
+                        height={0}
+                        defaultTimeframe={selectedTimeframe}
+                        onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                        defaultChartMode="candle"
+                        allowedTimeframes={allowedTimeframes}
+                        compactMobile
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="px-3 pt-3 lg:flex-1 lg:min-h-0">
-              <div className="overflow-hidden rounded-[24px] bg-transparent lg:h-full">
-                <div className="h-[460px] lg:h-full">
-                  {historyLoading ? (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
+            {mobileTab === "info" && (
+              <div className="p-3">
+                <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">Market ID</span>
+                      <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
                     </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">结算时间</span>
+                      <span className="text-white">{settlementDetailLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">Tick Size</span>
+                      <span className="text-white">{market.tickSize || "0.01"}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">Neg Risk</span>
+                      <span className="text-white">{market.negRisk ? "Yes" : "No"}</span>
+                    </div>
+                    {market.description && (
+                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{market.description}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {mobileTab === "trade-data" && (
+              <div className="grid grid-cols-1 gap-3 p-3">
+                <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">买卖区</h3>
+                    <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
+                  </div>
+                  {yesToken?.token_id ? (
+                    <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
                   ) : (
-                    <RealtimeCandlestickChart
-                      tokenId={yesToken?.token_id}
-                      initialData={priceHistory}
-                      historyBaseInterval={historyBaseInterval}
-                      height={0}
-                      defaultTimeframe={selectedTimeframe}
-                      onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                      defaultChartMode="candle"
-                      allowedTimeframes={allowedTimeframes}
-                      compactMobile
-                    />
+                    <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                   )}
                 </div>
+                <PositionsPanelCompact />
               </div>
-            </div>
+            )}
 
-            <div className="hidden shrink-0 px-3 pb-3 lg:block">
-              <div className="flex items-center gap-3 text-xs">
-                {market.tokens?.map((token, index) => (
-                  <div key={token.token_id} className="flex items-center gap-2 rounded-xl bg-[#15161c] px-3 py-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        index === 0
-                          ? "bg-[#0ECB81]/15 text-[#0ECB81]"
-                          : "bg-[#F6465D]/15 text-[#F6465D]"
-                      }`}
-                    >
-                      {token.outcome}
-                    </span>
-                    <span className="font-mono text-[10px] text-[#666]">{formatCompactId(token.token_id, 10)}</span>
-                    <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
-                  </div>
-                ))}
-                {market.description && (
-                  <span className="ml-2 truncate text-[#666]" title={market.description}>
-                    {market.description.slice(0, 80)}...
-                  </span>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <aside className="order-2 w-full border-t border-[#1d2028] lg:w-[360px] lg:shrink-0 lg:border-t-0 lg:overflow-y-auto">
-            <div className="grid grid-cols-1 gap-3 p-3">
-              <div className="order-1 rounded-[24px] border border-[#22252f] bg-[#15161c] p-4" id="depth-panel">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                  <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
-                </div>
-                {yesToken?.token_id ? (
-                  <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
-                ) : (
-                  <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
-                )}
-              </div>
-
-              <div ref={tradePanelRef} className="order-2" id="trade-panel">
+            {mobileTab === "trade" && (
+              <div className="p-3">
                 <QuickTradePanelCompact
                   marketTitle={market.title}
                   yesPrice={yesPrice}
@@ -955,37 +952,118 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   onSelectedSideChange={setMobileTradeSide}
                 />
               </div>
+            )}
+          </div>
 
-              <div className="order-3">
-                <PositionsPanelCompact />
+          <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden">
+            <section className="flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#1d2028]">
+              <div className="px-3 pt-3 lg:flex-1 lg:min-h-0">
+                <div className="overflow-hidden rounded-[24px] bg-transparent lg:h-full">
+                  <div className="h-[460px] lg:h-full">
+                    {historyLoading ? (
+                      <div className="flex h-full items-center justify-center">
+                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
+                      </div>
+                    ) : (
+                      <RealtimeCandlestickChart
+                        tokenId={yesToken?.token_id}
+                        initialData={priceHistory}
+                        historyBaseInterval={historyBaseInterval}
+                        height={0}
+                        defaultTimeframe={selectedTimeframe}
+                        onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                        defaultChartMode="candle"
+                        allowedTimeframes={allowedTimeframes}
+                        compactMobile
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="order-4 rounded-[24px] border border-[#22252f] bg-[#15161c] p-4" id="info-panel">
-                <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[#7b7f8a]">Market ID</span>
-                    <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[#7b7f8a]">结算时间</span>
-                    <span className="text-white">{settlementDetailLabel}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[#7b7f8a]">Tick Size</span>
-                    <span className="text-white">{market.tickSize || "0.01"}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[#7b7f8a]">Neg Risk</span>
-                    <span className="text-white">{market.negRisk ? "Yes" : "No"}</span>
-                  </div>
+              <div className="hidden shrink-0 px-3 pb-3 lg:block">
+                <div className="flex items-center gap-3 text-xs">
+                  {market.tokens?.map((token, index) => (
+                    <div key={token.token_id} className="flex items-center gap-2 rounded-xl bg-[#15161c] px-3 py-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          index === 0
+                            ? "bg-[#0ECB81]/15 text-[#0ECB81]"
+                            : "bg-[#F6465D]/15 text-[#F6465D]"
+                        }`}
+                      >
+                        {token.outcome}
+                      </span>
+                      <span className="font-mono text-[10px] text-[#666]">{formatCompactId(token.token_id, 10)}</span>
+                      <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
+                    </div>
+                  ))}
                   {market.description && (
-                    <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{market.description}</div>
+                    <span className="ml-2 truncate text-[#666]" title={market.description}>
+                      {market.description.slice(0, 80)}...
+                    </span>
                   )}
                 </div>
               </div>
-            </div>
-          </aside>
+            </section>
+
+            <aside className="w-[360px] shrink-0 border-t border-[#1d2028] lg:border-t-0 lg:overflow-y-auto">
+              <div className="grid grid-cols-1 gap-3 p-3">
+                <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">买卖区</h3>
+                    <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
+                  </div>
+                  {yesToken?.token_id ? (
+                    <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
+                  ) : (
+                    <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
+                  )}
+                </div>
+
+                <QuickTradePanelCompact
+                  marketTitle={market.title}
+                  yesPrice={yesPrice}
+                  noPrice={noPrice}
+                  yesLabel={yesLabel}
+                  noLabel={noLabel}
+                  yesTokenId={yesToken?.token_id}
+                  noTokenId={noToken?.token_id}
+                  tickSize={market.tickSize || "0.01"}
+                  negRisk={market.negRisk || false}
+                  selectedSide={mobileTradeSide}
+                  onSelectedSideChange={setMobileTradeSide}
+                />
+
+                <PositionsPanelCompact />
+
+                <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">Market ID</span>
+                      <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">结算时间</span>
+                      <span className="text-white">{settlementDetailLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">Tick Size</span>
+                      <span className="text-white">{market.tickSize || "0.01"}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[#7b7f8a]">Neg Risk</span>
+                      <span className="text-white">{market.negRisk ? "Yes" : "No"}</span>
+                    </div>
+                    {market.description && (
+                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{market.description}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
         </main>
 
         <div className="sticky bottom-0 z-20 border-t border-[#1f222b] bg-[#0d0d0f]/95 p-3 backdrop-blur lg:hidden">
