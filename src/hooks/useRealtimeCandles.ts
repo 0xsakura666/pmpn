@@ -55,6 +55,12 @@ function parseUnitPrice(value: unknown): number | null {
   return price;
 }
 
+function isReasonablePriceJump(nextPrice: number, previousPrice: number | null, maxDeviation = 0.35): boolean {
+  if (previousPrice === null || previousPrice <= 0) return true;
+  const deviation = Math.abs(nextPrice - previousPrice) / previousPrice;
+  return deviation <= maxDeviation;
+}
+
 function getTopBookPrice(levels: Array<{ price?: unknown }> | undefined, mode: "bestBid" | "bestAsk"): number | null {
   if (!Array.isArray(levels) || levels.length === 0) return null;
 
@@ -236,11 +242,16 @@ export function useMultiTimeframeCandles({
   const processQuotePrice = useCallback(
     (price: number, timestamp: number) => {
       const last = lastPriceRef.current;
-      if (last !== null && last > 0) {
-        const deviation = Math.abs(price - last) / last;
-        // Ignore clearly off-market quote spikes (deep book levels accidentally treated as trades).
-        if (deviation > 0.5) return;
-      }
+      if (!isReasonablePriceJump(price, last, 0.25)) return;
+      processPrice(price, timestamp);
+    },
+    [processPrice]
+  );
+
+  const processTradePrice = useCallback(
+    (price: number, timestamp: number) => {
+      const last = lastPriceRef.current;
+      if (!isReasonablePriceJump(price, last, 0.4)) return;
       processPrice(price, timestamp);
     },
     [processPrice]
@@ -324,11 +335,14 @@ export function useMultiTimeframeCandles({
               const bestAsk = getTopBookPrice(msg.asks, "bestAsk");
 
               if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
-                processQuotePrice((bestBid + bestAsk) / 2, timestamp);
+                const spread = bestAsk - bestBid;
+                if (spread <= 0.2) {
+                  processQuotePrice((bestBid + bestAsk) / 2, timestamp);
+                }
               } else {
                 const lastTrade = parseUnitPrice(msg.last_trade_price);
                 if (lastTrade !== null) {
-                  processPrice(lastTrade, timestamp);
+                  processTradePrice(lastTrade, timestamp);
                 }
               }
             }
@@ -366,7 +380,7 @@ export function useMultiTimeframeCandles({
     } catch (error) {
       console.error("WebSocket connection error:", error);
     }
-  }, [tokenId, wsUrl, processPrice, processQuotePrice]);
+  }, [tokenId, wsUrl, processPrice, processQuotePrice, processTradePrice]);
 
   useEffect(() => {
     reconnectRef.current = connect;

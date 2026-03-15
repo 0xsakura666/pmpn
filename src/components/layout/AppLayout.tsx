@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "./Header";
 import { MobileNav, MobileMenu } from "./MobileNav";
 
@@ -11,24 +12,30 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, showMobileNav = true }: AppLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const isImmersiveDetailPage = /^\/(markets|events)\/[^/]+$/.test(pathname || "");
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)]">
-      <Header
-        onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        isMenuOpen={isMobileMenuOpen}
-      />
+      {!isImmersiveDetailPage && (
+        <Header
+          onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+        />
+      )}
 
-      <MobileMenu
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
+      {!isImmersiveDetailPage && (
+        <MobileMenu
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-      <main className="flex-1 overflow-y-auto pb-[var(--mobile-nav-height)] md:pb-0">
+      <main className={`flex-1 overflow-y-auto ${!isImmersiveDetailPage && showMobileNav ? "pb-[var(--mobile-nav-height)] md:pb-0" : "pb-0"}`}>
         {children}
       </main>
 
-      {showMobileNav && <MobileNav />}
+      {showMobileNav && !isImmersiveDetailPage && <MobileNav />}
     </div>
   );
 }
