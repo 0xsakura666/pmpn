@@ -51,8 +51,8 @@ const PREFERRED_VISIBLE_BARS: Record<TimeframeType, number> = {
   "1D": 60,
 };
 
-function formatUsd(value: number, precision = 3) {
-  return `$${value.toFixed(precision)}`;
+function formatPriceInt(value: number) {
+  return `${Math.round(value * 100)}`;
 }
 
 function normalizeCandleTimeToSeconds(rawTime: Time): number | null {
@@ -319,11 +319,11 @@ export function RealtimeCandlestickChart({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">H:</span>
-            <span className="font-mono text-[#00D4AA]">{formatUsd(candleStats.high, 3)}</span>
+            <span className="font-mono text-[#00D4AA]">{formatPriceInt(candleStats.high)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">L:</span>
-            <span className="font-mono text-[#FF6B6B]">{formatUsd(candleStats.low, 3)}</span>
+            <span className="font-mono text-[#FF6B6B]">{formatPriceInt(candleStats.low)}</span>
           </div>
         </div>
       )}
@@ -351,10 +351,10 @@ export function RealtimeCandlestickChart({
             <span className="text-[#666]">当前K线</span>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <span className="text-[#666]">O:<span className="text-white ml-1">{formatUsd(displayCurrentCandle.open, 3)}</span></span>
-            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatUsd(displayCurrentCandle.high, 3)}</span></span>
-            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatUsd(displayCurrentCandle.low, 3)}</span></span>
-            <span className="text-[#666]">C:<span className="text-white ml-1">{formatUsd(displayCurrentCandle.close, 3)}</span></span>
+            <span className="text-[#666]">O:<span className="text-white ml-1">{formatPriceInt(displayCurrentCandle.open)}</span></span>
+            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatPriceInt(displayCurrentCandle.high)}</span></span>
+            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatPriceInt(displayCurrentCandle.low)}</span></span>
+            <span className="text-[#666]">C:<span className="text-white ml-1">{formatPriceInt(displayCurrentCandle.close)}</span></span>
           </div>
         </div>
       )}

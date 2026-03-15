@@ -44,8 +44,8 @@ interface CandlestickChartProps {
   preferredVisibleBars?: number;
 }
 
-function formatUsd(value: number, precision = 3) {
-  return `$${value.toFixed(precision)}`;
+function formatPriceInt(value: number) {
+  return `${Math.round(value * 100)}`;
 }
 
 function normalizeTimeToUtcSeconds(rawTime: Time): number | null {
@@ -112,7 +112,7 @@ export function CandlestickChart({
     const centsPriceFormat = {
       type: "custom" as const,
       minMove: 0.0001,
-      formatter: (price: number) => formatUsd(price, 3),
+      formatter: (price: number) => formatPriceInt(price),
     };
 
     const chart = createChart(chartContainerRef.current, {
@@ -334,7 +334,7 @@ export function CandlestickChart({
           <div className="w-2 h-2 rounded-full bg-[#00D4AA] animate-pulse" />
           <span className="text-xs text-[#888]">实时</span>
           <span className="text-sm font-mono font-bold text-white">
-            {formatUsd(lastPrice, 3)}
+            {formatPriceInt(lastPrice)}
           </span>
         </div>
       )}

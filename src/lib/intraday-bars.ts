@@ -21,6 +21,38 @@ function toEpochSeconds(value: Date | string | number | null | undefined): numbe
   return Number.isFinite(ts) ? ts : null;
 }
 
+function isReasonableCandleJump(nextClose: number, previousClose: number | null, maxDeviation = 0.25): boolean {
+  if (previousClose === null || previousClose <= 0) return true;
+  const deviation = Math.abs(nextClose - previousClose) / previousClose;
+  return deviation <= maxDeviation;
+}
+
+function sanitizeIntradayCandles(source: CandlePoint[]): CandlePoint[] {
+  const sanitized: CandlePoint[] = [];
+  let previousClose: number | null = null;
+
+  for (const candle of source) {
+    let next = candle;
+
+    if (!isReasonableCandleJump(candle.close, previousClose, 0.25)) {
+      if (previousClose !== null) {
+        next = {
+          time: candle.time,
+          open: previousClose,
+          high: previousClose,
+          low: previousClose,
+          close: previousClose,
+        };
+      }
+    }
+
+    sanitized.push(next);
+    previousClose = next.close;
+  }
+
+  return sanitized;
+}
+
 function aggregateCandles(source: CandlePoint[], targetInterval: CandleInterval): CandlePoint[] {
   if (source.length === 0) return [];
 
@@ -139,11 +171,16 @@ export async function getIntradayCandles(
 
   const firstTime = baseCandles[0].time;
   const lastTime = baseCandles[baseCandles.length - 1].time;
-  const filledBase = fillMissingSeconds(baseCandles, Math.max(firstTime, resolvedStartTs), Math.min(lastTime, resolvedEndTs));
+  const filledBase = fillMissingSeconds(
+    baseCandles,
+    Math.max(firstTime, resolvedStartTs),
+    Math.min(lastTime, resolvedEndTs)
+  );
+  const sanitizedBase = sanitizeIntradayCandles(filledBase);
 
   if (historyConfig.historyInterval === "1s") {
-    return filledBase;
+    return sanitizedBase;
   }
 
-  return aggregateCandles(filledBase, historyConfig.historyInterval);
+  return aggregateCandles(sanitizedBase, historyConfig.historyInterval);
 }

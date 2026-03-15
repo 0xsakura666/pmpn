@@ -435,7 +435,7 @@ export function RealtimeOrderBook({
       {/* Spread */}
       {spread > 0 && (
         <div className="text-center py-1.5 text-xs text-[#6b6b80] border-y border-[#1e1e28]">
-          价差: {(spread * 100).toFixed(2)}¢
+          价差: {Math.round(spread * 100)}
         </div>
       )}
 

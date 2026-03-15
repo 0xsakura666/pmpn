@@ -34,6 +34,19 @@ function parseArray(input) {
   return [];
 }
 
+function parseUnitPrice(value) {
+  const price = Number(value);
+  if (!Number.isFinite(price)) return null;
+  if (price <= 0 || price > 1) return null;
+  return price;
+}
+
+function isReasonablePriceJump(nextPrice, previousPrice, maxDeviation = 0.35) {
+  if (previousPrice == null || previousPrice <= 0) return true;
+  const deviation = Math.abs(nextPrice - previousPrice) / previousPrice;
+  return deviation <= maxDeviation;
+}
+
 function isShortTermMarket(market) {
   const now = Date.now();
   const candidates = [market.gameStartTime, market.endDate]
