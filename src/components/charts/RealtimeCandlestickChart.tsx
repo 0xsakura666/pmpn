@@ -299,8 +299,6 @@ export function RealtimeCandlestickChart({
           </div>
           <span className="hidden sm:inline text-[#333]">|</span>
           <span className="hidden sm:inline text-[#555]">{displayCandles.length} {chartMode === "candle" ? "K线" : "点"}</span>
-          <span className="hidden sm:inline text-[#333]">|</span>
-          <span className="hidden sm:inline text-[#555]">{tickCount} ticks</span>
         </div>
       </div>
 
