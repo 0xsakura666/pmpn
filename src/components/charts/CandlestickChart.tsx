@@ -8,6 +8,7 @@ import {
   CandlestickSeries,
   HistogramSeries,
   AreaSeries,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -42,6 +43,9 @@ interface CandlestickChartProps {
   chartMode?: ChartMode;
   resetViewKey?: string;
   preferredVisibleBars?: number;
+  showMovingAverages?: boolean;
+  accentColor?: string;
+  bearishColor?: string;
 }
 
 function formatPriceInt(value: number) {
@@ -77,6 +81,21 @@ function isValidNumericCandle(data: CandleData): boolean {
   );
 }
 
+function buildMovingAverageSeries(
+  candles: CandleData[],
+  period: number
+): Array<{ time: Time; value: number }> {
+  const result: Array<{ time: Time; value: number }> = [];
+
+  for (let index = period - 1; index < candles.length; index += 1) {
+    const slice = candles.slice(index - period + 1, index + 1);
+    const average = slice.reduce((sum, candle) => sum + candle.close, 0) / period;
+    result.push({ time: candles[index].time, value: average });
+  }
+
+  return result;
+}
+
 export function CandlestickChart({
   data,
   volumeData,
@@ -90,12 +109,16 @@ export function CandlestickChart({
   chartMode = "candle",
   resetViewKey,
   preferredVisibleBars = 120,
+  showMovingAverages = true,
+  accentColor = "#0ECB81",
+  bearishColor = "#F6465D",
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const areaSeriesRef = useRef<ISeriesApi<"Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const maSeriesRefs = useRef<Array<ISeriesApi<"Line">>>([]);
   const isInitializedRef = useRef(false);
 
   const getChartHeight = () => {
@@ -122,34 +145,37 @@ export function CandlestickChart({
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#8B949E",
+        fontSize: 11,
       },
       grid: {
-        vertLines: { color: "rgba(139, 148, 158, 0.1)" },
-        horzLines: { color: "rgba(139, 148, 158, 0.1)" },
+        vertLines: { color: "rgba(255, 255, 255, 0.04)" },
+        horzLines: { color: "rgba(255, 255, 255, 0.05)" },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
-          color: "#7B61FF",
+          color: "rgba(255,255,255,0.16)",
           width: 1,
           style: 2,
-          labelBackgroundColor: "#7B61FF",
+          labelBackgroundColor: "#14161d",
         },
         horzLine: {
-          color: "#7B61FF",
+          color: accentColor,
           width: 1,
           style: 2,
-          labelBackgroundColor: "#7B61FF",
+          labelBackgroundColor: accentColor,
         },
       },
       rightPriceScale: {
-        borderColor: "rgba(139, 148, 158, 0.2)",
+        borderColor: "rgba(255,255,255,0.08)",
         scaleMargins: priceScaleMargins,
       },
       timeScale: {
-        borderColor: "rgba(139, 148, 158, 0.2)",
+        borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: showSeconds,
+        rightOffset: 4,
+        barSpacing: 8,
       },
       width: chartContainerRef.current.clientWidth,
       height: chartHeight,
@@ -159,20 +185,36 @@ export function CandlestickChart({
 
     if (chartMode === "candle") {
       const candlestickSeries = chart.addSeries(CandlestickSeries, {
-        upColor: "#00D4AA",
-        downColor: "#FF6B6B",
-        borderUpColor: "#00D4AA",
-        borderDownColor: "#FF6B6B",
-        wickUpColor: "#00D4AA",
-        wickDownColor: "#FF6B6B",
+        upColor: accentColor,
+        downColor: bearishColor,
+        borderUpColor: accentColor,
+        borderDownColor: bearishColor,
+        wickUpColor: accentColor,
+        wickDownColor: bearishColor,
         priceFormat: centsPriceFormat,
+        priceLineVisible: true,
+        lastValueVisible: true,
       });
       candlestickSeriesRef.current = candlestickSeries;
+
+      if (showMovingAverages) {
+        const maPalette = ["#F0B90B", "#C66BFF", "#8B949E"];
+        maSeriesRefs.current = [7, 25, 99].map((period, index) =>
+          chart.addSeries(LineSeries, {
+            color: maPalette[index],
+            lineWidth: period === 7 ? 2 : 1,
+            lineStyle: 0,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          })
+        );
+      }
     } else {
       const areaSeries = chart.addSeries(AreaSeries, {
-        lineColor: "#00D4AA",
-        topColor: "rgba(0, 212, 170, 0.3)",
-        bottomColor: "rgba(0, 212, 170, 0.02)",
+        lineColor: accentColor,
+        topColor: "rgba(14, 203, 129, 0.28)",
+        bottomColor: "rgba(14, 203, 129, 0.02)",
         lineWidth: 2,
         priceLineVisible: true,
         lastValueVisible: true,
@@ -183,7 +225,7 @@ export function CandlestickChart({
 
     if (volumeData) {
       const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: "#7B61FF",
+        color: accentColor,
         priceFormat: {
           type: "volume",
         },
@@ -233,9 +275,10 @@ export function CandlestickChart({
       chart.remove();
       candlestickSeriesRef.current = null;
       areaSeriesRef.current = null;
+      maSeriesRefs.current = [];
       isInitializedRef.current = false;
     };
-  }, [height, autoHeight, onTimeRangeChange, volumeData, showSeconds, chartMode]);
+  }, [height, autoHeight, onTimeRangeChange, volumeData, showSeconds, chartMode, accentColor, bearishColor, showMovingAverages]);
 
   useEffect(() => {
     if (data.length === 0) return;
@@ -252,6 +295,11 @@ export function CandlestickChart({
     try {
       if (chartMode === "candle" && candlestickSeriesRef.current) {
         candlestickSeriesRef.current.setData(safeData);
+        if (showMovingAverages && maSeriesRefs.current.length > 0) {
+          [7, 25, 99].forEach((period, index) => {
+            maSeriesRefs.current[index]?.setData(buildMovingAverageSeries(safeData, period));
+          });
+        }
         if (!isRealtime) {
           chartRef.current?.timeScale().fitContent();
         }
@@ -331,7 +379,7 @@ export function CandlestickChart({
     <div className="relative w-full h-full">
       {isRealtime && lastPrice !== null && lastPrice !== undefined && (
         <div className="absolute top-2 right-2 z-10 flex items-center gap-2 px-2 py-1 rounded bg-[#1a1a1f]/90 border border-[#333]">
-          <div className="w-2 h-2 rounded-full bg-[#00D4AA] animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-[#0ECB81] animate-pulse" />
           <span className="text-xs text-[#888]">实时</span>
           <span className="text-sm font-mono font-bold text-white">
             {formatPriceInt(lastPrice)}
@@ -381,7 +429,7 @@ export function SparklineChart({
     });
 
     const lineColor =
-      color === "up" ? "#00D4AA" : color === "down" ? "#FF6B6B" : "#7B61FF";
+      color === "up" ? "#0ECB81" : color === "down" ? "#FF6B6B" : "#8B949E";
 
     const lineSeries = chart.addSeries(AreaSeries, {
       lineColor,

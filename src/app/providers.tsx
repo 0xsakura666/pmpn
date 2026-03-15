@@ -39,7 +39,7 @@ export function Providers({ children }: { children: ReactNode }) {
             modalSize="compact"
             showRecentTransactions
             theme={lightTheme({
-              accentColor: "#00D4AA",
+              accentColor: "#0ECB81",
               accentColorForeground: "#0A0D14",
               borderRadius: "large",
               fontStack: "system",

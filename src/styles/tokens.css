@@ -5,10 +5,10 @@
 
 :root {
   /* ─── 品牌色 ─────────────────────────────────────────────────────────────── */
-  --brand-primary: #00D4AA;
-  --brand-primary-hover: #00c49a;
-  --brand-primary-muted: #00D4AA26;
-  --brand-primary-subtle: #00D4AA10;
+  --brand-primary: #0ECB81;
+  --brand-primary-hover: #0bb874;
+  --brand-primary-muted: #0ECB8126;
+  --brand-primary-subtle: #0ECB8110;
   
   --brand-accent: #7B61FF;
   --brand-accent-hover: #6b51ef;
@@ -16,8 +16,8 @@
   --brand-accent-subtle: #7B61FF10;
 
   /* ─── 语义色 ─────────────────────────────────────────────────────────────── */
-  --color-success: #00D4AA;
-  --color-success-muted: #00D4AA26;
+  --color-success: #0ECB81;
+  --color-success-muted: #0ECB8126;
   --color-error: #FF6B6B;
   --color-error-muted: #FF6B6B26;
   --color-warning: #FFB84D;
@@ -26,9 +26,9 @@
   --color-info-muted: #3B82F610;
 
   /* ─── 交易色 ─────────────────────────────────────────────────────────────── */
-  --color-up: #00D4AA;
-  --color-up-muted: #00D4AA26;
-  --color-up-subtle: #00D4AA10;
+  --color-up: #0ECB81;
+  --color-up-muted: #0ECB8126;
+  --color-up-subtle: #0ECB8110;
   --color-down: #FF6B6B;
   --color-down-muted: #FF6B6B26;
   --color-down-subtle: #FF6B6B10;
@@ -52,7 +52,7 @@
   --border-default: #1e1e28;
   --border-muted: #1a1a22;
   --border-subtle: #2d2d3a;
-  --border-focus: #00D4AA66;
+  --border-focus: #0ECB8166;
 
   /* ─── 文字色 ─────────────────────────────────────────────────────────────── */
   --text-primary: #ffffff;

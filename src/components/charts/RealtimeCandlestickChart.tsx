@@ -39,19 +39,7 @@ const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: str
   "1D": { showSeconds: false, label: "1天" },
 };
 
-const REALTIME_TIMEFRAMES: TimeframeType[] = ["1S", "5S", "15S", "1M"];
-const HIGHER_TIMEFRAMES: TimeframeType[] = ["5M", "15M", "1H", "4H", "1D"];
-const PREFERRED_VISIBLE_BARS: Record<TimeframeType, number> = {
-  "1S": 180,
-  "5S": 180,
-  "15S": 160,
-  "1M": 120,
-  "5M": 120,
-  "15M": 96,
-  "1H": 72,
-  "4H": 60,
-  "1D": 60,
-};
+const DEFAULT_VISIBLE_TIMEFRAMES: TimeframeType[] = ["1M", "5M", "15M", "1H", "4H"];
 
 function formatPriceInt(value: number) {
   return `${Math.round(value * 100)}`;
@@ -125,8 +113,10 @@ export function RealtimeCandlestickChart({
 }: RealtimeCandlestickChartProps) {
   const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
-  const visibleRealtimeTimeframes = (allowedTimeframes || REALTIME_TIMEFRAMES).filter((tf) => REALTIME_TIMEFRAMES.includes(tf));
-  const visibleHigherTimeframes = (allowedTimeframes || HIGHER_TIMEFRAMES).filter((tf) => HIGHER_TIMEFRAMES.includes(tf));
+  const visibleTimeframes = useMemo(() => {
+    const source = allowedTimeframes && allowedTimeframes.length > 0 ? allowedTimeframes : DEFAULT_VISIBLE_TIMEFRAMES;
+    return source.filter((tf, index) => source.indexOf(tf) === index);
+  }, [allowedTimeframes]);
   const [chartMode, setChartMode] = useState<ChartMode>(defaultChartMode);
 
   const config = TIMEFRAME_CONFIG[selectedTimeframe];
@@ -144,7 +134,6 @@ export function RealtimeCandlestickChart({
     lastUpdate,
     getCandles: wsGetCandles,
     getCurrentCandle: wsGetCurrentCandle,
-    tickCount,
   } = useMultiTimeframeCandles({
     tokenId: tokenId || "",
     initialData: normalizedInitialData as CandleData[],
@@ -207,51 +196,42 @@ export function RealtimeCandlestickChart({
 
   const candleStats = useMemo(() => {
     if (displayCandles.length === 0) return null;
-    
+
     const first = displayCandles[0];
     const last = displayCandles[displayCandles.length - 1];
     const change = ((last.close - first.open) / first.open) * 100;
     const high = Math.max(...displayCandles.map(c => c.high));
     const low = Math.min(...displayCandles.map(c => c.low));
-    
-    return { change, high, low };
+
+    return { change, high, low, lastClose: last.close };
+  }, [displayCandles]);
+
+  const movingAverageStats = useMemo(() => {
+    const periods = [7, 25, 99];
+    return periods.map((period) => {
+      if (displayCandles.length < period) {
+        return { period, value: null as number | null };
+      }
+      const slice = displayCandles.slice(-period);
+      const value = slice.reduce((sum, candle) => sum + candle.close, 0) / period;
+      return { period, value };
+    });
   }, [displayCandles]);
 
   return (
-    <div className={`${useAutoHeight ? "h-full flex flex-col" : "space-y-3"}`}>
-      {/* Timeframe Selector */}
-      <div className={`flex flex-col gap-2 ${useAutoHeight ? "shrink-0 mb-2" : ""} sm:flex-row sm:items-center sm:justify-between`}>
-        <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex min-w-max gap-1">
-            {/* Realtime Timeframes */}
-            <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
-            <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">实时</span>
-            {visibleRealtimeTimeframes.map((tf) => (
-              <button
-                key={tf}
-                onClick={() => handleTimeframeChange(tf)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                  selectedTimeframe === tf
-                    ? "bg-[#00D4AA] text-black shadow-lg shadow-[#00D4AA]/20"
-                    : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
-          </div>
-
-            {/* Higher Timeframes */}
-            <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
-              <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">聚合</span>
-              {visibleHigherTimeframes.map((tf) => (
+    <div className={`rounded-[24px] border border-[#232632] bg-[#15161c] ${useAutoHeight ? "h-full flex flex-col" : "space-y-0"}`}>
+      <div className={`border-b border-[#232632] px-3 pt-3 ${useAutoHeight ? "shrink-0" : ""}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max items-center gap-1 rounded-full bg-[#111319] p-1">
+              {visibleTimeframes.map((tf) => (
                 <button
                   key={tf}
                   onClick={() => handleTimeframeChange(tf)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                     selectedTimeframe === tf
-                      ? "bg-[#7B61FF] text-white shadow-lg shadow-[#7B61FF]/20"
-                      : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
+                      ? "bg-[#0ECB81] text-black shadow-[0_8px_20px_rgba(14,203,129,0.22)]"
+                      : "text-[#8a8e99] hover:bg-[#1e222b] hover:text-white"
                   }`}
                 >
                   {tf}
@@ -259,78 +239,56 @@ export function RealtimeCandlestickChart({
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Chart Mode Toggle & Status */}
-        <div className="flex items-center justify-between gap-2 text-xs sm:justify-end">
-          {/* Chart Mode Toggle */}
-          <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
+          <div className="flex items-center gap-1 rounded-full bg-[#111319] p-1">
             <button
               onClick={() => setChartMode("line")}
-              className={`p-1.5 rounded transition-all ${
-                chartMode === "line"
-                  ? "bg-[#00D4AA] text-black"
-                  : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
+              className={`rounded-full p-2 transition-all ${
+                chartMode === "line" ? "bg-[#0ECB81] text-black" : "text-[#7d828d] hover:text-white"
               }`}
-              title="实时线图"
+              title="线图"
             >
-              <TrendingUp className="w-3.5 h-3.5" />
+              <TrendingUp className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={() => setChartMode("candle")}
-              className={`p-1.5 rounded transition-all ${
-                chartMode === "candle"
-                  ? "bg-[#7B61FF] text-white"
-                  : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
+              className={`rounded-full p-2 transition-all ${
+                chartMode === "candle" ? "bg-[#0ECB81] text-black" : "text-[#7d828d] hover:text-white"
               }`}
               title="K线图"
             >
-              <BarChart2 className="w-3.5 h-3.5" />
+              <BarChart2 className="h-3.5 w-3.5" />
             </button>
           </div>
-          
-          <span className="text-[#333]">|</span>
-          
-          <div className="flex items-center gap-1.5">
-            <div
-              className={`w-1.5 h-1.5 rounded-full ${
-                isConnected ? "bg-[#00D4AA] animate-pulse" : "bg-[#FF6B6B]"
-              }`}
-            />
-            <span className="text-[#666]">
-              {isConnected ? "实时" : "离线"}
-            </span>
-          </div>
-          <span className="hidden sm:inline text-[#333]">|</span>
-          <span className="hidden sm:inline text-[#555]">{displayCandles.length} {chartMode === "candle" ? "K线" : "点"}</span>
         </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pb-3 text-[11px] text-[#8a8e99]">
+          <span className="text-[#c7cad1]">{config.label}</span>
+          <span className={candleStats?.change && candleStats.change >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+            {candleStats ? `${candleStats.change >= 0 ? "+" : ""}${candleStats.change.toFixed(2)}%` : "--"}
+          </span>
+          <span>H: <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.high) : "--"}</span></span>
+          <span>L: <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.low) : "--"}</span></span>
+          <span className="ml-auto inline-flex items-center gap-1.5">
+            <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "animate-pulse bg-[#0ECB81]" : "bg-[#F6465D]"}`} />
+            {enableRealtime && isConnected ? "实时" : "静态"}
+          </span>
+        </div>
+
+        {chartMode === "candle" && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#232632] py-2 text-[11px]">
+            {movingAverageStats.map(({ period, value }, index) => {
+              const color = ["#F0B90B", "#C66BFF", "#8B949E"][index];
+              return (
+                <span key={period} style={{ color }}>
+                  MA({period}): <span className="font-mono">{value === null ? "--" : formatPriceInt(value)}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Stats Bar */}
-      {candleStats && (
-        <div className={`grid grid-cols-2 gap-2 px-2 py-1.5 bg-[#0d0d0f] rounded-lg text-xs sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${useAutoHeight ? "shrink-0 mb-2" : ""}`}>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#666]">周期:</span>
-            <span className="text-white font-medium">{config.label}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#666]">涨跌:</span>
-            <span className={`font-mono font-medium ${candleStats.change >= 0 ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
-              {candleStats.change >= 0 ? "+" : ""}{candleStats.change.toFixed(2)}%
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#666]">H:</span>
-            <span className="font-mono text-[#00D4AA]">{formatPriceInt(candleStats.high)}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#666]">L:</span>
-            <span className="font-mono text-[#FF6B6B]">{formatPriceInt(candleStats.low)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Chart */}
       <div className={useAutoHeight ? "flex-1 min-h-0" : ""}>
         <CandlestickChart
           data={displayCandles}
@@ -338,25 +296,23 @@ export function RealtimeCandlestickChart({
           autoHeight={useAutoHeight}
           currentCandle={displayCurrentCandle}
           showSeconds={config.showSeconds}
-          isRealtime={true}
+          isRealtime={Boolean(enableRealtime)}
           lastPrice={lastPrice}
           chartMode={chartMode}
           resetViewKey={`${selectedTimeframe}-${chartMode}`}
+          accentColor="#0ECB81"
+          bearishColor="#F6465D"
+          showMovingAverages={chartMode === "candle"}
         />
       </div>
 
-      {/* Current Candle Info */}
       {displayCurrentCandle && (
-        <div className={`${compactMobile ? "hidden sm:block" : "block"} rounded-lg bg-[#0d0d0f]/50 px-2 py-1.5 text-xs ${useAutoHeight ? "shrink-0 mt-2" : ""}`}>
-          <div className="mb-1 flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#00D4AA] animate-pulse" />
-            <span className="text-[#666]">当前K线</span>
-          </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <span className="text-[#666]">O:<span className="text-white ml-1">{formatPriceInt(displayCurrentCandle.open)}</span></span>
-            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatPriceInt(displayCurrentCandle.high)}</span></span>
-            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatPriceInt(displayCurrentCandle.low)}</span></span>
-            <span className="text-[#666]">C:<span className="text-white ml-1">{formatPriceInt(displayCurrentCandle.close)}</span></span>
+        <div className={`${compactMobile ? "border-t border-[#232632] px-3 py-2" : "border-t border-[#232632] px-3 py-2.5"} ${useAutoHeight ? "shrink-0" : ""}`}>
+          <div className="grid grid-cols-4 gap-2 text-[11px] font-mono text-[#8a8e99]">
+            <span>O <span className="ml-1 text-white">{formatPriceInt(displayCurrentCandle.open)}</span></span>
+            <span>H <span className="ml-1 text-[#0ECB81]">{formatPriceInt(displayCurrentCandle.high)}</span></span>
+            <span>L <span className="ml-1 text-[#F6465D]">{formatPriceInt(displayCurrentCandle.low)}</span></span>
+            <span>C <span className="ml-1 text-white">{formatPriceInt(displayCurrentCandle.close)}</span></span>
           </div>
         </div>
       )}

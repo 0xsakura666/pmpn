@@ -199,7 +199,7 @@ function QuickTradePanelCompact({
         <button
           onClick={() => connectors[0] && connect({ connector: connectors[0] })}
           disabled={isConnecting || connectors.length === 0}
-          className="w-full rounded-2xl bg-[#F3BA2F] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
+          className="w-full rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
         >
           {isConnecting ? "连接中..." : "连接钱包"}
         </button>
@@ -208,7 +208,7 @@ function QuickTradePanelCompact({
           <button
             onClick={authenticate}
             disabled={isAuthenticating}
-            className="w-full rounded-2xl bg-[#F3BA2F] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
+            className="w-full rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
           >
             {isAuthenticating ? "签名中..." : "签名验证"}
           </button>
@@ -273,7 +273,7 @@ function QuickTradePanelCompact({
                   value={limitPrice}
                   onChange={(e) => setLimitPrice(e.target.value)}
                   placeholder={price.toFixed(3)}
-                  className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#F3BA2F]"
+                  className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#0ECB81]"
                 />
               </div>
             </div>
@@ -288,7 +288,7 @@ function QuickTradePanelCompact({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="金额"
-                className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#F3BA2F]"
+                className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#0ECB81]"
               />
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -381,7 +381,7 @@ function PositionsPanelCompact() {
         <div className="space-y-2">
           {positionsLoading ? (
             <div className="flex justify-center py-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
             </div>
           ) : positions.length === 0 ? (
             <p className="py-3 text-center text-xs text-[#8b8d98]">暂无持仓</p>
@@ -416,7 +416,7 @@ function PositionsPanelCompact() {
             <p className="py-3 text-center text-xs text-[#8b8d98]">需要先签名验证</p>
           ) : ordersLoading ? (
             <div className="flex justify-center py-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
             </div>
           ) : orders.length === 0 ? (
             <p className="py-3 text-center text-xs text-[#8b8d98]">暂无挂单</p>
@@ -724,7 +724,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0d0d0f]">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
           <p className="text-[#666]">加载市场数据...</p>
         </div>
       </div>
@@ -736,7 +736,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       <div className="flex min-h-screen items-center justify-center bg-[#0d0d0f]">
         <div className="text-center">
           <p className="mb-4 text-[#F6465D]">{error || "市场不存在"}</p>
-          <Link href="/" className="text-[#F3BA2F] hover:underline">
+          <Link href="/" className="text-[#0ECB81] hover:underline">
             ← 返回市场列表
           </Link>
         </div>
@@ -877,11 +877,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             <div className="p-3 lg:flex-1 lg:min-h-0">
-              <div className="rounded-[28px] border border-[#232632] bg-[#15161c] p-2 lg:h-full lg:rounded-[20px]">
-                <div className="h-[420px] lg:h-full">
+              <div className="overflow-hidden rounded-[24px] bg-transparent lg:h-full">
+                <div className="h-[460px] lg:h-full">
                   {historyLoading ? (
                     <div className="flex h-full items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
                     </div>
                   ) : (
                     <RealtimeCandlestickChart
