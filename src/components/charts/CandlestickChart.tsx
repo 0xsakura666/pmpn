@@ -141,10 +141,7 @@ export function CandlestickChart({
       },
       rightPriceScale: {
         borderColor: "rgba(139, 148, 158, 0.2)",
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.2,
-        },
+        scaleMargins: priceScaleMargins,
       },
       timeScale: {
         borderColor: "rgba(139, 148, 158, 0.2)",
@@ -399,6 +396,13 @@ export function SparklineChart({
 
     lineSeries.setData(chartData);
     chart.timeScale().fitContent();
+
+    return () => chart.remove();
+  }, [data, width, height, color]);
+
+  return <div ref={chartContainerRef} style={{ width, height }} />;
+}
+();
 
     return () => chart.remove();
   }, [data, width, height, color]);

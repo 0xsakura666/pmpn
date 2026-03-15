@@ -120,6 +120,7 @@ export function RealtimeCandlestickChart({
   defaultChartMode = "candle",
   allowedTimeframes,
   enableRealtime = true,
+  compactMobile = false,
 }: RealtimeCandlestickChartProps) {
   const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
@@ -345,7 +346,7 @@ export function RealtimeCandlestickChart({
 
       {/* Current Candle Info */}
       {displayCurrentCandle && (
-        <div className={`rounded-lg bg-[#0d0d0f]/50 px-2 py-1.5 text-xs ${useAutoHeight ? "shrink-0 mt-2" : ""}`}>
+        <div className={`${compactMobile ? "hidden sm:block" : "block"} rounded-lg bg-[#0d0d0f]/50 px-2 py-1.5 text-xs ${useAutoHeight ? "shrink-0 mt-2" : ""}`}>
           <div className="mb-1 flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-[#00D4AA] animate-pulse" />
             <span className="text-[#666]">当前K线</span>
@@ -363,3 +364,6 @@ export function RealtimeCandlestickChart({
 }
 
 export { aggregateCandlesToHigherTimeframe };
+;
+eCandlesToHigherTimeframe };
+;
