@@ -336,7 +336,7 @@ export function useMultiTimeframeCandles({
 
               if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
                 const spread = bestAsk - bestBid;
-                if (spread <= 0.2) {
+                if (spread <= 0.1) {
                   processQuotePrice((bestBid + bestAsk) / 2, timestamp);
                 }
               } else {
