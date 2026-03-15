@@ -770,70 +770,76 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
-            <div className="px-3 pt-3 lg:hidden" id="price-panel">
-              <div className="rounded-[28px] border border-[#232632] bg-[#15161c] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.25)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs text-[#8a8e99]">主价格区</div>
-                    <div className={`mt-2 text-5xl font-semibold tracking-tight ${heroColor}`}>
-                      {formatPriceInt(heroPrice)}
+            <div className="px-3 pt-2 lg:hidden" id="price-panel">
+              <div className="overflow-hidden rounded-[22px] border border-[#20242d] bg-[#12161c]">
+                <div className="border-b border-[#20242d] px-4 py-3">
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-[#6f7682]">{heroSide === "yes" ? yesLabel : noLabel}</div>
+                      <div className={`mt-1 text-[42px] font-semibold leading-none tracking-tight ${heroColor}`}>
+                        {formatPriceInt(heroPrice)}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-sm">
+                        <span className="font-medium text-white">${heroPrice.toFixed(3)}</span>
+                        <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                          {priceStats.changePct >= 0 ? "+" : ""}{priceStats.changePct.toFixed(2)}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-2 text-sm">
-                      <span className="font-medium text-white">${heroPrice.toFixed(3)}</span>
-                      <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
-                        {priceStats.changePct >= 0 ? "+" : ""}{priceStats.changePct.toFixed(2)}%
-                      </span>
+                    <div className="shrink-0 rounded-2xl bg-[#0d1015] px-3 py-2 text-right text-[11px]">
+                      <div className="text-[#6f7682]">市场</div>
+                      <div className="mt-1 text-white">{event.markets.length}</div>
                     </div>
                   </div>
 
-                  <div className="grid min-w-[160px] grid-cols-2 gap-2 text-[11px]">
-                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
-                      <div className="text-[#707480]">高</div>
+                  <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
+                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                      <div className="text-[#6f7682]">24h 高</div>
                       <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.high)}</div>
                     </div>
-                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
-                      <div className="text-[#707480]">低</div>
+                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                      <div className="text-[#6f7682]">24h 低</div>
                       <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.low)}</div>
                     </div>
-                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
-                      <div className="text-[#707480]">结算</div>
-                      <div className="mt-1 text-white">{settlementDetailLabel}</div>
+                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                      <div className="text-[#6f7682]">分类</div>
+                      <div className="mt-1 text-white">{event.category || "--"}</div>
                     </div>
-                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
-                      <div className="text-[#707480]">Market ID</div>
+                    <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
+                      <div className="text-[#6f7682]">ID</div>
                       <div className="mt-1 text-white">{marketIdLabel}</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
                   <button
                     onClick={() => setMobileTradeSide("yes")}
-                    className={`rounded-2xl px-4 py-3 text-left transition ${
+                    className={`px-4 py-3 text-left transition ${
                       mobileTradeSide === "yes"
-                        ? "border border-[#0ECB81]/30 bg-[#0ECB81]/12"
-                        : "border border-[#232632] bg-[#111319]"
+                        ? "bg-[#10251d]"
+                        : "bg-[#11151b]"
                     }`}
                   >
-                    <div className="text-[11px] text-[#8a8e99]">{yesLabel}</div>
-                    <div className="mt-1 text-2xl font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
+                    <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
+                    <div className="mt-1 text-[26px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
                   </button>
                   <button
                     onClick={() => setMobileTradeSide("no")}
-                    className={`rounded-2xl px-4 py-3 text-left transition ${
+                    className={`px-4 py-3 text-left transition ${
                       mobileTradeSide === "no"
-                        ? "border border-[#F6465D]/30 bg-[#F6465D]/12"
-                        : "border border-[#232632] bg-[#111319]"
+                        ? "bg-[#2a171d]"
+                        : "bg-[#11151b]"
                     }`}
                   >
-                    <div className="text-[11px] text-[#8a8e99]">{noLabel}</div>
-                    <div className="mt-1 text-2xl font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</div>
+                    <div className="text-[11px] text-[#79808d]">{noLabel}</div>
+                    <div className="mt-1 text-[26px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}</div>
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="p-3 lg:flex-1 lg:min-h-0">
+            <div className="px-3 pt-3 lg:flex-1 lg:min-h-0">
               <div className="overflow-hidden rounded-[24px] bg-transparent lg:h-full">
                 <div className="h-[460px] lg:h-full">
                   {historyLoading ? (
