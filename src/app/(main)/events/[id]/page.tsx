@@ -237,6 +237,19 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const allowedTimeframes = getAvailableChartTimeframes(selectedMarket?.endDate);
 
+  const marketIdLabel = selectedMarket?.conditionId ? `${selectedMarket.conditionId.slice(0, 12)}...` : "--";
+  const settlementLabel = selectedMarket?.endDate
+    ? new Date(selectedMarket.endDate).toLocaleString("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "--";
+  const yesPrice = selectedMarket?.yesPrice || 0.5;
+  const noPrice = selectedMarket?.noPrice || 0.5;
+  const allowedTimeframes = getAvailableChartTimeframes(selectedMarket?.endDate);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
@@ -263,177 +276,158 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="h-full bg-[#0d0d0f] text-white">
-      <main className="container mx-auto px-4 py-6">
-        <div className="mb-4">
-          <Link href="/" className="inline-flex items-center gap-1 text-sm text-[#666] hover:text-white">
-            <ArrowLeft className="w-4 h-4" />
-            返回市场列表
-          </Link>
-        </div>
+      <main className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+          <section className="order-1 flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#222]">
+            <div className="block space-y-3 p-3 lg:hidden">
+              <div className="rounded-xl border border-[#222] bg-[#111214] p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs text-[#777]">Yes 价格</div>
+                    <div className="text-4xl font-semibold tracking-tight text-[#00D4AA]">{Math.round(yesPrice * 100)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-[#777]">No 价格</div>
+                    <div className="text-2xl font-semibold text-[#FF6B6B]">{Math.round(noPrice * 100)}</div>
+                  </div>
+                </div>
 
-        {/* Event Header - Compact */}
-        <div className="flex items-center gap-4 mb-6">
-          {event.image && (
-            <img
-              src={event.image}
-              alt=""
-              className="w-14 h-14 rounded-xl object-cover border border-[#222]"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded-full text-xs bg-[#7B61FF]/20 text-[#7B61FF]">
-                {event.category}
-              </span>
-              <span className="text-xs text-[#666]">{event.markets.length} 个市场</span>
-              <span className="text-xs text-[#666]">·</span>
-              <span className="text-xs text-[#666]">Vol {formatMoney(event.totalVolume)}</span>
-            </div>
-            <h1 className="text-xl font-bold text-white truncate">{event.title}</h1>
-          </div>
-        </div>
+                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  <div className="rounded-lg bg-[#1a1a1f] px-3 py-2">
+                    <div className="text-[#777]">市场</div>
+                    <div className="mt-1 font-medium text-white">{selectedMarket ? 1 : 0}</div>
+                  </div>
+                  <div className="rounded-lg bg-[#1a1a1f] px-3 py-2">
+                    <div className="text-[#777]">事件市场数</div>
+                    <div className="mt-1 font-medium text-white">{event.markets?.length || 0}</div>
+                  </div>
+                  <div className="rounded-lg bg-[#1a1a1f] px-3 py-2">
+                    <div className="text-[#777]">结算</div>
+                    <div className="mt-1 font-medium text-white">{settlementLabel}</div>
+                  </div>
+                  <div className="rounded-lg bg-[#1a1a1f] px-3 py-2">
+                    <div className="text-[#777]">Market ID</div>
+                    <div className="mt-1 font-medium text-white">{marketIdLabel}</div>
+                  </div>
+                </div>
+              </div>
 
-        {/* Market Tabs - Horizontal */}
-        <div className="mb-6 overflow-x-auto">
-          <div className="flex gap-2 pb-2">
-            {event.markets.map((market) => {
-              const isSelected = selectedMarket?.conditionId === market.conditionId;
-              const probability = Math.round(market.yesPrice * 100);
-              
-              return (
-                <button
-                  key={market.conditionId}
-                  onClick={() => setSelectedMarket(market)}
-                  className={`flex-shrink-0 w-[280px] px-4 py-3 rounded-xl border transition-all ${
-                    isSelected
-                      ? "bg-[#00D4AA]/10 border-[#00D4AA] text-white"
-                      : "bg-[#1a1a1f] border-[#222] text-[#888] hover:border-[#333] hover:text-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-left min-w-0 flex-1">
-                      <p className="text-sm font-medium leading-snug min-h-[2.5rem] overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-                        {market.question}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-lg font-bold ${probability > 50 ? "text-[#00D4AA]" : "text-[#FF6B6B]"}`}>
-                          {probability}%
-                        </span>
-                        <span className="text-xs text-[#666]">{market.daysLeft}天</span>
-                      </div>
+              <div className="rounded-xl border border-[#222] bg-[#1a1a1f] p-2">
+                <div className="h-[380px]">
+                  {historyLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#00D4AA]" />
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-[#00D4AA]" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {selectedMarket && (
-          <>
-            {/* Compact Yes/No Cards */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-[#00D4AA]/5 border border-[#00D4AA]/20">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#888] uppercase tracking-wide">Yes</span>
-                  <TrendingUp className="w-4 h-4 text-[#00D4AA]" />
-                </div>
-                <div className="mt-1 flex items-end justify-between">
-                  <div className="text-2xl font-bold text-[#00D4AA]">
-                    {Math.round(selectedMarket.yesPrice * 100)}
-                  </div>
-                  <div className="text-xs text-[#666]">
-                    {Math.round(selectedMarket.yesPrice * 100)}%
-                  </div>
+                  ) : (
+                    <RealtimeCandlestickChart
+                      tokenId={selectedMarket?.yesTokenId}
+                      initialData={priceHistory}
+                      historyBaseInterval={historyBaseInterval}
+                      height={0}
+                      defaultTimeframe={selectedTimeframe}
+                      onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                      defaultChartMode="candle"
+                      allowedTimeframes={allowedTimeframes}
+                      enableRealtime={false}
+                    />
+                  )}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-[#FF6B6B]/5 border border-[#FF6B6B]/20">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#888] uppercase tracking-wide">No</span>
-                  <TrendingDown className="w-4 h-4 text-[#FF6B6B]" />
-                </div>
-                <div className="mt-1 flex items-end justify-between">
-                  <div className="text-2xl font-bold text-[#FF6B6B]">
-                    {Math.round(selectedMarket.noPrice * 100)}
-                  </div>
-                  <div className="text-xs text-[#666]">
-                    {Math.round(selectedMarket.noPrice * 100)}%
-                  </div>
-                </div>
+
+              <div className="rounded-xl border border-[#222] bg-[#1a1a1f] p-3">
+                <h3 className="mb-2 text-sm font-semibold text-white">订单簿</h3>
+                {selectedMarket?.yesTokenId ? (
+                  <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={6} showHeader />
+                ) : (
+                  <p className="py-2 text-center text-xs text-[#666]">暂无数据</p>
+                )}
+              </div>
+
+              <QuickTradePanelCompact
+                marketTitle={selectedMarket?.question || event.title}
+                yesPrice={yesPrice}
+                noPrice={noPrice}
+                yesTokenId={selectedMarket?.yesTokenId}
+                noTokenId={selectedMarket?.noTokenId}
+                tickSize="0.01"
+                negRisk={false}
+              />
+
+              <PositionsPanelCompact />
+
+              <div className="rounded-xl border border-[#222] bg-[#1a1a1f] p-3 text-xs text-[#999]">
+                {event.description && <div>{event.description}</div>}
               </div>
             </div>
 
-            {/* Chart - Full Width */}
-            <div className="bg-[#1a1a1f] rounded-xl p-4 border border-[#222] mb-6">
-              {historyLoading ? (
-                <div className="h-[400px] flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4AA]" />
+            <div className="hidden lg:flex lg:flex-1 lg:min-h-0 lg:flex-col">
+              <div className="p-3 lg:flex-1 lg:min-h-0">
+                <div className="h-full rounded-lg border border-[#222] bg-[#1a1a1f] p-2">
+                  {historyLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#00D4AA]" />
+                    </div>
+                  ) : (
+                    <RealtimeCandlestickChart
+                      tokenId={selectedMarket?.yesTokenId}
+                      initialData={priceHistory}
+                      historyBaseInterval={historyBaseInterval}
+                      height={0}
+                      defaultTimeframe={selectedTimeframe}
+                      onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                      defaultChartMode="candle"
+                      allowedTimeframes={allowedTimeframes}
+                      enableRealtime={false}
+                    />
+                  )}
                 </div>
-              ) : (
-                <RealtimeCandlestickChart
-                  tokenId={selectedMarket.yesTokenId}
-                  initialData={priceHistory}
-                  historyBaseInterval={historyBaseInterval}
-                  height={400}
-                  defaultTimeframe={selectedTimeframe}
-                  onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                  defaultChartMode="candle"
-                  allowedTimeframes={allowedTimeframes}
-                  enableRealtime={false}
-                />
-              )}
+              </div>
             </div>
+          </section>
 
-            {/* Order Book & Trade - Side by Side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-[#1a1a1f] rounded-xl border border-[#222] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#222]">
-                  <h3 className="font-semibold text-white">订单簿</h3>
-                </div>
-                <div className="p-4">
-                  <RealtimeOrderBook
-                    tokenId={selectedMarket.yesTokenId}
-                    maxDepth={8}
-                  />
-                </div>
-              </div>
-              
-              <div className="bg-[#1a1a1f] rounded-xl border border-[#222] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#222]">
-                  <h3 className="font-semibold text-white">快速交易</h3>
-                </div>
-                <div className="p-4">
-                  <QuickTradePanel
-                    yesTokenId={selectedMarket.yesTokenId}
-                    noTokenId={selectedMarket.noTokenId}
-                    marketTitle={selectedMarket.question}
-                    yesPrice={selectedMarket.yesPrice}
-                    noPrice={selectedMarket.noPrice}
-                  />
-                </div>
-              </div>
-            </div>
+          <aside className="order-2 hidden w-full border-t border-[#222] lg:block lg:w-80 lg:shrink-0 lg:border-t-0 lg:overflow-y-auto">
+            <div className="grid grid-cols-1 gap-3 p-3">
+              <QuickTradePanelCompact
+                marketTitle={selectedMarket?.question || event.title}
+                yesPrice={yesPrice}
+                noPrice={noPrice}
+                yesTokenId={selectedMarket?.yesTokenId}
+                noTokenId={selectedMarket?.noTokenId}
+                tickSize="0.01"
+                negRisk={false}
+              />
 
-            {/* Market Info */}
-            <div className="mt-6 p-4 bg-[#1a1a1f] rounded-xl border border-[#222]">
-              <div className="flex items-center gap-4 text-sm text-[#666]">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>截止 {new Date(selectedMarket.endDate).toLocaleDateString('zh-CN')}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  <span>24h成交量 {formatMoney(event.volume24h)}</span>
+              <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
+                <h3 className="mb-2 text-sm font-semibold text-white">订单簿</h3>
+                {selectedMarket?.yesTokenId ? (
+                  <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={6} showHeader />
+                ) : (
+                  <p className="py-2 text-center text-xs text-[#666]">暂无数据</p>
+                )}
+              </div>
+
+              <PositionsPanelCompact />
+
+              <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
+                <h3 className="mb-2 text-sm font-semibold text-white">事件信息</h3>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#666]">市场ID</span>
+                    <span className="font-mono text-[#888]">{marketIdLabel}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#666]">结算</span>
+                    <span className="text-white">{settlementLabel}</span>
+                  </div>
+                  {event.description && (
+                    <div className="border-t border-[#222] pt-2 text-[#888]">
+                      {event.description}
+                    </div>
+                  )}
                 </div>
               </div>
-              {event.description && (
-                <p className="mt-3 text-sm text-[#888]">{event.description}</p>
-              )}
             </div>
-          </>
-        )}
-      </main>
+          </aside>
+        </main>
     </div>
   );
 }
