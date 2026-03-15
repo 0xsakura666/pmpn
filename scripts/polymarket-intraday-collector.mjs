@@ -7,6 +7,7 @@ const SHORT_TERM_HOURS = Number(process.env.INTRADAY_COLLECTOR_SHORT_TERM_HOURS 
 const MAX_MARKETS = Number(process.env.INTRADAY_COLLECTOR_MAX_MARKETS || 120);
 const REFRESH_MS = Number(process.env.INTRADAY_COLLECTOR_REFRESH_MS || 5 * 60 * 1000);
 const RETENTION_HOURS = Number(process.env.INTRADAY_COLLECTOR_RETENTION_HOURS || 12);
+const FETCH_TIMEOUT_MS = Number(process.env.INTRADAY_COLLECTOR_FETCH_TIMEOUT_MS || 12000);
 const PAGE_SIZE = 500;
 const MAX_SCAN = 3000;
 
@@ -88,18 +89,35 @@ function getExpiryDate(market) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "pmpn-intraday-collector/1.0",
-    },
-  });
+  const candidates = [
+    url,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  ];
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} for ${url}`);
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "pmpn-intraday-collector/1.0",
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} for ${candidate}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[collector] fetch failed: ${candidate} -> ${message}`);
+    }
   }
 
-  return response.json();
+  throw lastError || new Error(`All fetch attempts failed for ${url}`);
 }
 
 async function fetchTrackedTokens() {
@@ -148,23 +166,36 @@ class Collector {
     this.stateByToken = new Map();
     this.latestSecond = null;
     this.reconnectAttempts = 0;
+    this.cleanupTimer = null;
   }
 
   async start() {
-    await this.refreshTrackedTokens();
+    await this.safeRefreshTrackedTokens();
     this.connect();
 
     this.flushTimer = setInterval(() => {
-      void this.flushPreviousSecond();
+      void this.flushPreviousSecond().catch((error) => {
+        console.error("[collector] flushPreviousSecond error", error);
+      });
     }, 1000);
 
     this.refreshTimer = setInterval(() => {
-      void this.refreshTrackedTokens();
+      void this.safeRefreshTrackedTokens();
     }, REFRESH_MS);
 
-    setInterval(() => {
-      void this.cleanupExpiredBars();
+    this.cleanupTimer = setInterval(() => {
+      void this.cleanupExpiredBars().catch((error) => {
+        console.error("[collector] cleanupExpiredBars error", error);
+      });
     }, 10 * 60 * 1000);
+  }
+
+  async safeRefreshTrackedTokens() {
+    try {
+      await this.refreshTrackedTokens();
+    } catch (error) {
+      console.error("[collector] refreshTrackedTokens failed, will retry later", error);
+    }
   }
 
   async refreshTrackedTokens() {
@@ -479,7 +510,18 @@ class Collector {
 }
 
 const collector = new Collector();
-void collector.start();
+void collector.start().catch((error) => {
+  console.error("[collector] fatal startup error", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (error) => {
+  console.error("[collector] unhandledRejection", error);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[collector] uncaughtException", error);
+});
 
 process.on("SIGTERM", async () => {
   console.log("[collector] SIGTERM");
