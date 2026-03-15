@@ -109,6 +109,9 @@ export function CandlestickChart({
     if (!chartContainerRef.current) return;
 
     const chartHeight = getChartHeight();
+    const priceScaleMargins = volumeData
+      ? { top: 0.08, bottom: 0.22 }
+      : { top: 0.08, bottom: 0.08 };
     const centsPriceFormat = {
       type: "custom" as const,
       minMove: 0.0001,
@@ -396,13 +399,6 @@ export function SparklineChart({
 
     lineSeries.setData(chartData);
     chart.timeScale().fitContent();
-
-    return () => chart.remove();
-  }, [data, width, height, color]);
-
-  return <div ref={chartContainerRef} style={{ width, height }} />;
-}
-();
 
     return () => chart.remove();
   }, [data, width, height, color]);

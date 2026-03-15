@@ -24,6 +24,7 @@ interface RealtimeCandlestickChartProps {
   defaultChartMode?: ChartMode;
   allowedTimeframes?: TimeframeType[];
   enableRealtime?: boolean;
+  compactMobile?: boolean;
 }
 
 const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: string }> = {
@@ -243,7 +244,7 @@ export function RealtimeCandlestickChart({
             {/* Higher Timeframes */}
             <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
               <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">聚合</span>
-              {HIGHER_TIMEFRAMES.map((tf) => (
+              {visibleHigherTimeframes.map((tf) => (
                 <button
                   key={tf}
                   onClick={() => handleTimeframeChange(tf)}
@@ -364,6 +365,3 @@ export function RealtimeCandlestickChart({
 }
 
 export { aggregateCandlesToHigherTimeframe };
-;
-eCandlesToHigherTimeframe };
-;

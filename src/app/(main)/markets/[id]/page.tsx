@@ -1,11 +1,17 @@
 "use client";
 
-import { use, useState, useEffect, useCallback, useRef } from "react";
+import { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { Time, CandlestickData } from "lightweight-charts";
-import { usePolymarket, usePolymarketTrade, usePolymarketPositions, usePolymarketOrders } from "@/hooks/usePolymarket";
+import {
+  usePolymarket,
+  usePolymarketTrade,
+  usePolymarketPositions,
+  usePolymarketOrders,
+} from "@/hooks/usePolymarket";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import {
   getHistoryParamsForTimeframe,
@@ -63,7 +69,12 @@ function normalizeMarketData(raw: Partial<MarketData> & { id?: unknown; title?: 
   return {
     id: typeof raw.id === "string" ? raw.id : "",
     title: typeof raw.title === "string" ? raw.title : "",
-    titleOriginal: typeof raw.titleOriginal === "string" ? raw.titleOriginal : (typeof raw.title === "string" ? raw.title : ""),
+    titleOriginal:
+      typeof raw.titleOriginal === "string"
+        ? raw.titleOriginal
+        : typeof raw.title === "string"
+          ? raw.title
+          : "",
     description: typeof raw.description === "string" ? raw.description : "",
     slug: typeof raw.slug === "string" ? raw.slug : "",
     endDate: typeof raw.endDate === "string" ? raw.endDate : "",
@@ -75,13 +86,25 @@ function normalizeMarketData(raw: Partial<MarketData> & { id?: unknown; title?: 
   };
 }
 
+function formatCompactId(value: string, size = 12) {
+  if (!value) return "--";
+  return value.length <= size ? value : `${value.slice(0, size)}...`;
+}
+
+function formatPriceInt(value: number) {
+  return `${Math.round(value * 100)}`;
+}
+
 function QuickTradePanelCompact({
+  marketTitle,
   yesPrice,
   noPrice,
   yesTokenId,
   noTokenId,
   tickSize = "0.01",
   negRisk = false,
+  selectedSide: controlledSelectedSide,
+  onSelectedSideChange,
 }: {
   marketTitle: string;
   yesPrice: number;
@@ -90,13 +113,23 @@ function QuickTradePanelCompact({
   noTokenId?: string;
   tickSize?: string;
   negRisk?: boolean;
+  selectedSide?: "yes" | "no";
+  onSelectedSideChange?: (side: "yes" | "no") => void;
 }) {
-  const [selectedSide, setSelectedSide] = useState<"yes" | "no">("yes");
+  const [internalSelectedSide, setInternalSelectedSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const [limitPrice, setLimitPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const selectedSide = controlledSelectedSide ?? internalSelectedSide;
+  const setSelectedSide = (side: "yes" | "no") => {
+    if (controlledSelectedSide === undefined) {
+      setInternalSelectedSide(side);
+    }
+    onSelectedSideChange?.(side);
+  };
 
   const { isConnected } = useAccount();
   const { connectors, connect, isPending: isConnecting } = useConnect();
@@ -104,9 +137,12 @@ function QuickTradePanelCompact({
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
 
-  const price = orderType === "limit" && limitPrice 
-    ? parseFloat(limitPrice) 
-    : selectedSide === "yes" ? yesPrice : noPrice;
+  const price =
+    orderType === "limit" && limitPrice
+      ? parseFloat(limitPrice)
+      : selectedSide === "yes"
+        ? yesPrice
+        : noPrice;
   const shares = amount && price ? parseFloat(amount) / price : 0;
   const potentialReturn = shares * 1;
   const potentialProfit = potentialReturn - parseFloat(amount || "0");
@@ -130,7 +166,7 @@ function QuickTradePanelCompact({
       orderType: orderType === "market" ? "FOK" : "GTC",
     });
     if (result.success) {
-      setSuccess(`下单成功!`);
+      setSuccess("下单成功");
       setAmount("");
     } else {
       setError(result.errorMsg || "下单失败");
@@ -138,14 +174,22 @@ function QuickTradePanelCompact({
   };
 
   return (
-    <div className="bg-[#1a1a1f] rounded-lg p-3 border border-[#222] space-y-2">
-      <h3 className="font-semibold text-sm text-white">快速交易</h3>
+    <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-white">交易</h3>
+          <p className="mt-1 truncate text-xs text-[#8b8d98]">{marketTitle}</p>
+        </div>
+        <div className="rounded-full border border-[#2a2d38] bg-[#0f1015] px-2.5 py-1 text-[11px] text-[#a9adb8]">
+          Tick {tickSize}
+        </div>
+      </div>
 
       {!isConnected ? (
         <button
-          onClick={() => connect({ connector: connectors[0] })}
-          disabled={isConnecting}
-          className="w-full py-2 rounded-lg bg-[#00D4AA] text-black text-sm font-semibold"
+          onClick={() => connectors[0] && connect({ connector: connectors[0] })}
+          disabled={isConnecting || connectors.length === 0}
+          className="w-full rounded-2xl bg-[#F3BA2F] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
         >
           {isConnecting ? "连接中..." : "连接钱包"}
         </button>
@@ -154,84 +198,95 @@ function QuickTradePanelCompact({
           <button
             onClick={authenticate}
             disabled={isAuthenticating}
-            className="w-full py-2 rounded-lg bg-[#00D4AA] text-black text-sm font-semibold"
+            className="w-full rounded-2xl bg-[#F3BA2F] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
           >
             {isAuthenticating ? "签名中..." : "签名验证"}
           </button>
-          <button onClick={() => disconnect()} className="w-full py-1.5 text-xs text-[#666] hover:text-white">
+          <button
+            onClick={() => disconnect()}
+            className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] px-4 py-2.5 text-xs text-[#a9adb8]"
+          >
             断开连接
           </button>
         </div>
       ) : (
-        <>
-          {/* Order Type */}
-          <div className="flex rounded overflow-hidden border border-[#333] text-xs">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#0f1015] p-1">
             <button
               onClick={() => setOrderType("market")}
-              className={`flex-1 py-1.5 ${orderType === "market" ? "bg-[#00D4AA] text-black" : "bg-[#0d0d0f] text-[#888]"}`}
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                orderType === "market" ? "bg-[#1d2028] text-white" : "text-[#707480]"
+              }`}
             >
               市价
             </button>
             <button
               onClick={() => setOrderType("limit")}
-              className={`flex-1 py-1.5 ${orderType === "limit" ? "bg-[#00D4AA] text-black" : "bg-[#0d0d0f] text-[#888]"}`}
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                orderType === "limit" ? "bg-[#1d2028] text-white" : "text-[#707480]"
+              }`}
             >
               限价
             </button>
           </div>
 
-          {/* Side Selection */}
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setSelectedSide("yes")}
-              className={`py-2 rounded text-sm font-semibold ${
-                selectedSide === "yes" ? "bg-[#00D4AA] text-black" : "bg-[#0d0d0f] text-[#888] hover:bg-[#00D4AA]/20"
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                selectedSide === "yes"
+                  ? "bg-[#0ECB81] text-black"
+                  : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#0ECB81]/15"
               }`}
             >
-              Yes {Math.round(yesPrice * 100)}
+              买 Yes {formatPriceInt(yesPrice)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
-              className={`py-2 rounded text-sm font-semibold ${
-                selectedSide === "no" ? "bg-[#FF6B6B] text-black" : "bg-[#0d0d0f] text-[#888] hover:bg-[#FF6B6B]/20"
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                selectedSide === "no"
+                  ? "bg-[#F6465D] text-white"
+                  : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#F6465D]/15"
               }`}
             >
-              No {Math.round(noPrice * 100)}
+              买 No {formatPriceInt(noPrice)}
             </button>
           </div>
 
-          {/* Limit Price */}
           {orderType === "limit" && (
-            <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#666] text-xs">$</span>
-              <input
-                type="number"
-                value={limitPrice}
-                onChange={(e) => setLimitPrice(e.target.value)}
-                placeholder={price.toFixed(3)}
-                className="w-full pl-6 pr-2 py-1.5 rounded bg-[#0d0d0f] border border-[#333] text-sm font-mono"
-              />
+            <div className="space-y-1.5">
+              <label className="text-xs text-[#7b7f8a]">限价</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666b76]">$</span>
+                <input
+                  type="number"
+                  value={limitPrice}
+                  onChange={(e) => setLimitPrice(e.target.value)}
+                  placeholder={price.toFixed(3)}
+                  className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#F3BA2F]"
+                />
+              </div>
             </div>
           )}
 
-          {/* Amount */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
+            <label className="text-xs text-[#7b7f8a]">金额 (USDC)</label>
             <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#666] text-xs">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666b76]">$</span>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="金额"
-                className="w-full pl-6 pr-2 py-1.5 rounded bg-[#0d0d0f] border border-[#333] text-sm font-mono"
+                className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#F3BA2F]"
               />
             </div>
-            <div className="flex gap-1">
-              {[10, 50, 100].map((v) => (
+            <div className="grid grid-cols-4 gap-2">
+              {[10, 50, 100, 500].map((v) => (
                 <button
                   key={v}
                   onClick={() => setAmount(v.toString())}
-                  className="flex-1 py-1 text-[10px] rounded bg-[#0d0d0f] text-[#888] hover:bg-[#222]"
+                  className="rounded-xl border border-[#242733] bg-[#111319] px-2 py-2 text-[11px] text-[#b1b5c0]"
                 >
                   ${v}
                 </button>
@@ -239,30 +294,38 @@ function QuickTradePanelCompact({
             </div>
           </div>
 
-          {/* Summary */}
           {amount && parseFloat(amount) > 0 && (
-            <div className="flex justify-between text-xs border-t border-[#333] pt-2">
-              <span className="text-[#666]">份额: {shares.toFixed(2)}</span>
-              <span className="text-[#00D4AA]">
-                +{((potentialProfit / parseFloat(amount)) * 100).toFixed(0)}%
-              </span>
+            <div className="space-y-2 rounded-2xl bg-[#0f1015] p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#747886]">份额</span>
+                <span className="font-mono text-white">{shares.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#747886]">均价</span>
+                <span className="font-mono text-white">${price.toFixed(3)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#747886]">潜在收益</span>
+                <span className={`font-mono ${potentialProfit >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>
+                  ${potentialReturn.toFixed(2)}
+                </span>
+              </div>
             </div>
           )}
 
-          {error && <p className="text-xs text-[#FF6B6B]">{error}</p>}
-          {success && <p className="text-xs text-[#00D4AA]">{success}</p>}
+          {error && <p className="text-xs text-[#F6465D]">{error}</p>}
+          {success && <p className="text-xs text-[#0ECB81]">{success}</p>}
 
-          {/* Trade Button */}
           <button
             onClick={handleTrade}
             disabled={!amount || parseFloat(amount) <= 0 || isSubmitting || !isReady}
-            className={`w-full py-2.5 rounded text-sm font-semibold ${
-              selectedSide === "yes" ? "bg-[#00D4AA]" : "bg-[#FF6B6B]"
-            } text-black disabled:opacity-50`}
+            className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+              selectedSide === "yes" ? "bg-[#0ECB81] text-black" : "bg-[#F6465D] text-white"
+            } disabled:opacity-50`}
           >
             {isSubmitting ? "提交中..." : `买入 ${selectedSide.toUpperCase()}`}
           </button>
-        </>
+        </div>
       )}
     </div>
   );
@@ -276,51 +339,58 @@ function PositionsPanelCompact() {
 
   if (!address) {
     return (
-      <div className="bg-[#1a1a1f] rounded-lg p-3 border border-[#222]">
-        <h3 className="font-semibold text-sm text-white mb-2">持仓</h3>
-        <p className="text-xs text-[#666]">连接钱包查看</p>
+      <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+        <h3 className="text-sm font-semibold text-white">持仓 / 订单</h3>
+        <p className="mt-2 text-xs text-[#8b8d98]">连接钱包后查看当前持仓与挂单。</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#1a1a1f] rounded-lg p-3 border border-[#222] space-y-2">
-      {/* Tabs */}
-      <div className="flex rounded overflow-hidden border border-[#333] text-xs">
+    <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+      <div className="mb-3 flex rounded-2xl bg-[#0f1015] p-1 text-xs">
         <button
           onClick={() => setActiveTab("positions")}
-          className={`flex-1 py-1.5 ${activeTab === "positions" ? "bg-[#00D4AA] text-black" : "bg-[#0d0d0f] text-[#888]"}`}
+          className={`flex-1 rounded-xl px-3 py-2 font-medium transition ${
+            activeTab === "positions" ? "bg-[#1d2028] text-white" : "text-[#7d818d]"
+          }`}
         >
           持仓 ({positions.length})
         </button>
         <button
           onClick={() => setActiveTab("orders")}
-          className={`flex-1 py-1.5 ${activeTab === "orders" ? "bg-[#00D4AA] text-black" : "bg-[#0d0d0f] text-[#888]"}`}
+          className={`flex-1 rounded-xl px-3 py-2 font-medium transition ${
+            activeTab === "orders" ? "bg-[#1d2028] text-white" : "text-[#7d818d]"
+          }`}
         >
           订单 ({orders.length})
         </button>
       </div>
 
       {activeTab === "positions" && (
-        <div className="max-h-32 overflow-y-auto space-y-1.5">
+        <div className="space-y-2">
           {positionsLoading ? (
-            <div className="flex justify-center py-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#00D4AA]" />
+            <div className="flex justify-center py-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
             </div>
           ) : positions.length === 0 ? (
-            <p className="text-xs text-[#666] text-center py-2">暂无持仓</p>
+            <p className="py-3 text-center text-xs text-[#8b8d98]">暂无持仓</p>
           ) : (
-            positions.slice(0, 3).map((pos) => (
-              <div key={pos.asset} className="p-2 rounded bg-[#0d0d0f] text-xs">
-                <div className="flex justify-between">
-                  <span className={pos.outcome === "Yes" ? "text-[#00D4AA]" : "text-[#FF6B6B]"}>
-                    {pos.outcome}
-                  </span>
-                  <span className="font-mono">{pos.size.toFixed(2)}</span>
+            positions.slice(0, 4).map((pos) => (
+              <div key={pos.asset} className="rounded-2xl bg-[#0f1015] p-3 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-white">{pos.title}</div>
+                    <div className={pos.outcome === "Yes" ? "text-[#0ECB81]" : "text-[#F6465D]"}>{pos.outcome}</div>
+                  </div>
+                  <div className="text-right text-[#c9ccd5]">
+                    <div className="font-mono">{pos.size.toFixed(2)}</div>
+                    <div className="text-[#757985]">@ ${pos.avgPrice.toFixed(3)}</div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-[#666]">
+                <div className="mt-2 flex items-center justify-between text-[#757985]">
                   <span>P&L</span>
-                  <span className={pos.cashPnl >= 0 ? "text-[#00D4AA]" : "text-[#FF6B6B]"}>
+                  <span className={pos.cashPnl >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
                     {pos.cashPnl >= 0 ? "+" : ""}${pos.cashPnl.toFixed(2)}
                   </span>
                 </div>
@@ -331,30 +401,27 @@ function PositionsPanelCompact() {
       )}
 
       {activeTab === "orders" && (
-        <div className="max-h-32 overflow-y-auto space-y-1.5">
+        <div className="space-y-2">
           {!isAuthenticated ? (
-            <p className="text-xs text-[#666] text-center py-2">需要验证</p>
+            <p className="py-3 text-center text-xs text-[#8b8d98]">需要先签名验证</p>
           ) : ordersLoading ? (
-            <div className="flex justify-center py-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#00D4AA]" />
+            <div className="flex justify-center py-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
             </div>
           ) : orders.length === 0 ? (
-            <p className="text-xs text-[#666] text-center py-2">暂无订单</p>
+            <p className="py-3 text-center text-xs text-[#8b8d98]">暂无挂单</p>
           ) : (
-            orders.slice(0, 3).map((order) => (
-              <div key={order.id} className="p-2 rounded bg-[#0d0d0f] text-xs">
-                <div className="flex justify-between items-center">
-                  <span className={order.side === "BUY" ? "text-[#00D4AA]" : "text-[#FF6B6B]"}>
+            orders.slice(0, 4).map((order) => (
+              <div key={order.id} className="rounded-2xl bg-[#0f1015] p-3 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <span className={order.side === "BUY" ? "text-[#0ECB81]" : "text-[#F6465D]"}>
                     {order.side} {order.outcome}
                   </span>
-                  <button
-                    onClick={() => cancelOrder(order.id)}
-                    className="text-[#FF6B6B] hover:underline text-[10px]"
-                  >
+                  <button onClick={() => cancelOrder(order.id)} className="text-[#F6465D]">
                     取消
                   </button>
                 </div>
-                <div className="flex justify-between text-[#666]">
+                <div className="mt-2 flex items-center justify-between text-[#757985]">
                   <span>${order.price}</span>
                   <span>{(parseFloat(order.original_size) / 1e6).toFixed(2)}</span>
                 </div>
@@ -382,9 +449,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const [priceHistory, setPriceHistory] = useState<CandlestickData<Time>[]>([]);
   const [historyBaseInterval, setHistoryBaseInterval] = useState<CandleInterval>("1m");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [mobileTradeSide, setMobileTradeSide] = useState<"yes" | "no">("yes");
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
+  const tradePanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchMarket();
@@ -403,7 +472,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     setError(null);
     let hasCache = false;
     try {
-      // 首先尝试从 localStorage 读取
       const cached = localStorage.getItem(`market_${resolvedParams.id}`);
       if (cached) {
         try {
@@ -411,38 +479,39 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           const yesTokenId = cachedMarket.yesTokenId || "";
           const noTokenId = cachedMarket.noTokenId || "";
           hasCache = true;
-          setMarket(normalizeMarketData({
-            id: cachedMarket.conditionId,
-            title: cachedMarket.title,
-            titleOriginal: cachedMarket.title,
-            description: cachedMarket.description || "",
-            slug: cachedMarket.slug,
-            endDate: cachedMarket.endDate,
-            image: cachedMarket.image || "",
-            tokens: [
-              { token_id: yesTokenId, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
-              { token_id: noTokenId, outcome: "No", price: cachedMarket.noPrice, winner: false },
-            ],
-            orderBooks: [],
-          }));
+          setMarket(
+            normalizeMarketData({
+              id: cachedMarket.conditionId,
+              title: cachedMarket.title,
+              titleOriginal: cachedMarket.title,
+              description: cachedMarket.description || "",
+              slug: cachedMarket.slug,
+              endDate: cachedMarket.endDate,
+              image: cachedMarket.image || "",
+              tokens: [
+                { token_id: yesTokenId, outcome: "Yes", price: cachedMarket.yesPrice, winner: false },
+                { token_id: noTokenId, outcome: "No", price: cachedMarket.noPrice, winner: false },
+              ],
+              orderBooks: [],
+            })
+          );
           setLoading(false);
         } catch {
           localStorage.removeItem(`market_${resolvedParams.id}`);
         }
       }
 
-      // 始终刷新一次 API，避免旧缓存里的 token 映射错误。
       const res = await fetch(`/api/markets/${resolvedParams.id}`, { cache: "no-store" });
       const data = await res.json();
-      
+
       if (data.error) {
         throw new Error(data.message || data.error);
       }
-      
+
       if (!res.ok) {
         throw new Error("Market not found");
       }
-      
+
       const normalizedData = normalizeMarketData(data);
       if (!normalizedData.id || !normalizedData.title) {
         throw new Error("Market payload is incomplete");
@@ -477,94 +546,93 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const fetchPriceHistory = useCallback(async (
-    tokenId: string,
-    timeframe: TimeframeType,
-    signal?: AbortSignal
-  ) => {
-    if (!tokenId) {
-      setPriceHistory([]);
-      return;
-    }
-
-    const startTs = getShortTermStartTs(market?.endDate, timeframe);
-    const cacheKey = `${tokenId}:${timeframe}:${startTs || "default"}`;
-    const cached = historyCacheRef.current.get(cacheKey);
-    if (cached) {
-      setPriceHistory(cached.candles);
-      setHistoryBaseInterval(cached.interval);
-      return;
-    }
-
-    setHistoryLoading(true);
-    const { historyInterval } = getHistoryParamsForTimeframe(timeframe);
-
-    try {
-      const params = new URLSearchParams({
-        tokenId,
-        timeframe,
-      });
-      if (startTs) {
-        params.set("startTs", String(startTs));
+  const fetchPriceHistory = useCallback(
+    async (tokenId: string, timeframe: TimeframeType, signal?: AbortSignal) => {
+      if (!tokenId) {
+        setPriceHistory([]);
+        return;
       }
-      const res = await fetch(`/api/markets/${resolvedParams.id}/history?${params.toString()}`, { signal });
-      if (res.ok) {
-        const data = await res.json();
-        const resolvedInterval = (data.historyInterval || historyInterval) as CandleInterval;
 
-        if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
-          type RawCandle = { time: number; open: number; high: number; low: number; close: number };
-          const normalized: Array<CandlestickData<Time> | null> = (data.candles as RawCandle[])
-            .map((c: { time: number; open: number; high: number; low: number; close: number }) => {
-              const normalizedTime = normalizeCandleTime(c.time);
-              if (
-                normalizedTime === null ||
-                !Number.isFinite(c.open) ||
-                !Number.isFinite(c.high) ||
-                !Number.isFinite(c.low) ||
-                !Number.isFinite(c.close)
-              ) {
-                return null;
-              }
+      const startTs = getShortTermStartTs(market?.endDate, timeframe);
+      const cacheKey = `${tokenId}:${timeframe}:${startTs || "default"}`;
+      const cached = historyCacheRef.current.get(cacheKey);
+      if (cached) {
+        setPriceHistory(cached.candles);
+        setHistoryBaseInterval(cached.interval);
+        return;
+      }
 
-              return {
-                time: normalizedTime as Time,
-                open: c.open,
-                high: c.high,
-                low: c.low,
-                close: c.close,
-              };
+      setHistoryLoading(true);
+      const { historyInterval } = getHistoryParamsForTimeframe(timeframe);
+
+      try {
+        const params = new URLSearchParams({
+          tokenId,
+          timeframe,
+        });
+        if (startTs) {
+          params.set("startTs", String(startTs));
+        }
+        const res = await fetch(`/api/markets/${resolvedParams.id}/history?${params.toString()}`, { signal });
+        if (res.ok) {
+          const data = await res.json();
+          const resolvedInterval = (data.historyInterval || historyInterval) as CandleInterval;
+
+          if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
+            type RawCandle = { time: number; open: number; high: number; low: number; close: number };
+            const normalized: Array<CandlestickData<Time> | null> = (data.candles as RawCandle[])
+              .map((c) => {
+                const normalizedTime = normalizeCandleTime(c.time);
+                if (
+                  normalizedTime === null ||
+                  !Number.isFinite(c.open) ||
+                  !Number.isFinite(c.high) ||
+                  !Number.isFinite(c.low) ||
+                  !Number.isFinite(c.close)
+                ) {
+                  return null;
+                }
+
+                return {
+                  time: normalizedTime as Time,
+                  open: c.open,
+                  high: c.high,
+                  low: c.low,
+                  close: c.close,
+                };
+              });
+            const candlesticks = normalized.filter((c): c is CandlestickData<Time> => c !== null);
+
+            historyCacheRef.current.set(cacheKey, {
+              candles: candlesticks,
+              interval: resolvedInterval,
             });
-          const candlesticks = normalized.filter((c): c is CandlestickData<Time> => c !== null);
 
-          historyCacheRef.current.set(cacheKey, {
-            candles: candlesticks,
-            interval: resolvedInterval,
-          });
-
-          if (signal?.aborted) return;
-          setPriceHistory(candlesticks);
-          setHistoryBaseInterval(resolvedInterval);
+            if (signal?.aborted) return;
+            setPriceHistory(candlesticks);
+            setHistoryBaseInterval(resolvedInterval);
+          } else {
+            if (signal?.aborted) return;
+            setPriceHistory([]);
+            setHistoryBaseInterval(resolvedInterval);
+          }
         } else {
           if (signal?.aborted) return;
           setPriceHistory([]);
-          setHistoryBaseInterval(resolvedInterval);
+          setHistoryBaseInterval(historyInterval);
         }
-      } else {
+      } catch {
         if (signal?.aborted) return;
         setPriceHistory([]);
         setHistoryBaseInterval(historyInterval);
+      } finally {
+        if (!signal?.aborted) {
+          setHistoryLoading(false);
+        }
       }
-    } catch {
-      if (signal?.aborted) return;
-      setPriceHistory([]);
-      setHistoryBaseInterval(historyInterval);
-    } finally {
-      if (!signal?.aborted) {
-        setHistoryLoading(false);
-      }
-    }
-  }, [resolvedParams.id, market?.endDate]);
+    },
+    [resolvedParams.id, market?.endDate]
+  );
 
   useEffect(() => {
     const yesTokenId = market?.tokens?.find((t) => t.outcome === "Yes")?.token_id;
@@ -579,11 +647,68 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     return () => controller.abort();
   }, [market, selectedTimeframe, fetchPriceHistory]);
 
+  const jumpToSection = (id: string) => {
+    const element = document.getElementById(id);
+    element?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const jumpToTradePanel = (side: "yes" | "no") => {
+    setMobileTradeSide(side);
+    tradePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const yesToken = market?.tokens?.find((t) => t.outcome === "Yes");
+  const noToken = market?.tokens?.find((t) => t.outcome === "No");
+  const yesPrice = yesToken?.price || 0.5;
+  const noPrice = noToken?.price || 0.5;
+  const allowedTimeframes: TimeframeType[] = market?.endDate
+    ? getAvailableChartTimeframes(market.endDate)
+    : ["1M"];
+  const marketIdLabel = market?.id ? formatCompactId(market.id, 12) : "--";
+  const settlementLabel = market?.endDate ? new Date(market.endDate).toLocaleDateString("zh-CN") : "--";
+  const settlementDetailLabel = market?.endDate
+    ? new Date(market.endDate).toLocaleString("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "--";
+
+  const priceStats = useMemo(() => {
+    if (priceHistory.length === 0) {
+      return {
+        high: yesPrice,
+        low: yesPrice,
+        last: yesPrice,
+        changePct: 0,
+      };
+    }
+
+    const first = priceHistory[0];
+    const last = priceHistory[priceHistory.length - 1];
+    const high = Math.max(...priceHistory.map((c) => c.high));
+    const low = Math.min(...priceHistory.map((c) => c.low));
+    const base = first.open || 1;
+
+    return {
+      high,
+      low,
+      last: last.close,
+      changePct: ((last.close - first.open) / base) * 100,
+    };
+  }, [priceHistory, yesPrice]);
+
+  const heroSide = mobileTradeSide;
+  const heroPrice = heroSide === "yes" ? yesPrice : noPrice;
+  const heroLabel = heroSide === "yes" ? "Yes" : "No";
+  const heroColor = heroSide === "yes" ? "text-[#0ECB81]" : "text-[#F6465D]";
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#0d0d0f]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00D4AA] mx-auto mb-4" />
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
           <p className="text-[#666]">加载市场数据...</p>
         </div>
       </div>
@@ -592,10 +717,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   if (error || !market) {
     return (
-      <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#0d0d0f]">
         <div className="text-center">
-          <p className="text-[#FF6B6B] mb-4">{error || "市场不存在"}</p>
-          <Link href="/" className="text-[#00D4AA] hover:underline">
+          <p className="mb-4 text-[#F6465D]">{error || "市场不存在"}</p>
+          <Link href="/" className="text-[#F3BA2F] hover:underline">
             ← 返回市场列表
           </Link>
         </div>
@@ -603,150 +728,264 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const yesToken = market.tokens?.find(t => t.outcome === "Yes");
-  const noToken = market.tokens?.find(t => t.outcome === "No");
-  const yesPrice = yesToken?.price || 0.5;
-  const noPrice = noToken?.price || 0.5;
-  const allowedTimeframes = getAvailableChartTimeframes(market.endDate);
-  const marketIdLabel = market.id ? `${market.id.slice(0, 12)}...` : "--";
-  const settlementLabel = market.endDate ? new Date(market.endDate).toLocaleDateString("zh-CN") : "--";
-
   return (
     <div className="min-h-screen bg-[#0d0d0f] text-white lg:h-screen lg:overflow-hidden">
       <div className="flex min-h-screen flex-col lg:h-screen">
-        <header className="shrink-0 border-b border-[#222] bg-[#0d0d0f]">
-          <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:justify-between lg:py-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
-              <Link href="/" className="text-base font-bold text-[#00D4AA] sm:text-lg">
-                Tectonic
+        <header className="sticky top-0 z-20 shrink-0 border-b border-[#1d2028] bg-[#0d0d0f]/95 backdrop-blur">
+          <div className="hidden items-center justify-between gap-4 px-4 py-3 lg:flex">
+            <div className="flex min-w-0 items-center gap-3">
+              <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#252833] bg-[#14161d] text-[#cdd1db] transition hover:text-white">
+                <ArrowLeft className="h-4 w-4" />
               </Link>
-              <Link href="/" className="text-xs text-[#666] hover:text-white">
-                ← 返回
-              </Link>
-              <div className="hidden h-4 w-px bg-[#333] sm:block" />
-              {market.image && (
-                <img src={market.image} alt="" className="h-6 w-6 rounded object-cover" />
-              )}
-              <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-white lg:max-w-[32rem]">
-                {market.title}
-              </h1>
-              <span className="text-xs text-[#666]">
-                截止 {settlementLabel}
-              </span>
+              {market.image && <img src={market.image} alt="" className="h-8 w-8 rounded-full object-cover" />}
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-white">{market.title}</div>
+                <div className="mt-1 text-xs text-[#7d818d]">截止 {settlementDetailLabel} · ID {marketIdLabel}</div>
+              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 sm:gap-3">
-              <div className="flex items-center justify-center gap-2 rounded-lg border border-[#222] bg-[#1a1a1f] px-3 py-1.5 sm:justify-start">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[#666]">Yes</span>
-                  <span className="text-sm font-bold text-[#00D4AA]">{Math.round(yesPrice * 100)}</span>
-                </div>
-                <div className="h-3 w-px bg-[#333]" />
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[#666]">No</span>
-                  <span className="text-sm font-bold text-[#FF6B6B]">{Math.round(noPrice * 100)}</span>
-                </div>
+            <div className="flex items-center gap-2 rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-sm">
+              <span className="text-[#8a8f9c]">Yes</span>
+              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
+              <span className="text-[#333845]">/</span>
+              <span className="text-[#8a8f9c]">No</span>
+              <span className="font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</span>
+            </div>
+          </div>
+
+          <div className="px-3 py-3 lg:hidden">
+            <div className="flex items-center gap-3">
+              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#252833] bg-[#14161d] text-[#d7dbe5]">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-base font-semibold text-white">{market.title}</div>
+                <div className="mt-1 text-xs text-[#7d818d]">{marketIdLabel} · 截止 {settlementDetailLabel}</div>
+              </div>
+              <div className="rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-[11px] text-[#b7bbc6]">
+                {formatPriceInt(yesPrice)}/{formatPriceInt(noPrice)}
+              </div>
+            </div>
+
+            <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max gap-2 text-xs">
+                {[
+                  ["price-panel", "价格"],
+                  ["depth-panel", "盘口"],
+                  ["trade-panel", "交易"],
+                  ["info-panel", "信息"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => jumpToSection(id)}
+                    className="rounded-full border border-[#242733] bg-[#14161d] px-3 py-1.5 text-[#c3c7d1]"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-          <section className="order-1 flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#222]">
-            <div className="p-2 sm:p-3 lg:flex-1 lg:min-h-0">
-              <div className="h-[360px] rounded-lg border border-[#222] bg-[#1a1a1f] p-2 sm:h-[430px] lg:h-full">
-                {historyLoading ? (
-                  <div className="flex h-full items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#00D4AA]" />
+        <main className="flex flex-1 flex-col overflow-y-auto pb-24 lg:flex-row lg:overflow-hidden lg:pb-0">
+          <section className="order-1 flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#1d2028]">
+            <div className="px-3 pt-3 lg:hidden" id="price-panel">
+              <div className="rounded-[28px] border border-[#232632] bg-[#15161c] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.25)]">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-[#8a8e99]">主价格区 · {heroLabel}</div>
+                    <div className={`mt-2 text-5xl font-semibold tracking-tight ${heroColor}`}>
+                      {formatPriceInt(heroPrice)}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                      <span className="font-medium text-white">${heroPrice.toFixed(3)}</span>
+                      <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                        {priceStats.changePct >= 0 ? "+" : ""}
+                        {priceStats.changePct.toFixed(2)}%
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <RealtimeCandlestickChart
-                    tokenId={yesToken?.token_id}
-                    initialData={priceHistory}
-                    historyBaseInterval={historyBaseInterval}
-                    height={0}
-                    defaultTimeframe={selectedTimeframe}
-                    onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                    defaultChartMode="candle"
-                  />
-                )}
+
+                  <div className="grid min-w-[160px] grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
+                      <div className="text-[#707480]">高</div>
+                      <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.high)}</div>
+                    </div>
+                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
+                      <div className="text-[#707480]">低</div>
+                      <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.low)}</div>
+                    </div>
+                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
+                      <div className="text-[#707480]">结算</div>
+                      <div className="mt-1 text-white">{settlementLabel}</div>
+                    </div>
+                    <div className="rounded-2xl bg-[#0f1015] px-3 py-2">
+                      <div className="text-[#707480]">Tick</div>
+                      <div className="mt-1 text-white">{market.tickSize || "0.01"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setMobileTradeSide("yes")}
+                    className={`rounded-2xl px-4 py-3 text-left transition ${
+                      mobileTradeSide === "yes"
+                        ? "border border-[#0ECB81]/30 bg-[#0ECB81]/12"
+                        : "border border-[#232632] bg-[#111319]"
+                    }`}
+                  >
+                    <div className="text-[11px] text-[#8a8e99]">Yes</div>
+                    <div className="mt-1 text-2xl font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
+                  </button>
+                  <button
+                    onClick={() => setMobileTradeSide("no")}
+                    className={`rounded-2xl px-4 py-3 text-left transition ${
+                      mobileTradeSide === "no"
+                        ? "border border-[#F6465D]/30 bg-[#F6465D]/12"
+                        : "border border-[#232632] bg-[#111319]"
+                    }`}
+                  >
+                    <div className="text-[11px] text-[#8a8e99]">No</div>
+                    <div className="mt-1 text-2xl font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</div>
+                  </button>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+                  <span className="rounded-full bg-[#1a1c25] px-2.5 py-1 text-[#c6cad3]">Binance 风格移动详情</span>
+                  <span className="rounded-full bg-[#1a1c25] px-2.5 py-1 text-[#c6cad3]">盘口优先</span>
+                  <span className="rounded-full bg-[#1a1c25] px-2.5 py-1 text-[#c6cad3]">{market.negRisk ? "Neg Risk" : "标准市场"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 lg:flex-1 lg:min-h-0">
+              <div className="rounded-[28px] border border-[#232632] bg-[#15161c] p-2 lg:h-full lg:rounded-[20px]">
+                <div className="h-[420px] lg:h-full">
+                  {historyLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#F3BA2F]" />
+                    </div>
+                  ) : (
+                    <RealtimeCandlestickChart
+                      tokenId={yesToken?.token_id}
+                      initialData={priceHistory}
+                      historyBaseInterval={historyBaseInterval}
+                      height={0}
+                      defaultTimeframe={selectedTimeframe}
+                      onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                      defaultChartMode="candle"
+                      allowedTimeframes={allowedTimeframes}
+                      compactMobile
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
             <div className="hidden shrink-0 px-3 pb-3 lg:block">
               <div className="flex items-center gap-3 text-xs">
                 {market.tokens?.map((token) => (
-                  <div key={token.token_id} className="flex items-center gap-2 rounded bg-[#1a1a1f] px-2 py-1">
-                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                      token.outcome === "Yes"
-                        ? "bg-[#00D4AA]/20 text-[#00D4AA]"
-                        : "bg-[#FF6B6B]/20 text-[#FF6B6B]"
-                    }`}>
+                  <div key={token.token_id} className="flex items-center gap-2 rounded-xl bg-[#15161c] px-3 py-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        token.outcome === "Yes"
+                          ? "bg-[#0ECB81]/15 text-[#0ECB81]"
+                          : "bg-[#F6465D]/15 text-[#F6465D]"
+                      }`}
+                    >
                       {token.outcome}
                     </span>
-                    <span className="font-mono text-[10px] text-[#666]">
-                      {token.token_id.slice(0, 12)}...
-                    </span>
+                    <span className="font-mono text-[10px] text-[#666]">{formatCompactId(token.token_id, 10)}</span>
                     <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
                   </div>
                 ))}
                 {market.description && (
                   <span className="ml-2 truncate text-[#666]" title={market.description}>
-                    {market.description.slice(0, 60)}...
+                    {market.description.slice(0, 80)}...
                   </span>
                 )}
               </div>
             </div>
           </section>
 
-          <aside className="order-2 w-full border-t border-[#222] lg:w-80 lg:shrink-0 lg:border-t-0 lg:overflow-y-auto">
-            <div className="grid grid-cols-1 gap-3 p-2 sm:p-3 lg:grid-cols-1">
-              <QuickTradePanelCompact
-                marketTitle={market.title}
-                yesPrice={yesPrice}
-                noPrice={noPrice}
-                yesTokenId={yesToken?.token_id}
-                noTokenId={noToken?.token_id}
-                tickSize={market.tickSize || "0.01"}
-                negRisk={market.negRisk || false}
-              />
-
-              <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
-                <h3 className="mb-2 text-sm font-semibold text-white">订单簿</h3>
+          <aside className="order-2 w-full border-t border-[#1d2028] lg:w-[360px] lg:shrink-0 lg:border-t-0 lg:overflow-y-auto">
+            <div className="grid grid-cols-1 gap-3 p-3">
+              <div className="order-1 rounded-[24px] border border-[#22252f] bg-[#15161c] p-4" id="depth-panel">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white">买卖区</h3>
+                  <span className="text-[11px] text-[#7c818d]">Yes 深度</span>
+                </div>
                 {yesToken?.token_id ? (
-                  <RealtimeOrderBook
-                    tokenId={yesToken.token_id}
-                    maxDepth={6}
-                    showHeader
-                  />
+                  <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
                 ) : (
-                  <p className="py-2 text-center text-xs text-[#666]">暂无数据</p>
+                  <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                 )}
               </div>
 
-              <PositionsPanelCompact />
+              <div ref={tradePanelRef} className="order-2" id="trade-panel">
+                <QuickTradePanelCompact
+                  marketTitle={market.title}
+                  yesPrice={yesPrice}
+                  noPrice={noPrice}
+                  yesTokenId={yesToken?.token_id}
+                  noTokenId={noToken?.token_id}
+                  tickSize={market.tickSize || "0.01"}
+                  negRisk={market.negRisk || false}
+                  selectedSide={mobileTradeSide}
+                  onSelectedSideChange={setMobileTradeSide}
+                />
+              </div>
 
-              <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
-                <h3 className="mb-2 text-sm font-semibold text-white">市场信息</h3>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-[#666]">ID</span>
-                    <span className="font-mono text-[#888]">{marketIdLabel}</span>
+              <div className="order-3">
+                <PositionsPanelCompact />
+              </div>
+
+              <div className="order-4 rounded-[24px] border border-[#22252f] bg-[#15161c] p-4" id="info-panel">
+                <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[#7b7f8a]">Market ID</span>
+                    <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
                   </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-[#666]">结算</span>
-                    <span className="text-white">{settlementLabel}</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[#7b7f8a]">结算时间</span>
+                    <span className="text-white">{settlementDetailLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[#7b7f8a]">Tick Size</span>
+                    <span className="text-white">{market.tickSize || "0.01"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[#7b7f8a]">Neg Risk</span>
+                    <span className="text-white">{market.negRisk ? "Yes" : "No"}</span>
                   </div>
                   {market.description && (
-                    <div className="border-t border-[#222] pt-2 text-[#888]">
-                      {market.description}
-                    </div>
+                    <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{market.description}</div>
                   )}
                 </div>
               </div>
             </div>
           </aside>
         </main>
+
+        <div className="sticky bottom-0 z-20 border-t border-[#1f222b] bg-[#0d0d0f]/95 p-3 backdrop-blur lg:hidden">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => jumpToTradePanel("yes")}
+              className="rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black"
+            >
+              买入 Yes · {formatPriceInt(yesPrice)}
+            </button>
+            <button
+              onClick={() => jumpToTradePanel("no")}
+              className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
+            >
+              买入 No · {formatPriceInt(noPrice)}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
