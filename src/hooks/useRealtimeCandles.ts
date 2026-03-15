@@ -274,25 +274,13 @@ export function useMultiTimeframeCandles({
           for (const msg of messageArray) {
             // New schema: batched changes under price_changes[]
             if (msg.event_type === "price_change" && Array.isArray(msg.price_changes)) {
-              const relevantChanges = msg.price_changes.filter(
-                (change: { asset_id?: string }) => change.asset_id === tokenId
-              );
-              if (relevantChanges.length > 0) {
-                const timestamp = parseWsTimestampToMs(msg.timestamp);
-                let bestBid: number | null = null;
-                let bestAsk: number | null = null;
+              const timestamp = parseWsTimestampToMs(msg.timestamp);
 
-                for (const change of relevantChanges) {
-            if (msg.event_type === "price_change" && Array.isArray(msg.price_changes)) {
               for (const change of msg.price_changes) {
                 if (change.asset_id !== tokenId) continue;
                 const price = parseUnitPrice(change.price);
                 if (price === null) continue;
-                const timestamp = parseWsTimestampToMs(msg.timestamp);
                 processTradePrice(price, timestamp);
-              }
-            }
-                }
               }
             }
 
@@ -346,7 +334,7 @@ export function useMultiTimeframeCandles({
     } catch (error) {
       console.error("WebSocket connection error:", error);
     }
-  }, [tokenId, wsUrl, processPrice, processQuotePrice, processTradePrice]);
+  }, [tokenId, wsUrl, processPrice, processTradePrice]);
 
   useEffect(() => {
     reconnectRef.current = connect;
@@ -644,16 +632,6 @@ export function aggregateCandlesToHigherTimeframe(
       existing.high = Math.max(existing.high, candle.high);
       existing.low = Math.min(existing.low, candle.low);
       existing.close = candle.close;
-    }
-  });
-
-  return Array.from(aggregatedMap.values()).sort(
-    (a, b) => (a.time as number) - (b.time as number)
-  );
-}
-
-export { INTERVAL_SECONDS, ALL_INTERVALS };
-= candle.close;
     }
   });
 

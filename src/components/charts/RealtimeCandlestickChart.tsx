@@ -23,6 +23,7 @@ interface RealtimeCandlestickChartProps {
   onTimeframeChange?: (tf: TimeframeType) => void;
   defaultChartMode?: ChartMode;
   allowedTimeframes?: TimeframeType[];
+  enableRealtime?: boolean;
 }
 
 const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: string }> = {
@@ -362,4 +363,3 @@ export function RealtimeCandlestickChart({
 }
 
 export { aggregateCandlesToHigherTimeframe };
-};

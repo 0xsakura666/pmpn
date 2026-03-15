@@ -5,6 +5,7 @@ import Link from "next/link";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
+import { PositionsPanel } from "@/components/trading/PositionsPanel";
 import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, Check } from "lucide-react";
 import { Time, CandlestickData } from "lightweight-charts";
 import {
@@ -248,7 +249,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     : "--";
   const yesPrice = selectedMarket?.yesPrice || 0.5;
   const noPrice = selectedMarket?.noPrice || 0.5;
-  const allowedTimeframes = getAvailableChartTimeframes(selectedMarket?.endDate);
 
   if (loading) {
     return (
@@ -342,7 +342,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 )}
               </div>
 
-              <QuickTradePanelCompact
+              <QuickTradePanel
                 marketTitle={selectedMarket?.question || event.title}
                 yesPrice={yesPrice}
                 noPrice={noPrice}
@@ -352,7 +352,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 negRisk={false}
               />
 
-              <PositionsPanelCompact />
+              <PositionsPanel />
 
               <div className="rounded-xl border border-[#222] bg-[#1a1a1f] p-3 text-xs text-[#999]">
                 {event.description && <div>{event.description}</div>}
@@ -386,7 +386,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
           <aside className="order-2 hidden w-full border-t border-[#222] lg:block lg:w-80 lg:shrink-0 lg:border-t-0 lg:overflow-y-auto">
             <div className="grid grid-cols-1 gap-3 p-3">
-              <QuickTradePanelCompact
+              <QuickTradePanel
                 marketTitle={selectedMarket?.question || event.title}
                 yesPrice={yesPrice}
                 noPrice={noPrice}
@@ -405,7 +405,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 )}
               </div>
 
-              <PositionsPanelCompact />
+              <PositionsPanel />
 
               <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
                 <h3 className="mb-2 text-sm font-semibold text-white">事件信息</h3>
