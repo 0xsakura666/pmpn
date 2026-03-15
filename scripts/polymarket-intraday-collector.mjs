@@ -236,7 +236,17 @@ class Collector {
 
     this.ws.onmessage = (event) => {
       try {
-        const payload = JSON.parse(event.data);
+        const raw = typeof event.data === "string" ? event.data : event.data?.toString?.("utf8") || String(event.data);
+        const trimmed = raw.trim();
+
+        // Some server/control replies are plain text (e.g. invalid/notice lines) instead of JSON.
+        // They are noisy but non-fatal for our collector; ignore them quietly.
+        if (!trimmed || (trimmed[0] !== "{" && trimmed[0] !== "[")) {
+          console.debug("[collector] ignoring non-json websocket message:", trimmed.slice(0, 120));
+          return;
+        }
+
+        const payload = JSON.parse(trimmed);
         const messages = Array.isArray(payload) ? payload : [payload];
         for (const message of messages) {
           this.handleMessage(message);
