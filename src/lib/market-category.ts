@@ -1,3 +1,10 @@
+export interface MarketTag {
+  label?: string;
+  slug?: string;
+  forceShow?: boolean;
+  forceHide?: boolean;
+}
+
 const POLITICS_KEYWORDS =
   /trump|biden|election|president|vote|congress|senate|governor|republican|democrat|kamala|harris|white house|supreme court|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan/i;
 
@@ -16,18 +23,93 @@ const TECH_KEYWORDS =
 const ENTERTAINMENT_KEYWORDS =
   /movie|movies|oscar|grammy|music|celebrity|tv|show|netflix|disney|streaming|hollywood|box office|album|song|series/i;
 
-export function categorizeMarket(...parts: Array<string | undefined | null>): string {
+const IGNORED_TAG_SLUGS = new Set([
+  "featured",
+  "parent-for-derivative",
+  "earn-4",
+  "2024-predictions",
+  "2025-predictions",
+  "2026-predictions",
+]);
+
+const CATEGORY_PRIORITY: Array<{ label: string; pattern: RegExp }> = [
+  { label: "CS2", pattern: /counter[-\s]?strike|cs2|iem|blast|major/i },
+  { label: "LoL", pattern: /league of legends|league-of-legends|lol esports|lck|lpl|lcs|lec|msi|worlds/i },
+  { label: "VALORANT", pattern: /valorant|vct/i },
+  { label: "Dota 2", pattern: /dota 2|dota|the international/i },
+  { label: "NBA", pattern: /nba|basketball/i },
+  { label: "NFL", pattern: /nfl|super bowl|american football/i },
+  { label: "MLB", pattern: /mlb|baseball/i },
+  { label: "NHL", pattern: /nhl|stanley cup|hockey/i },
+  { label: "Soccer", pattern: /soccer|football|premier league|champions league|laliga|bundesliga|serie a|uefa|world cup/i },
+  { label: "Tennis", pattern: /tennis|atp|wta|grand slam/i },
+  { label: "UFC", pattern: /ufc|mma/i },
+  { label: "Fed Rates", pattern: /fed[-\s]?rates|federal reserve|interest rates?|fed/i },
+  { label: "Stocks", pattern: /stocks?|nasdaq|s&p|dow|ipo|equities/i },
+  { label: "Politics", pattern: /politics|elections?|us election|world elections|global elections|primaries/i },
+  { label: "Crypto", pattern: /crypto|bitcoin|btc|ethereum|eth|solana|xrp|doge/i },
+  { label: "Tech", pattern: /tech|ai|openai|anthropic|claude|gpt|tesla|nvidia|apple|google|meta|amazon/i },
+  { label: "Entertainment", pattern: /entertainment|movie|music|tv|celebrity|oscar|grammy/i },
+  { label: "World", pattern: /world|geopolitics|middle east|israel|ukraine|russia|china|taiwan/i },
+];
+
+function fallbackCategoryFromText(...parts: Array<string | undefined | null>): string {
   const text = parts
     .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
     .join(" ")
     .toLowerCase();
 
   if (!text) return "其他";
-  if (POLITICS_KEYWORDS.test(text)) return "政治";
-  if (CRYPTO_KEYWORDS.test(text)) return "加密";
-  if (SPORTS_KEYWORDS.test(text)) return "体育";
-  if (ECONOMY_KEYWORDS.test(text)) return "经济";
-  if (TECH_KEYWORDS.test(text)) return "科技";
-  if (ENTERTAINMENT_KEYWORDS.test(text)) return "娱乐";
+  if (POLITICS_KEYWORDS.test(text)) return "Politics";
+  if (CRYPTO_KEYWORDS.test(text)) return "Crypto";
+  if (SPORTS_KEYWORDS.test(text)) return "Sports";
+  if (ECONOMY_KEYWORDS.test(text)) return "Economy";
+  if (TECH_KEYWORDS.test(text)) return "Tech";
+  if (ENTERTAINMENT_KEYWORDS.test(text)) return "Entertainment";
   return "其他";
+}
+
+function normalizeTagLabel(tag: MarketTag): string | null {
+  const label = (tag.label || "").trim();
+  const slug = (tag.slug || "").trim().toLowerCase();
+  if (!label && !slug) return null;
+  if (slug && IGNORED_TAG_SLUGS.has(slug)) return null;
+
+  const haystack = `${label} ${slug}`.trim();
+  for (const candidate of CATEGORY_PRIORITY) {
+    if (candidate.pattern.test(haystack)) {
+      return candidate.label;
+    }
+  }
+
+  if (!label) return null;
+  if (label.length > 24) return null;
+  return label;
+}
+
+export function deriveMarketCategory(
+  tags: MarketTag[] | undefined,
+  ...parts: Array<string | undefined | null>
+): string {
+  const normalizedTags = (tags || [])
+    .map(normalizeTagLabel)
+    .filter((tag): tag is string => Boolean(tag));
+
+  if (normalizedTags.length > 0) {
+    return normalizedTags[0];
+  }
+
+  return fallbackCategoryFromText(...parts);
+}
+
+export function extractMarketTags(tags: MarketTag[] | undefined): string[] {
+  const normalized = (tags || [])
+    .map(normalizeTagLabel)
+    .filter((tag): tag is string => Boolean(tag));
+
+  return Array.from(new Set(normalized)).slice(0, 6);
+}
+
+export function categorizeMarket(...parts: Array<string | undefined | null>): string {
+  return fallbackCategoryFromText(...parts);
 }

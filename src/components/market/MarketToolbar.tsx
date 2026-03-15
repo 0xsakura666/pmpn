@@ -3,7 +3,7 @@
 import { RefreshCw, LayoutGrid, List, Flame, BarChart3, Clock, Timer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { CATEGORIES, type SortOption, type ViewMode } from "./types";
+import { type CategoryFilter, type SortOption, type ViewMode } from "./types";
 
 const sortOptions: { value: SortOption; label: string; Icon: typeof Flame }[] = [
   { value: "Trending", label: "热门", Icon: Flame },
@@ -20,6 +20,7 @@ interface MarketToolbarProps {
   categoryFilter: string;
   onCategoryChange: (category: string) => void;
   categoryCounts: Record<string, number>;
+  categoryOptions: CategoryFilter[];
   sortBy: SortOption;
   onSortChange: (sort: SortOption) => void;
   viewMode: ViewMode;
@@ -36,6 +37,7 @@ export function MarketToolbar({
   categoryFilter,
   onCategoryChange,
   categoryCounts,
+  categoryOptions,
   sortBy,
   onSortChange,
   viewMode,
@@ -74,7 +76,7 @@ export function MarketToolbar({
 
       {/* Category Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        {CATEGORIES.map(({ value, label }) => {
+        {categoryOptions.map(({ value, label }) => {
           const count = categoryCounts[value] || 0;
           const isActive = categoryFilter === value;
           return (

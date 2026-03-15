@@ -41,6 +41,7 @@ interface CandlestickChartProps {
   lastPrice?: number | null;
   chartMode?: ChartMode;
   resetViewKey?: string;
+  preferredVisibleBars?: number;
 }
 
 function formatCents(value: number, precision = 2) {

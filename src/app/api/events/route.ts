@@ -82,6 +82,7 @@ interface EventGroup {
   volume24h: number;
   totalVolume: number;
   liquidity: number;
+  tags?: string[];
   markets: Array<{
     conditionId: string;
     question: string;

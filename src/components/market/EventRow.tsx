@@ -34,6 +34,11 @@ export const EventRow = memo(function EventRow({ event }: { event: EventGroup })
                   短期
                 </Badge>
               )}
+              {event.category && event.category !== "其他" && (
+                <Badge variant="default" size="xs">
+                  {event.category}
+                </Badge>
+              )}
               {event.markets.length > 1 && (
                 <Badge variant="default" size="xs">
                   {event.markets.length} 个市场

@@ -38,6 +38,17 @@ const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: str
 
 const REALTIME_TIMEFRAMES: TimeframeType[] = ["1S", "5S", "15S", "1M"];
 const HIGHER_TIMEFRAMES: TimeframeType[] = ["5M", "15M", "1H", "4H", "1D"];
+const PREFERRED_VISIBLE_BARS: Record<TimeframeType, number> = {
+  "1S": 180,
+  "5S": 180,
+  "15S": 160,
+  "1M": 120,
+  "5M": 120,
+  "15M": 96,
+  "1H": 72,
+  "4H": 60,
+  "1D": 60,
+};
 
 function formatCents(value: number, precision = 2) {
   return `${(value * 100).toFixed(precision)}¢`;

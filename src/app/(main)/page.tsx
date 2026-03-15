@@ -9,6 +9,7 @@ import {
   EventCard,
   EventRow,
   MarketToolbar,
+  type CategoryFilter,
   type EventGroup,
   type SortOption,
   type ViewMode,
@@ -257,6 +258,19 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     return counts;
   }, [events]);
 
+  const categoryOptions = useMemo<CategoryFilter[]>(() => {
+    const dynamic = Object.entries(categoryCounts)
+      .filter(([value]) => value !== "all")
+      .sort((a, b) => {
+        if (b[1] !== a[1]) return b[1] - a[1];
+        return a[0].localeCompare(b[0]);
+      })
+      .slice(0, 12)
+      .map(([value]) => ({ value, label: value }));
+
+    return [{ value: "all", label: "全部" }, ...dynamic];
+  }, [categoryCounts]);
+
   const shortTermCount = useMemo(() => events.filter((ev) => Boolean(ev.isShortTerm)).length, [events]);
 
   const sortedEvents = useMemo(() => {
@@ -346,6 +360,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           categoryFilter={categoryFilter}
           onCategoryChange={setCategoryFilter}
           categoryCounts={categoryCounts}
+          categoryOptions={categoryOptions}
           sortBy={sortBy}
           onSortChange={setSortBy}
           viewMode={viewMode}

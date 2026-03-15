@@ -37,11 +37,18 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
             <img src={event.image} alt="" className="h-8 w-8 shrink-0 rounded-[var(--radius-lg)] object-cover" />
           )}
           <div className="min-w-0 flex-1">
-            {event.isShortTerm && (
-              <div className="mb-1 inline-flex rounded-full bg-[var(--brand-primary-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-primary)]">
-                短期
-              </div>
-            )}
+            <div className="mb-1 flex flex-wrap gap-1">
+              {event.isShortTerm && (
+                <div className="inline-flex rounded-full bg-[var(--brand-primary-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-primary)]">
+                  短期
+                </div>
+              )}
+              {event.category && event.category !== "其他" && (
+                <div className="inline-flex rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]">
+                  {event.category}
+                </div>
+              )}
+            </div>
             <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors">
               {event.title}
             </h3>
