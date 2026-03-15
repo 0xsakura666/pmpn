@@ -1,4 +1,5 @@
 import { Pool } from "@neondatabase/serverless";
+import WebSocket from "ws";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const GAMMA_API = process.env.POLYMARKET_GAMMA_API || "https://gamma-api.polymarket.com";
