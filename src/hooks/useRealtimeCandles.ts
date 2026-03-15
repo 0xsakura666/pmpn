@@ -239,15 +239,6 @@ export function useMultiTimeframeCandles({
     [updateCandleForInterval]
   );
 
-  const processQuotePrice = useCallback(
-    (price: number, timestamp: number) => {
-      const last = lastPriceRef.current;
-      if (!isReasonablePriceJump(price, last, 0.25)) return;
-      processPrice(price, timestamp);
-    },
-    [processPrice]
-  );
-
   const processTradePrice = useCallback(
     (price: number, timestamp: number) => {
       const last = lastPriceRef.current;
@@ -292,58 +283,33 @@ export function useMultiTimeframeCandles({
                 let bestAsk: number | null = null;
 
                 for (const change of relevantChanges) {
-                  const bid = parseUnitPrice((change as { best_bid?: unknown }).best_bid);
-                  const ask = parseUnitPrice((change as { best_ask?: unknown }).best_ask);
-                  if (bid !== null) bestBid = bid;
-                  if (ask !== null) bestAsk = ask;
-                }
-
-                if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
-                  processQuotePrice((bestBid + bestAsk) / 2, timestamp);
-                } else if (bestBid !== null) {
-                  processQuotePrice(bestBid, timestamp);
-                } else if (bestAsk !== null) {
-                  processQuotePrice(bestAsk, timestamp);
+            if (msg.event_type === "price_change" && Array.isArray(msg.price_changes)) {
+              for (const change of msg.price_changes) {
+                if (change.asset_id !== tokenId) continue;
+                const price = parseUnitPrice(change.price);
+                if (price === null) continue;
+                const timestamp = parseWsTimestampToMs(msg.timestamp);
+                processTradePrice(price, timestamp);
+              }
+            }
                 }
               }
             }
 
             // Legacy schema: single change
             if (msg.event_type === "price_change" && msg.asset_id === tokenId) {
-              const bestBid = parseUnitPrice(msg.best_bid);
-              const bestAsk = parseUnitPrice(msg.best_ask);
+              const price = parseUnitPrice(msg.price);
+              if (price === null) continue;
               const timestamp = parseWsTimestampToMs(msg.timestamp);
-
-              if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
-                processQuotePrice((bestBid + bestAsk) / 2, timestamp);
-              } else if (bestBid !== null) {
-                processQuotePrice(bestBid, timestamp);
-              } else if (bestAsk !== null) {
-                processQuotePrice(bestAsk, timestamp);
-              } else {
-                const price = parseUnitPrice(msg.price);
-                if (price === null) continue;
-                const timestamp = parseWsTimestampToMs(msg.timestamp);
-                processQuotePrice(price, timestamp);
-              }
+              processTradePrice(price, timestamp);
             }
 
             // Orderbook snapshot updates should prefer mid-price from top of book.
             if (msg.event_type === "book" && msg.asset_id === tokenId) {
               const timestamp = parseWsTimestampToMs(msg.timestamp);
-              const bestBid = getTopBookPrice(msg.bids, "bestBid");
-              const bestAsk = getTopBookPrice(msg.asks, "bestAsk");
-
-              if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
-                const spread = bestAsk - bestBid;
-                if (spread <= 0.1) {
-                  processQuotePrice((bestBid + bestAsk) / 2, timestamp);
-                }
-              } else {
-                const lastTrade = parseUnitPrice(msg.last_trade_price);
-                if (lastTrade !== null) {
-                  processTradePrice(lastTrade, timestamp);
-                }
+              const lastTrade = parseUnitPrice(msg.last_trade_price);
+              if (lastTrade !== null) {
+                processTradePrice(lastTrade, timestamp);
               }
             }
 
@@ -678,6 +644,16 @@ export function aggregateCandlesToHigherTimeframe(
       existing.high = Math.max(existing.high, candle.high);
       existing.low = Math.min(existing.low, candle.low);
       existing.close = candle.close;
+    }
+  });
+
+  return Array.from(aggregatedMap.values()).sort(
+    (a, b) => (a.time as number) - (b.time as number)
+  );
+}
+
+export { INTERVAL_SECONDS, ALL_INTERVALS };
+= candle.close;
     }
   });
 
