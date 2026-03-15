@@ -13,6 +13,7 @@ import {
   type TimeframeType,
 } from "@/lib/chart-timeframe";
 import {
+  getAvailableChartTimeframes,
   getRecommendedChartTimeframe,
   getShortTermStartTs,
 } from "@/lib/short-term-chart";
@@ -234,6 +235,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [selectedMarket, selectedTimeframe, fetchPriceHistory]);
 
+  const allowedTimeframes = getAvailableChartTimeframes(selectedMarket?.endDate);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
@@ -376,6 +379,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   defaultTimeframe={selectedTimeframe}
                   onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                   defaultChartMode="candle"
+                  allowedTimeframes={allowedTimeframes}
                 />
               )}
             </div>

@@ -4,7 +4,6 @@ import { use, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
-import { WalletButton } from "@/components/auth/ConnectWallet";
 import { Time, CandlestickData } from "lightweight-charts";
 import { usePolymarket, usePolymarketTrade, usePolymarketPositions, usePolymarketOrders } from "@/hooks/usePolymarket";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
@@ -14,6 +13,7 @@ import {
   type TimeframeType,
 } from "@/lib/chart-timeframe";
 import {
+  getAvailableChartTimeframes,
   getRecommendedChartTimeframe,
   getShortTermStartTs,
 } from "@/lib/short-term-chart";
@@ -607,6 +607,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const noToken = market.tokens?.find(t => t.outcome === "No");
   const yesPrice = yesToken?.price || 0.5;
   const noPrice = noToken?.price || 0.5;
+  const allowedTimeframes = getAvailableChartTimeframes(market.endDate);
   const marketIdLabel = market.id ? `${market.id.slice(0, 12)}...` : "--";
   const settlementLabel = market.endDate ? new Date(market.endDate).toLocaleDateString("zh-CN") : "--";
 
@@ -634,8 +635,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-3">
-              <div className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#222] bg-[#1a1a1f] px-3 py-1.5 sm:flex-none sm:justify-start">
+            <div className="flex items-center justify-end gap-2 sm:gap-3">
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-[#222] bg-[#1a1a1f] px-3 py-1.5 sm:justify-start">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-[#666]">Yes</span>
                   <span className="text-sm font-bold text-[#00D4AA]">{Math.round(yesPrice * 100)}¢</span>
@@ -646,7 +647,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   <span className="text-sm font-bold text-[#FF6B6B]">{Math.round(noPrice * 100)}¢</span>
                 </div>
               </div>
-              <WalletButton />
             </div>
           </div>
         </header>

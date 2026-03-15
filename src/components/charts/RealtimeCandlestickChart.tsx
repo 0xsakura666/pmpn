@@ -22,6 +22,7 @@ interface RealtimeCandlestickChartProps {
   defaultTimeframe?: TimeframeType;
   onTimeframeChange?: (tf: TimeframeType) => void;
   defaultChartMode?: ChartMode;
+  allowedTimeframes?: TimeframeType[];
 }
 
 const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: string }> = {
@@ -50,8 +51,8 @@ const PREFERRED_VISIBLE_BARS: Record<TimeframeType, number> = {
   "1D": 60,
 };
 
-function formatCents(value: number, precision = 2) {
-  return `${(value * 100).toFixed(precision)}¢`;
+function formatUsd(value: number, precision = 3) {
+  return `$${value.toFixed(precision)}`;
 }
 
 function normalizeCandleTimeToSeconds(rawTime: Time): number | null {
@@ -116,9 +117,12 @@ export function RealtimeCandlestickChart({
   defaultTimeframe = "1M",
   onTimeframeChange,
   defaultChartMode = "candle",
+  allowedTimeframes,
 }: RealtimeCandlestickChartProps) {
   const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
+  const visibleRealtimeTimeframes = (allowedTimeframes || REALTIME_TIMEFRAMES).filter((tf) => REALTIME_TIMEFRAMES.includes(tf));
+  const visibleHigherTimeframes = (allowedTimeframes || HIGHER_TIMEFRAMES).filter((tf) => HIGHER_TIMEFRAMES.includes(tf));
   const [chartMode, setChartMode] = useState<ChartMode>(defaultChartMode);
 
   const config = TIMEFRAME_CONFIG[selectedTimeframe];
@@ -218,7 +222,7 @@ export function RealtimeCandlestickChart({
             {/* Realtime Timeframes */}
             <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
             <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">实时</span>
-            {REALTIME_TIMEFRAMES.map((tf) => (
+            {visibleRealtimeTimeframes.map((tf) => (
               <button
                 key={tf}
                 onClick={() => handleTimeframeChange(tf)}
@@ -315,11 +319,11 @@ export function RealtimeCandlestickChart({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">H:</span>
-            <span className="font-mono text-[#00D4AA]">{formatCents(candleStats.high, 2)}</span>
+            <span className="font-mono text-[#00D4AA]">{formatUsd(candleStats.high, 3)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">L:</span>
-            <span className="font-mono text-[#FF6B6B]">{formatCents(candleStats.low, 2)}</span>
+            <span className="font-mono text-[#FF6B6B]">{formatUsd(candleStats.low, 3)}</span>
           </div>
         </div>
       )}
@@ -347,10 +351,10 @@ export function RealtimeCandlestickChart({
             <span className="text-[#666]">当前K线</span>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <span className="text-[#666]">O:<span className="text-white ml-1">{formatCents(displayCurrentCandle.open, 2)}</span></span>
-            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatCents(displayCurrentCandle.high, 2)}</span></span>
-            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatCents(displayCurrentCandle.low, 2)}</span></span>
-            <span className="text-[#666]">C:<span className="text-white ml-1">{formatCents(displayCurrentCandle.close, 2)}</span></span>
+            <span className="text-[#666]">O:<span className="text-white ml-1">{formatUsd(displayCurrentCandle.open, 3)}</span></span>
+            <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatUsd(displayCurrentCandle.high, 3)}</span></span>
+            <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatUsd(displayCurrentCandle.low, 3)}</span></span>
+            <span className="text-[#666]">C:<span className="text-white ml-1">{formatUsd(displayCurrentCandle.close, 3)}</span></span>
           </div>
         </div>
       )}
