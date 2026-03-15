@@ -1,51 +1,58 @@
 const TRANSLATE_CACHE = new Map<string, string>();
 
-// 使用 CORS 代理绕过 DNS 污染
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+async function safeParseTranslateResponse(response: Response): Promise<string | null> {
+  const text = await response.text();
+  if (!text || text.includes("The quota has been exceeded")) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(text);
+    let translated = "";
+    if (data && data[0]) {
+      for (const segment of data[0]) {
+        if (segment?.[0]) {
+          translated += segment[0];
+        }
+      }
+    }
+    return translated || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function translateToZh(text: string): Promise<string> {
   if (!text || text.trim() === "") return text;
-  
-  // 检查缓存
+
   const cacheKey = text.trim();
   if (TRANSLATE_CACHE.has(cacheKey)) {
     return TRANSLATE_CACHE.get(cacheKey)!;
   }
 
   try {
-    // 使用 Google Translate 免费 API (通过 CORS 代理)
+    // 服务器侧请求无需走 CORS 代理；直连更稳定，也避免第三方代理 quota 问题。
     const googleUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
-    const url = `${CORS_PROXY}${encodeURIComponent(googleUrl)}`;
-    
-    const response = await fetch(url, {
+    const response = await fetch(googleUrl, {
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json,text/plain,*/*",
+        "User-Agent": "Mozilla/5.0 (compatible; TectonicBot/1.0)",
       },
+      cache: "force-cache",
+      next: { revalidate: 60 * 60 * 24 * 7 },
     });
 
     if (!response.ok) {
-      console.warn("Translation failed, returning original text");
       return text;
     }
 
-    const data = await response.json();
-    
-    // Google Translate 返回格式: [[["翻译结果","原文",null,null,10]],null,"en",...]
-    let translated = "";
-    if (data && data[0]) {
-      for (const segment of data[0]) {
-        if (segment[0]) {
-          translated += segment[0];
-        }
-      }
+    const translated = await safeParseTranslateResponse(response);
+    if (!translated) {
+      return text;
     }
 
-    if (translated) {
-      TRANSLATE_CACHE.set(cacheKey, translated);
-      return translated;
-    }
-
-    return text;
+    TRANSLATE_CACHE.set(cacheKey, translated);
+    return translated;
   } catch (error) {
     console.error("Translation error:", error);
     return text;
@@ -71,9 +78,7 @@ export async function translateMarket(market: {
 
   let outcomes = market.outcomes;
   if (market.outcomes && market.outcomes.length > 0) {
-    outcomes = await Promise.all(
-      market.outcomes.map((outcome) => translateToZh(outcome))
-    );
+    outcomes = await Promise.all(market.outcomes.map((outcome) => translateToZh(outcome)));
   }
 
   return {

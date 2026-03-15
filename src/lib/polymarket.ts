@@ -1,5 +1,6 @@
 import { resolveBinaryOutcomeMapping } from "@/lib/binary-outcome";
 import { extractPolymarketEventSlug, normalizePolymarketMarketIdentifier } from "@/lib/polymarket-reference";
+import { fetchPolymarketAPI } from "@/lib/polymarket-api";
 
 const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || "https://clob.polymarket.com";
 const POLYMARKET_GAMMA_API = process.env.POLYMARKET_GAMMA_API || "https://gamma-api.polymarket.com";

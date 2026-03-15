@@ -611,146 +611,143 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const settlementLabel = market.endDate ? new Date(market.endDate).toLocaleDateString("zh-CN") : "--";
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#0d0d0f] text-white">
-      {/* Compact Header */}
-      <header className="shrink-0 border-b border-[#222] bg-[#0d0d0f]">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-lg font-bold text-[#00D4AA]">
-              Tectonic
-            </Link>
-            <Link href="/" className="text-[#666] hover:text-white text-xs">
-              ← 返回
-            </Link>
-            <div className="h-4 w-px bg-[#333]" />
-            {market.image && (
-              <img src={market.image} alt="" className="w-6 h-6 rounded object-cover" />
-            )}
-            <h1 className="text-sm font-medium text-white truncate max-w-md">
-              {market.title}
-            </h1>
-            <span className="text-xs text-[#666]">
-              截止 {settlementLabel}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Compact Yes/No Prices */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1a1a1f] border border-[#222]">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-[#666]">Yes</span>
-                <span className="text-sm font-bold text-[#00D4AA]">{Math.round(yesPrice * 100)}¢</span>
-              </div>
-              <div className="h-3 w-px bg-[#333]" />
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-[#666]">No</span>
-                <span className="text-sm font-bold text-[#FF6B6B]">{Math.round(noPrice * 100)}¢</span>
-              </div>
-            </div>
-            <WalletButton />
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content - fills remaining height */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left: Chart Section */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-[#222]">
-          {/* Realtime Chart - takes most space */}
-          <div className="flex-1 p-3 min-h-0">
-            <div className="h-full bg-[#1a1a1f] rounded-lg border border-[#222] p-2">
-              {historyLoading ? (
-                <div className="h-full flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4AA]" />
-                </div>
-              ) : (
-                <RealtimeCandlestickChart
-                  tokenId={yesToken?.token_id}
-                  initialData={priceHistory}
-                  historyBaseInterval={historyBaseInterval}
-                  height={0}
-                  defaultTimeframe={selectedTimeframe}
-                  onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                  defaultChartMode="candle"
-                />
+    <div className="min-h-screen bg-[#0d0d0f] text-white lg:h-screen lg:overflow-hidden">
+      <div className="flex min-h-screen flex-col lg:h-screen">
+        <header className="shrink-0 border-b border-[#222] bg-[#0d0d0f]">
+          <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:justify-between lg:py-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
+              <Link href="/" className="text-base font-bold text-[#00D4AA] sm:text-lg">
+                Tectonic
+              </Link>
+              <Link href="/" className="text-xs text-[#666] hover:text-white">
+                ← 返回
+              </Link>
+              <div className="hidden h-4 w-px bg-[#333] sm:block" />
+              {market.image && (
+                <img src={market.image} alt="" className="h-6 w-6 rounded object-cover" />
               )}
+              <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-white lg:max-w-[32rem]">
+                {market.title}
+              </h1>
+              <span className="text-xs text-[#666]">
+                截止 {settlementLabel}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-3">
+              <div className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#222] bg-[#1a1a1f] px-3 py-1.5 sm:flex-none sm:justify-start">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-[#666]">Yes</span>
+                  <span className="text-sm font-bold text-[#00D4AA]">{Math.round(yesPrice * 100)}¢</span>
+                </div>
+                <div className="h-3 w-px bg-[#333]" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-[#666]">No</span>
+                  <span className="text-sm font-bold text-[#FF6B6B]">{Math.round(noPrice * 100)}¢</span>
+                </div>
+              </div>
+              <WalletButton />
             </div>
           </div>
+        </header>
 
-          {/* Bottom info bar */}
-          <div className="shrink-0 px-3 pb-3">
-            <div className="flex items-center gap-3 text-xs">
-              {market.tokens?.map((token) => (
-                <div key={token.token_id} className="flex items-center gap-2 px-2 py-1 rounded bg-[#1a1a1f]">
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                    token.outcome === "Yes" 
-                      ? "bg-[#00D4AA]/20 text-[#00D4AA]" 
-                      : "bg-[#FF6B6B]/20 text-[#FF6B6B]"
-                  }`}>
-                    {token.outcome}
+        <main className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+          <section className="order-1 flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#222]">
+            <div className="p-2 sm:p-3 lg:flex-1 lg:min-h-0">
+              <div className="h-[360px] rounded-lg border border-[#222] bg-[#1a1a1f] p-2 sm:h-[430px] lg:h-full">
+                {historyLoading ? (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#00D4AA]" />
+                  </div>
+                ) : (
+                  <RealtimeCandlestickChart
+                    tokenId={yesToken?.token_id}
+                    initialData={priceHistory}
+                    historyBaseInterval={historyBaseInterval}
+                    height={0}
+                    defaultTimeframe={selectedTimeframe}
+                    onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                    defaultChartMode="candle"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="hidden shrink-0 px-3 pb-3 lg:block">
+              <div className="flex items-center gap-3 text-xs">
+                {market.tokens?.map((token) => (
+                  <div key={token.token_id} className="flex items-center gap-2 rounded bg-[#1a1a1f] px-2 py-1">
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                      token.outcome === "Yes"
+                        ? "bg-[#00D4AA]/20 text-[#00D4AA]"
+                        : "bg-[#FF6B6B]/20 text-[#FF6B6B]"
+                    }`}>
+                      {token.outcome}
+                    </span>
+                    <span className="font-mono text-[10px] text-[#666]">
+                      {token.token_id.slice(0, 12)}...
+                    </span>
+                    <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
+                  </div>
+                ))}
+                {market.description && (
+                  <span className="ml-2 truncate text-[#666]" title={market.description}>
+                    {market.description.slice(0, 60)}...
                   </span>
-                  <span className="font-mono text-[#666] text-[10px]">
-                    {token.token_id.slice(0, 12)}...
-                  </span>
-                  <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
-                </div>
-              ))}
-              {market.description && (
-                <span className="text-[#666] truncate ml-2" title={market.description}>
-                  {market.description.slice(0, 60)}...
-                </span>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          </section>
 
-        {/* Right: Trading Sidebar - compact */}
-        <div className="w-80 flex flex-col overflow-y-auto">
-          <div className="p-3 space-y-3">
-            {/* Quick Trade */}
-            <QuickTradePanelCompact
-              marketTitle={market.title}
-              yesPrice={yesPrice}
-              noPrice={noPrice}
-              yesTokenId={yesToken?.token_id}
-              noTokenId={noToken?.token_id}
-              tickSize={market.tickSize || "0.01"}
-              negRisk={market.negRisk || false}
-            />
+          <aside className="order-2 w-full border-t border-[#222] lg:w-80 lg:shrink-0 lg:border-t-0 lg:overflow-y-auto">
+            <div className="grid grid-cols-1 gap-3 p-2 sm:p-3 lg:grid-cols-1">
+              <QuickTradePanelCompact
+                marketTitle={market.title}
+                yesPrice={yesPrice}
+                noPrice={noPrice}
+                yesTokenId={yesToken?.token_id}
+                noTokenId={noToken?.token_id}
+                tickSize={market.tickSize || "0.01"}
+                negRisk={market.negRisk || false}
+              />
 
-            {/* Order Book - compact */}
-            <div className="bg-[#1a1a1f] rounded-lg p-3 border border-[#222]">
-              <h3 className="font-semibold text-sm mb-2 text-white">订单簿</h3>
-              {yesToken?.token_id ? (
-                <RealtimeOrderBook
-                  tokenId={yesToken.token_id}
-                  maxDepth={8}
-                  showHeader
-                />
-              ) : (
-                <p className="text-xs text-[#666] text-center py-2">暂无数据</p>
-              )}
-            </div>
+              <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
+                <h3 className="mb-2 text-sm font-semibold text-white">订单簿</h3>
+                {yesToken?.token_id ? (
+                  <RealtimeOrderBook
+                    tokenId={yesToken.token_id}
+                    maxDepth={6}
+                    showHeader
+                  />
+                ) : (
+                  <p className="py-2 text-center text-xs text-[#666]">暂无数据</p>
+                )}
+              </div>
 
-            {/* Positions - compact */}
-            <PositionsPanelCompact />
+              <PositionsPanelCompact />
 
-            {/* Market Info - compact */}
-            <div className="bg-[#1a1a1f] rounded-lg p-3 border border-[#222]">
-              <h3 className="font-semibold text-sm mb-2 text-white">市场信息</h3>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#666]">ID</span>
-                  <span className="font-mono text-[#888]">{marketIdLabel}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#666]">结算</span>
-                  <span className="text-white">{settlementLabel}</span>
+              <div className="rounded-lg border border-[#222] bg-[#1a1a1f] p-3">
+                <h3 className="mb-2 text-sm font-semibold text-white">市场信息</h3>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#666]">ID</span>
+                    <span className="font-mono text-[#888]">{marketIdLabel}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#666]">结算</span>
+                    <span className="text-white">{settlementLabel}</span>
+                  </div>
+                  {market.description && (
+                    <div className="border-t border-[#222] pt-2 text-[#888]">
+                      {market.description}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </main>
+          </aside>
+        </main>
+      </div>
     </div>
   );
 }

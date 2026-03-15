@@ -201,10 +201,11 @@ export function RealtimeCandlestickChart({
   return (
     <div className={`${useAutoHeight ? "h-full flex flex-col" : "space-y-3"}`}>
       {/* Timeframe Selector */}
-      <div className={`flex items-center justify-between flex-wrap gap-2 ${useAutoHeight ? "shrink-0 mb-2" : ""}`}>
-        <div className="flex gap-1 flex-wrap">
-          {/* Realtime Timeframes */}
-          <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
+      <div className={`flex flex-col gap-2 ${useAutoHeight ? "shrink-0 mb-2" : ""} sm:flex-row sm:items-center sm:justify-between`}>
+        <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max gap-1">
+            {/* Realtime Timeframes */}
+            <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
             <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">实时</span>
             {REALTIME_TIMEFRAMES.map((tf) => (
               <button
@@ -221,27 +222,28 @@ export function RealtimeCandlestickChart({
             ))}
           </div>
 
-          {/* Higher Timeframes */}
-          <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
-            <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">聚合</span>
-            {HIGHER_TIMEFRAMES.map((tf) => (
-              <button
-                key={tf}
-                onClick={() => handleTimeframeChange(tf)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                  selectedTimeframe === tf
-                    ? "bg-[#7B61FF] text-white shadow-lg shadow-[#7B61FF]/20"
-                    : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
+            {/* Higher Timeframes */}
+            <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
+              <span className="px-1.5 py-1 text-[10px] text-[#444] font-medium">聚合</span>
+              {HIGHER_TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => handleTimeframeChange(tf)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                    selectedTimeframe === tf
+                      ? "bg-[#7B61FF] text-white shadow-lg shadow-[#7B61FF]/20"
+                      : "text-[#666] hover:text-white hover:bg-[#2a2a2f]"
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Chart Mode Toggle & Status */}
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center justify-between gap-2 text-xs sm:justify-end">
           {/* Chart Mode Toggle */}
           <div className="flex gap-0.5 p-1 bg-[#0d0d0f] rounded-lg">
             <button
@@ -280,16 +282,16 @@ export function RealtimeCandlestickChart({
               {isConnected ? "实时" : "离线"}
             </span>
           </div>
-          <span className="text-[#333]">|</span>
-          <span className="text-[#555]">{displayCandles.length} {chartMode === "candle" ? "K线" : "点"}</span>
-          <span className="text-[#333]">|</span>
-          <span className="text-[#555]">{tickCount} ticks</span>
+          <span className="hidden sm:inline text-[#333]">|</span>
+          <span className="hidden sm:inline text-[#555]">{displayCandles.length} {chartMode === "candle" ? "K线" : "点"}</span>
+          <span className="hidden sm:inline text-[#333]">|</span>
+          <span className="hidden sm:inline text-[#555]">{tickCount} ticks</span>
         </div>
       </div>
 
       {/* Stats Bar */}
       {candleStats && (
-        <div className={`flex items-center gap-4 px-2 py-1.5 bg-[#0d0d0f] rounded-lg text-xs ${useAutoHeight ? "shrink-0 mb-2" : ""}`}>
+        <div className={`grid grid-cols-2 gap-2 px-2 py-1.5 bg-[#0d0d0f] rounded-lg text-xs sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${useAutoHeight ? "shrink-0 mb-2" : ""}`}>
           <div className="flex items-center gap-1.5">
             <span className="text-[#666]">周期:</span>
             <span className="text-white font-medium">{config.label}</span>
@@ -328,12 +330,12 @@ export function RealtimeCandlestickChart({
 
       {/* Current Candle Info */}
       {displayCurrentCandle && (
-        <div className={`flex items-center justify-between text-xs px-2 py-1.5 bg-[#0d0d0f]/50 rounded-lg ${useAutoHeight ? "shrink-0 mt-2" : ""}`}>
-          <div className="flex items-center gap-1">
+        <div className={`rounded-lg bg-[#0d0d0f]/50 px-2 py-1.5 text-xs ${useAutoHeight ? "shrink-0 mt-2" : ""}`}>
+          <div className="mb-1 flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-[#00D4AA] animate-pulse" />
             <span className="text-[#666]">当前K线</span>
           </div>
-          <div className="flex items-center gap-3 font-mono">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <span className="text-[#666]">O:<span className="text-white ml-1">{formatCents(displayCurrentCandle.open, 2)}</span></span>
             <span className="text-[#666]">H:<span className="text-[#00D4AA] ml-1">{formatCents(displayCurrentCandle.high, 2)}</span></span>
             <span className="text-[#666]">L:<span className="text-[#FF6B6B] ml-1">{formatCents(displayCurrentCandle.low, 2)}</span></span>
