@@ -7,6 +7,11 @@
   border-color: var(--border-default);
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   background: var(--bg-base);
   color: var(--text-primary);
@@ -15,6 +20,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: "kern" 1, "liga" 1;
+  overscroll-behavior: none;
 }
 
 .glass {
@@ -98,6 +104,14 @@ body {
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@media (max-width: 1023px) {
+  body.mobile-locked,
+  .mobile-locked {
+    overflow: hidden;
+    touch-action: manipulation;
+  }
 }
 
 @font-face {

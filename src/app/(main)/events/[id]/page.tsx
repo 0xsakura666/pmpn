@@ -673,8 +673,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0f] text-white lg:h-screen lg:overflow-hidden">
-      <div className="flex min-h-screen flex-col lg:h-screen">
+    <div className="mobile-locked h-[100dvh] overflow-hidden bg-[#0d0d0f] text-white">
+      <div className="flex h-full flex-col">
         <header className="sticky top-0 z-20 shrink-0 border-b border-[#1d2028] bg-[#0d0d0f]/95 backdrop-blur">
           <div className="hidden items-center justify-between gap-4 px-4 py-3 lg:flex">
             <div className="flex min-w-0 items-center gap-3">
@@ -735,8 +735,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </header>
 
-        <main className="flex-1 pb-24 lg:flex lg:overflow-hidden lg:pb-0">
-          <div className="lg:hidden">
+        <main className="flex-1 overflow-hidden pb-24 lg:flex lg:pb-0">
+          <div className="h-full lg:hidden">
             <div className="px-3 pt-3">
               <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div className="flex min-w-max gap-2">
@@ -768,7 +768,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {mobileTab === "price" && (
-              <div className="space-y-3 px-3 pt-2">
+              <div className="flex h-full flex-col overflow-hidden px-3 pt-2 pb-28">
                 <div className="overflow-hidden rounded-[22px] border border-[#20242d] bg-[#12161c]">
                   <div className="border-b border-[#20242d] px-4 py-3">
                     <div className="flex items-end justify-between gap-3">
@@ -828,8 +828,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-[24px] bg-transparent">
-                  <div className="h-[460px]">
+                <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
+                  <div className="h-full min-h-[52dvh]">
                     {historyLoading ? (
                       <div className="flex h-full items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
@@ -904,7 +904,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {mobileTab === "trade" && (
-              <div className="p-3">
+              <div className="h-full overflow-y-auto p-3 pb-28">
                 <QuickTradePanelCompact
                   marketTitle={selectedMarket?.question || event.title}
                   yesPrice={yesPrice}
