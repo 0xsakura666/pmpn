@@ -341,7 +341,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div className="mt-1 flex items-end justify-between">
                   <div className="text-2xl font-bold text-[#00D4AA]">
-                    {Math.round(selectedMarket.yesPrice * 100)}¢
+                    {Math.round(selectedMarket.yesPrice * 100)}
                   </div>
                   <div className="text-xs text-[#666]">
                     {Math.round(selectedMarket.yesPrice * 100)}%
@@ -355,7 +355,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div className="mt-1 flex items-end justify-between">
                   <div className="text-2xl font-bold text-[#FF6B6B]">
-                    {Math.round(selectedMarket.noPrice * 100)}¢
+                    {Math.round(selectedMarket.noPrice * 100)}
                   </div>
                   <div className="text-xs text-[#666]">
                     {Math.round(selectedMarket.noPrice * 100)}%

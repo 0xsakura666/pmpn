@@ -71,12 +71,12 @@ export const EventRow = memo(function EventRow({ event }: { event: EventGroup })
         <div className="flex items-center justify-end gap-2" onClick={(e) => e.preventDefault()}>
           <Link href={primaryMarketLink}>
             <Button variant="success" size="xs">
-              Yes {yp}¢
+              Yes {yp}
             </Button>
           </Link>
           <Link href={primaryMarketLink}>
             <Button variant="danger" size="xs">
-              No {100 - yp}¢
+              No {100 - yp}
             </Button>
           </Link>
         </div>

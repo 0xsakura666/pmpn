@@ -188,7 +188,7 @@ function QuickTradePanelCompact({
                 selectedSide === "yes" ? "bg-[#00D4AA] text-black" : "bg-[#0d0d0f] text-[#888] hover:bg-[#00D4AA]/20"
               }`}
             >
-              Yes {Math.round(yesPrice * 100)}¢
+              Yes {Math.round(yesPrice * 100)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
@@ -196,7 +196,7 @@ function QuickTradePanelCompact({
                 selectedSide === "no" ? "bg-[#FF6B6B] text-black" : "bg-[#0d0d0f] text-[#888] hover:bg-[#FF6B6B]/20"
               }`}
             >
-              No {Math.round(noPrice * 100)}¢
+              No {Math.round(noPrice * 100)}
             </button>
           </div>
 
@@ -639,12 +639,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               <div className="flex items-center justify-center gap-2 rounded-lg border border-[#222] bg-[#1a1a1f] px-3 py-1.5 sm:justify-start">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-[#666]">Yes</span>
-                  <span className="text-sm font-bold text-[#00D4AA]">{Math.round(yesPrice * 100)}¢</span>
+                  <span className="text-sm font-bold text-[#00D4AA]">{Math.round(yesPrice * 100)}</span>
                 </div>
                 <div className="h-3 w-px bg-[#333]" />
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-[#666]">No</span>
-                  <span className="text-sm font-bold text-[#FF6B6B]">{Math.round(noPrice * 100)}¢</span>
+                  <span className="text-sm font-bold text-[#FF6B6B]">{Math.round(noPrice * 100)}</span>
                 </div>
               </div>
             </div>

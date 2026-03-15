@@ -169,7 +169,7 @@ export function UnifiedTradePanel({
                   : "bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--color-up-muted)]"
               )}
             >
-              Yes {Math.round(yesPrice * 100)}¢
+              Yes {Math.round(yesPrice * 100)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
@@ -180,7 +180,7 @@ export function UnifiedTradePanel({
                   : "bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--color-down-muted)]"
               )}
             >
-              No {Math.round(noPrice * 100)}¢
+              No {Math.round(noPrice * 100)}
             </button>
           </div>
 

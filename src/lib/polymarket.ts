@@ -6,9 +6,6 @@ const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || "https://clob.polym
 const POLYMARKET_GAMMA_API = process.env.POLYMARKET_GAMMA_API || "https://gamma-api.polymarket.com";
 const POLYMARKET_DATA_API = process.env.POLYMARKET_DATA_API || "https://data-api.polymarket.com";
 
-// 使用 CORS 代理绕过 DNS 污染
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
-
 export interface PolymarketMarket {
   condition_id: string;
   question: string;
@@ -117,28 +114,8 @@ class PolymarketService {
   }
 
   private async request<T>(url: string): Promise<T> {
-    // 使用 CORS 代理绕过 DNS 污染
-    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-    console.log(`[Polymarket] Fetching via proxy: ${url}`);
-
     try {
-      const response = await fetch(proxyUrl, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
-        cache: "no-store",
-        next: { revalidate: 0 },
-      } as RequestInit);
-
-      console.log(`[Polymarket] Response status: ${response.status}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Polymarket] Error response: ${errorText}`);
-        throw new Error(`Polymarket API error: ${response.status} ${response.statusText}`);
-      }
-      return response.json();
+      return await fetchPolymarketAPI<T>(url, { timeout: 15000, useFallback: true });
     } catch (error) {
       console.error(`[Polymarket] Fetch error:`, error);
 

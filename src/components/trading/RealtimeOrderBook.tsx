@@ -389,7 +389,7 @@ export function RealtimeOrderBook({
           </span>
           {lastPrice && (
             <span className="font-mono">
-              最新: {(lastPrice * 100).toFixed(2)}¢
+              最新: {Math.round(lastPrice * 100)}
             </span>
           )}
         </div>
@@ -399,13 +399,13 @@ export function RealtimeOrderBook({
         <span>
           买一:{" "}
           <span className="font-mono text-[#00D4AA]">
-            {bestBidPrice != null ? `${(bestBidPrice * 100).toFixed(2)}¢` : "--"}
+            {bestBidPrice != null ? `${Math.round(bestBidPrice * 100)}` : "--"}
           </span>
         </span>
         <span className="text-center">
           卖一:{" "}
           <span className="font-mono text-[#FF6B6B]">
-            {bestAskPrice != null ? `${(bestAskPrice * 100).toFixed(2)}¢` : "--"}
+            {bestAskPrice != null ? `${Math.round(bestAskPrice * 100)}` : "--"}
           </span>
         </span>
         <span className="text-right font-mono">
@@ -485,7 +485,7 @@ function OrderRow({
           [type === "bid" ? "left" : "right"]: 0,
         }}
       />
-      <span className={`relative ${textColor}`}>{(price * 100).toFixed(2)}¢</span>
+      <span className={`relative ${textColor}`}>{Math.round(price * 100)}</span>
       <span className="relative text-white/80">
         {size >= 1000 ? `${(size / 1000).toFixed(1)}K` : size.toFixed(0)}
       </span>
