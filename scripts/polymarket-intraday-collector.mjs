@@ -1,4 +1,4 @@
-import { Pool } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
 import WebSocket from "ws";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -16,6 +16,10 @@ if (!DATABASE_URL) {
   console.error("[collector] Missing DATABASE_URL");
   process.exit(1);
 }
+
+// Node 18 on Railway does not provide a global WebSocket constructor for the
+// Neon serverless driver. Wire it explicitly so pooled writes can connect.
+neonConfig.webSocketConstructor = WebSocket;
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 
