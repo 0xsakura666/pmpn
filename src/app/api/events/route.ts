@@ -88,6 +88,8 @@ interface EventGroup {
     question: string;
     yesPrice: number;
     noPrice: number;
+    yesLabel: string;
+    noLabel: string;
     endDate: string;
     slug: string;
     daysLeft: number;
@@ -176,7 +178,7 @@ function transformEvent(event: RawEvent, fallbackId: number): EventGroup | null 
     const endDate = m.endDate || eventEndDate || "";
     if (isExpiredByDate(endDate)) continue;
 
-    const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+    const { yesPrice, noPrice, yesTokenId, noTokenId, yesLabel, noLabel } = resolveBinaryOutcomeMapping({
       outcomes: m.outcomes,
       outcomePrices: m.outcomePrices,
       clobTokenIds: m.clobTokenIds,
@@ -187,6 +189,8 @@ function transformEvent(event: RawEvent, fallbackId: number): EventGroup | null 
       question: m.question || title,
       yesPrice,
       noPrice,
+      yesLabel,
+      noLabel,
       endDate,
       slug: m.slug || "",
       daysLeft: calculateDaysLeft(endDate),
@@ -228,7 +232,7 @@ function transformPriorityMarket(market: RawPriorityMarket, fallbackId: number):
 
   if (!conditionId || !title || isExpiredByDate(endDate)) return null;
 
-  const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+  const { yesPrice, noPrice, yesTokenId, noTokenId, yesLabel, noLabel } = resolveBinaryOutcomeMapping({
     outcomes: market.outcomes,
     outcomePrices: market.outcomePrices,
     clobTokenIds: market.clobTokenIds,
@@ -256,6 +260,8 @@ function transformPriorityMarket(market: RawPriorityMarket, fallbackId: number):
         question: title,
         yesPrice,
         noPrice,
+        yesLabel,
+        noLabel,
         endDate,
         slug: market.slug || "",
         daysLeft: calculateDaysLeft(endDate),

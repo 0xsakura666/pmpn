@@ -55,7 +55,7 @@ interface NormalizedMarketPayload {
 }
 
 function buildTokens(market: RawGammaMarket) {
-  const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+  const { yesPrice, noPrice, yesTokenId, noTokenId, yesLabel, noLabel } = resolveBinaryOutcomeMapping({
     outcomes: market.outcomes,
     outcomePrices: market.outcomePrices,
     clobTokenIds: market.clobTokenIds,
@@ -63,10 +63,10 @@ function buildTokens(market: RawGammaMarket) {
 
   return [
     yesTokenId
-      ? { token_id: yesTokenId, outcome: "Yes", price: yesPrice, winner: false }
+      ? { token_id: yesTokenId, outcome: yesLabel, price: yesPrice, winner: false }
       : null,
     noTokenId
-      ? { token_id: noTokenId, outcome: "No", price: noPrice, winner: false }
+      ? { token_id: noTokenId, outcome: noLabel, price: noPrice, winner: false }
       : null,
   ].filter((token): token is NonNullable<typeof token> => token !== null);
 }

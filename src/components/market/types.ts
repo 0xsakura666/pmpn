@@ -3,6 +3,8 @@ export interface SubMarket {
   question: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel: string;
+  noLabel: string;
   endDate: string;
   slug: string;
   daysLeft: number;

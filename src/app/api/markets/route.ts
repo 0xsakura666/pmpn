@@ -46,6 +46,8 @@ interface TransformedMarket {
   image: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel: string;
+  noLabel: string;
   volume24h: number;
   totalVolume: number;
   liquidity: number;
@@ -95,7 +97,7 @@ export async function GET(request: NextRequest) {
           const endDate = (market.endDate || event.endDate || "") as string;
           if (endDate && new Date(endDate).getTime() < now) continue;
 
-          const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+          const { yesPrice, noPrice, yesTokenId, noTokenId, yesLabel, noLabel } = resolveBinaryOutcomeMapping({
             outcomes: market.outcomes,
             outcomePrices: market.outcomePrices,
             clobTokenIds: market.clobTokenIds,
@@ -124,6 +126,8 @@ export async function GET(request: NextRequest) {
             image: (event.image || "") as string,
             yesPrice,
             noPrice,
+            yesLabel,
+            noLabel,
             volume24h: parseFloat((event.volume24hr as string) || "0"),
             totalVolume: parseFloat((event.volume as string) || "0"),
             liquidity: parseFloat((event.liquidity as string) || "0"),

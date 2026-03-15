@@ -67,9 +67,9 @@ export async function GET(
         });
         if (marketRes.ok) {
           const market = await marketRes.json();
-          const yesToken = market.tokens?.find((t: { outcome: string }) => t.outcome === "Yes");
-          if (yesToken) {
-            tokenId = yesToken.token_id;
+          const primaryToken = Array.isArray(market.tokens) ? market.tokens[0] : null;
+          if (primaryToken?.token_id) {
+            tokenId = primaryToken.token_id;
             setCachedValue(`market-token:${id}`, tokenId, 60_000);
           }
         }

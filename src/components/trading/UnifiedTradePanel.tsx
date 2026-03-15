@@ -11,6 +11,8 @@ interface UnifiedTradePanelProps {
   marketTitle?: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel?: string;
+  noLabel?: string;
   yesTokenId?: string;
   noTokenId?: string;
   tickSize?: string;
@@ -23,6 +25,8 @@ interface UnifiedTradePanelProps {
 export function UnifiedTradePanel({
   yesPrice,
   noPrice,
+  yesLabel = "Yes",
+  noLabel = "No",
   yesTokenId,
   noTokenId,
   tickSize = "0.01",
@@ -169,7 +173,7 @@ export function UnifiedTradePanel({
                   : "bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--color-up-muted)]"
               )}
             >
-              Yes {Math.round(yesPrice * 100)}
+              {yesLabel} {Math.round(yesPrice * 100)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
@@ -180,7 +184,7 @@ export function UnifiedTradePanel({
                   : "bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--color-down-muted)]"
               )}
             >
-              No {Math.round(noPrice * 100)}
+              {noLabel} {Math.round(noPrice * 100)}
             </button>
           </div>
 
@@ -242,7 +246,7 @@ export function UnifiedTradePanel({
             fullWidth
             size={isCompact ? "md" : "lg"}
           >
-            买入 {selectedSide.toUpperCase()}
+            买入 {selectedSide === "yes" ? yesLabel : noLabel}
           </Button>
 
           {/* Token ID Warning */}

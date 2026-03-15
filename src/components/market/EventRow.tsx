@@ -10,6 +10,9 @@ import type { EventGroup } from "./types";
 export const EventRow = memo(function EventRow({ event }: { event: EventGroup }) {
   const primary = event.markets[0];
   const yp = Math.round(primary.yesPrice * 100);
+  const np = Math.round(primary.noPrice * 100);
+  const yesLabel = primary.yesLabel || "Yes";
+  const noLabel = primary.noLabel || "No";
   const eventLink = `/events/${event.id}`;
   const primaryMarketLink = primary?.conditionId ? `/markets/${primary.conditionId}` : eventLink;
 
@@ -51,7 +54,7 @@ export const EventRow = memo(function EventRow({ event }: { event: EventGroup })
         <div>
           <div className="mb-1 flex items-baseline gap-1.5">
             <span className="text-sm font-bold text-[var(--color-up)]">{yp}%</span>
-            <span className="text-[11px] text-[var(--text-disabled)]">Yes</span>
+            <span className="text-[11px] text-[var(--text-disabled)]">{yesLabel}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
             <div className="h-full rounded-full bg-[var(--color-up)]" style={{ width: `${yp}%` }} />
@@ -71,12 +74,12 @@ export const EventRow = memo(function EventRow({ event }: { event: EventGroup })
         <div className="flex items-center justify-end gap-2" onClick={(e) => e.preventDefault()}>
           <Link href={primaryMarketLink}>
             <Button variant="success" size="xs">
-              Yes {yp}
+              {yesLabel} {yp}
             </Button>
           </Link>
           <Link href={primaryMarketLink}>
             <Button variant="danger" size="xs">
-              No {100 - yp}
+              {noLabel} {np}
             </Button>
           </Link>
         </div>

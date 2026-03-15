@@ -66,6 +66,8 @@ function setCache(events: EventGroup[], hasMore: boolean, nextOffset: number | n
               image: ev.image,
               yesPrice: m.yesPrice,
               noPrice: m.noPrice,
+              yesLabel: m.yesLabel,
+              noLabel: m.noLabel,
               volume24h: ev.volume24h,
               totalVolume: ev.totalVolume,
               liquidity: ev.liquidity,

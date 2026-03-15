@@ -72,7 +72,7 @@ export async function GET(
       const endDate = market.endDate || eventEndDate || "";
       if (isExpiredByDate(endDate)) continue;
 
-      const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+      const { yesPrice, noPrice, yesTokenId, noTokenId, yesLabel, noLabel } = resolveBinaryOutcomeMapping({
         outcomes: market.outcomes,
         outcomePrices: market.outcomePrices,
         clobTokenIds: market.clobTokenIds,
@@ -83,6 +83,8 @@ export async function GET(
         question: market.question || title,
         yesPrice,
         noPrice,
+        yesLabel,
+        noLabel,
         endDate,
         slug: market.slug || "",
         daysLeft: calculateDaysLeft(endDate),

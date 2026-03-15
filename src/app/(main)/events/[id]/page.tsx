@@ -24,6 +24,8 @@ interface SubMarket {
   question: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel: string;
+  noLabel: string;
   endDate: string;
   slug: string;
   daysLeft: number;
@@ -69,6 +71,8 @@ function QuickTradePanelCompact({
   marketTitle,
   yesPrice,
   noPrice,
+  yesLabel = "Yes",
+  noLabel = "No",
   yesTokenId,
   noTokenId,
   tickSize = "0.01",
@@ -79,6 +83,8 @@ function QuickTradePanelCompact({
   marketTitle: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel?: string;
+  noLabel?: string;
   yesTokenId?: string;
   noTokenId?: string;
   tickSize?: string;
@@ -209,7 +215,7 @@ function QuickTradePanelCompact({
                   : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#0ECB81]/15"
               }`}
             >
-              买 Yes {formatPriceInt(yesPrice)}
+              买 {yesLabel} {formatPriceInt(yesPrice)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
@@ -219,7 +225,7 @@ function QuickTradePanelCompact({
                   : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#F6465D]/15"
               }`}
             >
-              买 No {formatPriceInt(noPrice)}
+              买 {noLabel} {formatPriceInt(noPrice)}
             </button>
           </div>
 
@@ -293,7 +299,7 @@ function QuickTradePanelCompact({
               selectedSide === "yes" ? "bg-[#0ECB81] text-black" : "bg-[#F6465D] text-white"
             } disabled:opacity-50`}
           >
-            {isSubmitting ? "提交中..." : `买入 ${selectedSide.toUpperCase()}`}
+            {isSubmitting ? "提交中..." : `买入 ${selectedSide === "yes" ? yesLabel : noLabel}`}
           </button>
         </div>
       )}
@@ -596,6 +602,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const yesPrice = selectedMarket?.yesPrice || 0.5;
   const noPrice = selectedMarket?.noPrice || 0.5;
+  const yesLabel = selectedMarket?.yesLabel || "Yes";
+  const noLabel = selectedMarket?.noLabel || "No";
   const allowedTimeframes: TimeframeType[] = selectedMarket?.endDate
     ? getAvailableChartTimeframes(selectedMarket.endDate)
     : ["5M"];
@@ -678,10 +686,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             <div className="flex items-center gap-2 rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-sm">
-              <span className="text-[#8a8f9c]">Yes</span>
+              <span className="text-[#8a8f9c]">{yesLabel}</span>
               <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
               <span className="text-[#333845]">/</span>
-              <span className="text-[#8a8f9c]">No</span>
+              <span className="text-[#8a8f9c]">{noLabel}</span>
               <span className="font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</span>
             </div>
           </div>
@@ -742,8 +750,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         <div className="line-clamp-2 text-sm font-medium text-white">{market.question}</div>
                         <div className="mt-3 flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-[#0ECB81]/12 px-2 py-1 text-[#0ECB81]">Yes {formatPriceInt(market.yesPrice)}</span>
-                            <span className="rounded-full bg-[#F6465D]/12 px-2 py-1 text-[#F6465D]">No {formatPriceInt(market.noPrice)}</span>
+                            <span className="rounded-full bg-[#0ECB81]/12 px-2 py-1 text-[#0ECB81]">{market.yesLabel || "Yes"} {formatPriceInt(market.yesPrice)}</span>
+                            <span className="rounded-full bg-[#F6465D]/12 px-2 py-1 text-[#F6465D]">{market.noLabel || "No"} {formatPriceInt(market.noPrice)}</span>
                           </div>
                           <span className="text-[#7d818d]">{market.daysLeft}d</span>
                         </div>
@@ -799,7 +807,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         : "border border-[#232632] bg-[#111319]"
                     }`}
                   >
-                    <div className="text-[11px] text-[#8a8e99]">Yes</div>
+                    <div className="text-[11px] text-[#8a8e99]">{yesLabel}</div>
                     <div className="mt-1 text-2xl font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
                   </button>
                   <button
@@ -810,7 +818,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         : "border border-[#232632] bg-[#111319]"
                     }`}
                   >
-                    <div className="text-[11px] text-[#8a8e99]">No</div>
+                    <div className="text-[11px] text-[#8a8e99]">{noLabel}</div>
                     <div className="mt-1 text-2xl font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</div>
                   </button>
                 </div>
@@ -848,7 +856,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               <div className="order-1 rounded-[24px] border border-[#22252f] bg-[#15161c] p-4" id="depth-panel">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                  <span className="text-[11px] text-[#7c818d]">Yes 深度</span>
+                  <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
                 </div>
                 {selectedMarket?.yesTokenId ? (
                   <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={6} showHeader />
@@ -862,6 +870,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   marketTitle={selectedMarket?.question || event.title}
                   yesPrice={yesPrice}
                   noPrice={noPrice}
+                  yesLabel={yesLabel}
+                  noLabel={noLabel}
                   yesTokenId={selectedMarket?.yesTokenId}
                   noTokenId={selectedMarket?.noTokenId}
                   tickSize="0.01"
@@ -913,13 +923,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               onClick={() => jumpToTradePanel("yes")}
               className="rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black"
             >
-              买入 Yes · {formatPriceInt(yesPrice)}
+              买入 {yesLabel} · {formatPriceInt(yesPrice)}
             </button>
             <button
               onClick={() => jumpToTradePanel("no")}
               className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
             >
-              买入 No · {formatPriceInt(noPrice)}
+              买入 {noLabel} · {formatPriceInt(noPrice)}
             </button>
           </div>
         </div>

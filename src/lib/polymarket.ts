@@ -245,7 +245,7 @@ class PolymarketService {
   private parseTokens(market: RawGammaMarket): Array<{ token_id: string; outcome: string; price: number; winner: boolean }> {
     const tokens: Array<{ token_id: string; outcome: string; price: number; winner: boolean }> = [];
 
-    const { yesPrice, noPrice, yesTokenId, noTokenId } = resolveBinaryOutcomeMapping({
+    const { yesPrice, noPrice, yesTokenId, noTokenId, yesLabel, noLabel } = resolveBinaryOutcomeMapping({
       outcomes: market.outcomes,
       outcomePrices: market.outcomePrices,
       clobTokenIds: market.clobTokenIds,
@@ -254,7 +254,7 @@ class PolymarketService {
     if (yesTokenId) {
       tokens.push({
         token_id: yesTokenId,
-        outcome: "Yes",
+        outcome: yesLabel,
         price: yesPrice,
         winner: false,
       });
@@ -262,7 +262,7 @@ class PolymarketService {
     if (noTokenId) {
       tokens.push({
         token_id: noTokenId,
-        outcome: "No",
+        outcome: noLabel,
         price: noPrice,
         winner: false,
       });

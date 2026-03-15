@@ -25,6 +25,8 @@ interface Market {
   image: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel: string;
+  noLabel: string;
   volume24h: number;
   totalVolume: number;
   endDate: string;
@@ -43,6 +45,8 @@ interface ApiMarketResponse {
   image?: string;
   yesPrice?: number | string;
   noPrice?: number | string;
+  yesLabel?: string;
+  noLabel?: string;
   volume24h?: number | string;
   totalVolume?: number | string;
   endDate?: string;
@@ -77,6 +81,8 @@ function TradePageContent() {
                 image: market.image || "",
                 yesPrice: Number(market.yesPrice ?? 0.5),
                 noPrice: Number(market.noPrice ?? (1 - Number(market.yesPrice ?? 0.5))),
+                yesLabel: market.yesLabel || "Yes",
+                noLabel: market.noLabel || "No",
                 volume24h: Number(market.volume24h ?? 0),
                 totalVolume: Number(market.totalVolume ?? 0),
                 endDate: market.endDate || "",
@@ -247,13 +253,13 @@ function TradePageContent() {
           <div className="mb-4 flex items-center justify-between rounded-xl bg-[#13131a] border border-[#1e1e28] px-4 py-3">
             <div className="flex items-center gap-6">
               <div>
-                <span className="text-xs text-[#6b6b80]">Yes 价格</span>
+                <span className="text-xs text-[#6b6b80]">{selectedMarket.yesLabel} 价格</span>
                 <p className="text-lg font-bold text-[#00D4AA]">
                   ${selectedMarket.yesPrice.toFixed(3)}
                 </p>
               </div>
               <div>
-                <span className="text-xs text-[#6b6b80]">No 价格</span>
+                <span className="text-xs text-[#6b6b80]">{selectedMarket.noLabel} 价格</span>
                 <p className="text-lg font-bold text-[#FF6B6B]">
                   ${selectedMarket.noPrice.toFixed(3)}
                 </p>
@@ -328,6 +334,8 @@ function TradePageContent() {
                 marketTitle={selectedMarket.question}
                 yesPrice={selectedMarket.yesPrice}
                 noPrice={selectedMarket.noPrice}
+                yesLabel={selectedMarket.yesLabel}
+                noLabel={selectedMarket.noLabel}
                 yesTokenId={selectedMarket.yesTokenId}
                 noTokenId={selectedMarket.noTokenId}
                 tickSize={selectedMarket.tickSize}

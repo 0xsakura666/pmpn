@@ -3,6 +3,8 @@ export interface BinaryOutcomeMapping {
   noPrice: number;
   yesTokenId: string;
   noTokenId: string;
+  yesLabel: string;
+  noLabel: string;
 }
 
 function parseStringArray(input: unknown): string[] {
@@ -82,5 +84,7 @@ export function resolveBinaryOutcomeMapping(input: {
     noPrice,
     yesTokenId,
     noTokenId,
+    yesLabel: yesEntry?.outcome || "Yes",
+    noLabel: noEntry?.outcome || "No",
   };
 }

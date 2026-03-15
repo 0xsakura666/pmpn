@@ -29,7 +29,9 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
 
   if (isSingle) {
     const yp = Math.round(primary.yesPrice * 100);
-    const np = 100 - yp;
+    const np = Math.round(primary.noPrice * 100);
+    const yesLabel = primary.yesLabel || "Yes";
+    const noLabel = primary.noLabel || "No";
     return (
       <Card hover padding="lg" className="group flex h-full flex-col">
         <Link href={primaryLink} className="mb-4 flex items-start gap-3">
@@ -59,19 +61,19 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
           <div className="mb-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
             <Link href={primaryLink} className="flex-1">
               <Button variant="success" fullWidth size="md">
-                买入 Yes
+                买入 {yesLabel}
               </Button>
             </Link>
             <Link href={primaryLink} className="flex-1">
               <Button variant="danger" fullWidth size="md">
-                买入 No
+                买入 {noLabel}
               </Button>
             </Link>
           </div>
 
           <div className="mb-4 flex justify-between text-xs">
-            <span className="text-[var(--text-subtle)]">Yes {yp}%</span>
-            <span className="text-[var(--text-subtle)]">No {np}%</span>
+            <span className="text-[var(--text-subtle)]">{yesLabel} {yp}%</span>
+            <span className="text-[var(--text-subtle)]">{noLabel} {np}%</span>
           </div>
 
           <div className="flex items-center justify-between border-t border-[var(--border-default)] pt-3">
@@ -112,6 +114,8 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
         {displayMarkets.map((m) => {
           const yp = Math.round(m.yesPrice * 100);
           const label = getSubMarketLabel(m.question, event.title) || m.question;
+          const yesLabel = m.yesLabel || "Yes";
+          const noLabel = m.noLabel || "No";
           const mLink = m.conditionId ? `/markets/${m.conditionId}` : "#";
           return (
             <div key={m.conditionId} className="flex items-center gap-2">
@@ -126,10 +130,10 @@ export const EventCard = memo(function EventCard({ event }: { event: EventGroup 
               </span>
               <div className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
                 <Link href={mLink}>
-                  <Badge variant="success" size="sm">Yes</Badge>
+                  <Badge variant="success" size="sm">{yesLabel}</Badge>
                 </Link>
                 <Link href={mLink}>
-                  <Badge variant="error" size="sm">No</Badge>
+                  <Badge variant="error" size="sm">{noLabel}</Badge>
                 </Link>
               </div>
             </div>

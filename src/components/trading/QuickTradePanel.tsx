@@ -8,6 +8,8 @@ interface QuickTradePanelProps {
   marketTitle: string;
   yesPrice: number;
   noPrice: number;
+  yesLabel?: string;
+  noLabel?: string;
   yesTokenId?: string;
   noTokenId?: string;
   tickSize?: string;
@@ -19,6 +21,8 @@ export function QuickTradePanel({
   marketTitle,
   yesPrice,
   noPrice,
+  yesLabel = "Yes",
+  noLabel = "No",
   yesTokenId,
   noTokenId,
   tickSize = "0.01",
@@ -157,7 +161,7 @@ export function QuickTradePanel({
                   : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:bg-[var(--up)]/20"
               }`}
             >
-              Yes ${yesPrice.toFixed(2)}
+              {yesLabel} ${yesPrice.toFixed(2)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
@@ -167,7 +171,7 @@ export function QuickTradePanel({
                   : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:bg-[var(--down)]/20"
               }`}
             >
-              No ${noPrice.toFixed(2)}
+              {noLabel} ${noPrice.toFixed(2)}
             </button>
           </div>
 
@@ -267,7 +271,7 @@ export function QuickTradePanel({
                 : "bg-[var(--down)] hover:bg-[var(--down)]/90 text-black"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {isSubmitting ? "提交中..." : `买入 ${selectedSide.toUpperCase()}`}
+            {isSubmitting ? "提交中..." : `买入 ${selectedSide === "yes" ? yesLabel : noLabel}`}
           </button>
 
           {/* Warning for missing token IDs */}
