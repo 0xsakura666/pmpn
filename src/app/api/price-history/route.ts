@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { POLYMARKET_ENDPOINTS } from "@/lib/polymarket-api";
+import { POLYMARKET_ENDPOINTS, fetchPolymarketAPI } from "@/lib/polymarket-api";
 import {
   getHistoryParamsForTimeframe,
   normalizeTimeframe,
@@ -99,16 +99,10 @@ export async function GET(request: NextRequest) {
     if (endTs) params.set("endTs", endTs);
 
     const url = `${POLYMARKET_ENDPOINTS.clob}/prices-history?${params.toString()}`;
-    const response = await fetch(url, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 15 },
+    const data = await fetchPolymarketAPI<unknown>(url, {
+      timeout: 15000,
+      useFallback: true,
     });
-
-    if (!response.ok) {
-      throw new Error(`Price history upstream failed: ${response.status}`);
-    }
-
-    const data: unknown = await response.json();
     const rawHistory = normalizeHistoryPayload(data);
     const candles = aggregatePriceHistoryToCandles(rawHistory, historyInterval);
     const payload: PriceHistoryPayload = {
