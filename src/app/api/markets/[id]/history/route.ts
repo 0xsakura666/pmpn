@@ -17,6 +17,20 @@ import { getIntradayCandles, supportsIntradayCollector } from "@/lib/intraday-ba
 const CLOB_API = "https://clob.polymarket.com";
 const CACHE_TTL_MS = 15_000;
 
+
+function getMaxIntradayStalenessSeconds(historyInterval: CandleInterval, fidelity: number) {
+  const fidelityLag = Number.isFinite(fidelity) && fidelity > 0 ? fidelity * 3 : 0;
+  const intervalLag = historyInterval === "1d"
+    ? 6 * 60 * 60
+    : historyInterval === "4h"
+      ? 2 * 60 * 60
+      : historyInterval === "1h"
+        ? 30 * 60
+        : 15 * 60;
+
+  return Math.max(intervalLag, fidelityLag);
+}
+
 interface HistoryPayload {
   history: Array<{ t: number; p: number }>;
   candles: CandlePoint[];
@@ -100,22 +114,33 @@ export async function GET(
         });
 
         if (intradayCandles.length > 0) {
-          const payload: HistoryPayload = {
-            history: candlesToHistory(intradayCandles),
-            candles: intradayCandles,
-            timeframe,
-            interval: requestedInterval,
-            fidelity: requestedFidelity,
-            historyInterval,
-            tokenId,
-          };
+          const lastIntradayCandle = intradayCandles[intradayCandles.length - 1];
+          const lastIntradayTime = lastIntradayCandle?.time ?? null;
+          const maxIntradayLag = getMaxIntradayStalenessSeconds(historyInterval, requestedFidelity);
+          const intradayIsFresh = lastIntradayTime !== null && nowSec - lastIntradayTime <= maxIntradayLag;
 
-          return NextResponse.json(payload, {
-            headers: {
-              "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=10",
-              "X-PMPN-History-Source": "intraday-db",
-            },
-          });
+          if (intradayIsFresh) {
+            const payload: HistoryPayload = {
+              history: candlesToHistory(intradayCandles),
+              candles: intradayCandles,
+              timeframe,
+              interval: requestedInterval,
+              fidelity: requestedFidelity,
+              historyInterval,
+              tokenId,
+            };
+
+            return NextResponse.json(payload, {
+              headers: {
+                "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=10",
+                "X-PMPN-History-Source": "intraday-db",
+              },
+            });
+          }
+
+          console.warn(
+            `[Price History] Intraday DB stale market=${id} tokenId=${tokenId} last=${lastIntradayTime} lag=${lastIntradayTime ? nowSec - lastIntradayTime : "unknown"}s max=${maxIntradayLag}s; falling back to CLOB`
+          );
         }
       } catch (intradayError) {
         console.warn("[Price History] Intraday DB fallback failed:", intradayError);

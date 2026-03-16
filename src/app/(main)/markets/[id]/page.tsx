@@ -724,10 +724,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   }, [priceHistory, currentStaticPrice]);
 
   const heroSide = mobileTradeSide;
-  const liveCurrentPrice = liveQuote.lastTradePrice ?? priceStats.last ?? currentStaticPrice;
-  const displayYesPrice = heroSide === "yes" && liveQuote.lastTradePrice != null ? liveCurrentPrice : yesPrice;
-  const displayNoPrice = heroSide === "no" && liveQuote.lastTradePrice != null ? liveCurrentPrice : noPrice;
-  const heroPrice = liveCurrentPrice;
+  const midFromBook =
+    liveQuote.bestBid != null && liveQuote.bestAsk != null
+      ? (liveQuote.bestBid + liveQuote.bestAsk) / 2
+      : null;
+  const orderBookDrivenPrice = liveQuote.lastTradePrice ?? midFromBook ?? priceStats.last ?? currentStaticPrice;
+  const heroPrice = orderBookDrivenPrice;
+  const displayYesPrice = heroSide === "yes" ? orderBookDrivenPrice : 1 - orderBookDrivenPrice;
+  const displayNoPrice = heroSide === "no" ? orderBookDrivenPrice : 1 - orderBookDrivenPrice;
   const heroLabel = currentLabel;
   const heroColor = heroSide === "yes" ? "text-[#0ECB81]" : "text-[#F6465D]";
   const combinedPrice = displayYesPrice + displayNoPrice;
@@ -883,7 +887,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                         </div>
                       ) : (
                         <RealtimeCandlestickChart
-                          tokenId={yesToken?.token_id}
+                          tokenId={currentToken?.token_id}
                           initialData={priceHistory}
                           historyBaseInterval={historyBaseInterval}
                           height={0}
@@ -891,6 +895,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                           defaultChartMode="candle"
                           allowedTimeframes={allowedTimeframes}
+                          enableRealtime={false}
                           compactMobile
                         />
                       )}
@@ -929,7 +934,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           <p className="py-6 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                         )
                       ) : (
-                        <RecentTradesPanel tokenId={yesToken?.token_id} limit={10} />
+                        <RecentTradesPanel tokenId={currentToken?.token_id} limit={10} />
                       )}
                     </div>
                   </div>
@@ -1026,7 +1031,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                       </div>
                     ) : (
                       <RealtimeCandlestickChart
-                        tokenId={yesToken?.token_id}
+                        tokenId={currentToken?.token_id}
                         initialData={priceHistory}
                         historyBaseInterval={historyBaseInterval}
                         height={0}
@@ -1034,6 +1039,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                         onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                         defaultChartMode="candle"
                         allowedTimeframes={allowedTimeframes}
+                        enableRealtime={false}
                         compactMobile
                       />
                     )}
@@ -1055,7 +1061,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                         {token.outcome}
                       </span>
                       <span className="font-mono text-[10px] text-[#666]">{formatCompactId(token.token_id, 10)}</span>
-                      <span className="font-bold text-white">${toSafePrice(token.price).toFixed(3)}</span>
+                      <span className="font-bold text-white">{formatPriceInt(toSafePrice(token.price))}</span>
                     </div>
                   ))}
                   {market.description && (
@@ -1072,11 +1078,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                    <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
+                    <span className="text-[11px] text-[#7c818d]">{currentLabel} 深度</span>
                   </div>
-                  {yesToken?.token_id ? (
+                  {currentToken?.token_id ? (
                     <RealtimeOrderBook
-                      tokenId={currentToken?.token_id || yesToken.token_id}
+                      tokenId={currentToken.token_id}
                       maxDepth={6}
                       showHeader
                       onQuoteChange={({ bestBid, bestAsk, lastTradePrice }) => setLiveQuote({ bestBid, bestAsk, lastTradePrice })}

@@ -49,6 +49,7 @@ interface NormalizedMarketPayload {
     outcome: string;
     bids: Array<{ price: string; size: string }>;
     asks: Array<{ price: string; size: string }>;
+    last_trade_price?: string;
   }>;
   negRisk: boolean;
   tickSize: string;
@@ -109,6 +110,38 @@ async function fallbackFindMarketByConditionId(id: string): Promise<NormalizedMa
   return null;
 }
 
+
+function parseBookUnitPrice(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) return null;
+  return parsed;
+}
+
+function derivePriceFromOrderBook(book: { bids?: Array<{ price: string }>; asks?: Array<{ price: string }>; last_trade_price?: string }): number | null {
+  const lastTrade = parseBookUnitPrice(book.last_trade_price);
+  if (lastTrade !== null) return lastTrade;
+
+  const bestBid = parseBookUnitPrice(book.bids?.[0]?.price);
+  const bestAsk = parseBookUnitPrice(book.asks?.[0]?.price);
+
+  if (bestBid !== null && bestAsk !== null) {
+    return (bestBid + bestAsk) / 2;
+  }
+
+  return bestBid ?? bestAsk ?? null;
+}
+
+function enrichTokenPricesFromBooks(
+  tokens: NormalizedMarketPayload["tokens"],
+  orderBooks: NormalizedMarketPayload["orderBooks"]
+) {
+  return tokens.map((token) => {
+    const matchingBook = orderBooks.find((book) => book.outcome === token.outcome);
+    const livePrice = matchingBook ? derivePriceFromOrderBook(matchingBook) : null;
+    return livePrice !== null ? { ...token, price: livePrice } : token;
+  });
+}
+
 async function buildOrderBooks(tokens: NormalizedMarketPayload["tokens"]) {
   return Promise.all(
     tokens.map(async (token) => {
@@ -163,6 +196,7 @@ export async function GET(
     }
 
     payload.orderBooks = await buildOrderBooks(payload.tokens);
+    payload.tokens = enrichTokenPricesFromBooks(payload.tokens, payload.orderBooks);
 
     if (locale === "zh") {
       try {
