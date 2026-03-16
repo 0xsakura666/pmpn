@@ -27,10 +27,10 @@ export function getRecommendedChartTimeframe(endDate?: string | null): Timeframe
 
 export function getAvailableChartTimeframes(endDate?: string | null): TimeframeType[] {
   const hours = getHoursUntil(endDate);
-  if (hours === null) return ["1M", "5M", "15M", "1H", "4H", "1D"];
-  if (hours <= 3) return ["15S", "1M", "5M", "15M", "1H"];
-  if (hours <= 12) return ["1M", "5M", "15M", "1H", "4H"];
-  if (hours <= 48) return ["1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours === null) return ["15S", "1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours <= 3) return ["15S", "1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours <= 12) return ["15S", "1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours <= 48) return ["15S", "1M", "5M", "15M", "1H", "4H", "1D"];
   if (hours <= 24 * 7) return ["1M", "5M", "15M", "1H", "4H", "1D"];
   return ["1M", "5M", "15M", "1H", "4H", "1D"];
 }

@@ -228,7 +228,7 @@ export function RealtimeCandlestickChart({
                 <button
                   key={tf}
                   onClick={() => handleTimeframeChange(tf)}
-                  className={`border-b-2 px-0.5 pb-1 pt-0.5 transition-all ${
+                  className={`border-b-2 px-0.5 pb-1 pt-0.5 whitespace-nowrap transition-all ${
                     selectedTimeframe === tf
                       ? "border-[#0ECB81] text-[#0ECB81]"
                       : "border-transparent hover:text-white"

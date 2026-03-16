@@ -801,7 +801,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
                     <button
                       onClick={() => setMobileTradeSide("yes")}
-                      className={`px-4 py-3 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
+                      className={`px-4 py-2.5 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
                     >
                       <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
                       <div className="mt-1 text-[26px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>

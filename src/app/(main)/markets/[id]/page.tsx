@@ -811,7 +811,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     <div className="flex items-end justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] uppercase tracking-[0.18em] text-[#6f7682]">{heroLabel}</div>
-                        <div className={`mt-1 text-[42px] font-semibold leading-none tracking-tight ${heroColor}`}>
+                        <div className={`mt-1 text-[38px] font-semibold leading-none tracking-tight ${heroColor}`}>
                           {formatPriceInt(heroPrice)}
                         </div>
                         <div className="mt-2 flex items-center gap-2 text-sm">
