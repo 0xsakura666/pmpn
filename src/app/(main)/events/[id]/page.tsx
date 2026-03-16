@@ -842,7 +842,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                       ) : (
                         <RealtimeCandlestickChart
-                          tokenId={selectedMarket?.yesTokenId}
+                          tokenId={currentTokenId}
                           initialData={priceHistory}
                           historyBaseInterval={historyBaseInterval}
                           height={0}
@@ -883,7 +883,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                           <p className="py-6 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                         )
                       ) : (
-                        <RecentTradesPanel tokenId={selectedMarket?.yesTokenId} limit={10} />
+                        <RecentTradesPanel tokenId={currentTokenId} limit={10} />
                       )}
                     </div>
                   </div>
@@ -1036,8 +1036,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <h3 className="text-sm font-semibold text-white">买卖区</h3>
                     <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
                   </div>
-                  {selectedMarket?.yesTokenId ? (
-                    <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={6} showHeader />
+                  {currentTokenId ? (
+                    <RealtimeOrderBook
+                      tokenId={currentTokenId}
+                      maxDepth={10}
+                      layout="split"
+                      showHeader
+                      onQuoteChange={({ bestBid, bestAsk, lastTradePrice }) => setLiveQuote({ bestBid, bestAsk, lastTradePrice })}
+                    />
                   ) : (
                     <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                   )}
