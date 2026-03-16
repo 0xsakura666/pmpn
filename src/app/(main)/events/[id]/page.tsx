@@ -724,7 +724,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <button
                       key={id}
                       onClick={() => setMobileTab(id as "price" | "info" | "trade-data" | "trade")}
-                      className={`rounded-full px-3 py-1.5 transition ${active ? "bg-[#0ECB81] text-black" : "text-[#c3c7d1]"}`}
+                      className={`border-b-2 px-0.5 py-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#c3c7d1]"}`}
                     >
                       {label}
                     </button>
@@ -790,23 +790,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
-                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                        <div className="text-[#6f7682]">24h 高</div>
-                        <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.high)}</div>
-                      </div>
-                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                        <div className="text-[#6f7682]">24h 低</div>
-                        <div className="mt-1 font-mono text-white">{formatPriceInt(priceStats.low)}</div>
-                      </div>
-                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                        <div className="text-[#6f7682]">分类</div>
-                        <div className="mt-1 text-white">{event.category || "--"}</div>
-                      </div>
-                      <div className="rounded-2xl bg-[#0d1015] px-3 py-2">
-                        <div className="text-[#6f7682]">ID</div>
-                        <div className="mt-1 text-white">{marketIdLabel}</div>
-                      </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[#9aa0aa]">
+                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">高 {formatPriceInt(priceStats.high)}</span>
+                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">低 {formatPriceInt(priceStats.low)}</span>
+                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">{event.category || "--"}</span>
+                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">ID {marketIdLabel}</span>
                     </div>
                   </div>
 
@@ -828,8 +816,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
 
-                <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
-                  <div className="h-full min-h-[52dvh]">
+                <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
+                  <div className="h-full min-h-[60dvh]">
                     {historyLoading ? (
                       <div className="flex h-full items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
@@ -887,7 +875,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {mobileTab === "trade-data" && (
-              <div className="grid grid-cols-1 gap-3 p-3">
+              <div className="grid h-full grid-cols-1 gap-3 overflow-y-auto p-3 pb-28">
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">买卖区</h3>

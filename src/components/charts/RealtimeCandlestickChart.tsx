@@ -220,18 +220,18 @@ export function RealtimeCandlestickChart({
 
   return (
     <div className={`rounded-[24px] border border-[#232632] bg-[#15161c] ${useAutoHeight ? "h-full flex flex-col" : "space-y-0"}`}>
-      <div className={`border-b border-[#232632] px-3 pt-3 ${useAutoHeight ? "shrink-0" : ""}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex min-w-max items-center gap-1 rounded-full bg-[#111319] p-1">
+      <div className={`border-b border-[#232632] px-2.5 pt-2 ${useAutoHeight ? "shrink-0" : ""}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max items-center gap-3 text-[11px] font-medium text-[#8a8e99]">
               {visibleTimeframes.map((tf) => (
                 <button
                   key={tf}
                   onClick={() => handleTimeframeChange(tf)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                  className={`border-b-2 px-0.5 pb-1 pt-0.5 transition-all ${
                     selectedTimeframe === tf
-                      ? "bg-[#0ECB81] text-black shadow-[0_8px_20px_rgba(14,203,129,0.22)]"
-                      : "text-[#8a8e99] hover:bg-[#1e222b] hover:text-white"
+                      ? "border-[#0ECB81] text-[#0ECB81]"
+                      : "border-transparent hover:text-white"
                   }`}
                 >
                   {tf}
@@ -240,10 +240,10 @@ export function RealtimeCandlestickChart({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 rounded-full bg-[#111319] p-1">
+          <div className="flex items-center gap-1 rounded-full bg-[#111319] p-0.5">
             <button
               onClick={() => setChartMode("line")}
-              className={`rounded-full p-2 transition-all ${
+              className={`rounded-full p-1.5 transition-all ${
                 chartMode === "line" ? "bg-[#0ECB81] text-black" : "text-[#7d828d] hover:text-white"
               }`}
               title="线图"
@@ -252,7 +252,7 @@ export function RealtimeCandlestickChart({
             </button>
             <button
               onClick={() => setChartMode("candle")}
-              className={`rounded-full p-2 transition-all ${
+              className={`rounded-full p-1.5 transition-all ${
                 chartMode === "candle" ? "bg-[#0ECB81] text-black" : "text-[#7d828d] hover:text-white"
               }`}
               title="K线图"
@@ -262,13 +262,13 @@ export function RealtimeCandlestickChart({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pb-3 text-[11px] text-[#8a8e99]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-2 text-[10px] text-[#8a8e99]">
           <span className="text-[#c7cad1]">{config.label}</span>
           <span className={candleStats?.change && candleStats.change >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
             {candleStats ? `${candleStats.change >= 0 ? "+" : ""}${candleStats.change.toFixed(2)}%` : "--"}
           </span>
-          <span>H: <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.high) : "--"}</span></span>
-          <span>L: <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.low) : "--"}</span></span>
+          <span>H <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.high) : "--"}</span></span>
+          <span>L <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.low) : "--"}</span></span>
           <span className="ml-auto inline-flex items-center gap-1.5">
             <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "animate-pulse bg-[#0ECB81]" : "bg-[#F6465D]"}`} />
             {enableRealtime && isConnected ? "实时" : "静态"}
@@ -276,12 +276,12 @@ export function RealtimeCandlestickChart({
         </div>
 
         {chartMode === "candle" && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#232632] py-2 text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-[#232632] py-1.5 text-[10px]">
             {movingAverageStats.map(({ period, value }, index) => {
               const color = ["#F0B90B", "#C66BFF", "#8B949E"][index];
               return (
                 <span key={period} style={{ color }}>
-                  MA({period}): <span className="font-mono">{value === null ? "--" : formatPriceInt(value)}</span>
+                  MA{period} <span className="font-mono">{value === null ? "--" : formatPriceInt(value)}</span>
                 </span>
               );
             })}
@@ -306,8 +306,8 @@ export function RealtimeCandlestickChart({
         />
       </div>
 
-      {displayCurrentCandle && (
-        <div className={`${compactMobile ? "border-t border-[#232632] px-3 py-2" : "border-t border-[#232632] px-3 py-2.5"} ${useAutoHeight ? "shrink-0" : ""}`}>
+      {displayCurrentCandle && !compactMobile && (
+        <div className={`border-t border-[#232632] px-3 py-2.5 ${useAutoHeight ? "shrink-0" : ""}`}>
           <div className="grid grid-cols-4 gap-2 text-[11px] font-mono text-[#8a8e99]">
             <span>O <span className="ml-1 text-white">{formatPriceInt(displayCurrentCandle.open)}</span></span>
             <span>H <span className="ml-1 text-[#0ECB81]">{formatPriceInt(displayCurrentCandle.high)}</span></span>
