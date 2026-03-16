@@ -774,11 +774,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             <div className="flex items-center gap-2 rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-sm">
-              <span className="text-[#8a8f9c]">{yesLabel}</span>
-              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
+              <button onClick={() => setMobileTradeSide("yes")} className="text-[#8a8f9c]">{yesLabel}</button>
+              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(displayYesPrice)}</span>
               <span className="text-[#333845]">/</span>
-              <span className="text-[#8a8f9c]">{noLabel}</span>
-              <span className="font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</span>
+              <button onClick={() => setMobileTradeSide("no")} className="text-[#8a8f9c]">{noLabel}</button>
+              <span className="font-semibold text-[#F6465D]">{formatPriceInt(displayNoPrice)}</span>
             </div>
           </div>
 

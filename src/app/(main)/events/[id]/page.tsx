@@ -877,8 +877,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                     <div className="max-h-[28dvh] overflow-y-auto p-3">
                       {mobilePricePanel === "orderbook" ? (
-                        selectedMarket?.yesTokenId ? (
-                          <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={10} layout="split" showHeader />
+                        currentTokenId ? (
+                          <RealtimeOrderBook tokenId={currentTokenId} maxDepth={10} layout="split" showHeader onQuoteChange={({ bestBid, bestAsk, lastTradePrice }) => setLiveQuote({ bestBid, bestAsk, lastTradePrice })} />
                         ) : (
                           <p className="py-6 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                         )
