@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
+import { RecentTradesPanel } from "@/components/trading/RecentTradesPanel";
 import { Time, CandlestickData } from "lightweight-charts";
 import { usePolymarket, usePolymarketTrade, usePolymarketPositions, usePolymarketOrders } from "@/hooks/usePolymarket";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
@@ -428,6 +429,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const [historyLoading, setHistoryLoading] = useState(false);
   const [mobileTradeSide, setMobileTradeSide] = useState<"yes" | "no">("yes");
   const [mobileTab, setMobileTab] = useState<"price" | "info" | "trade-data" | "trade">("price");
+  const [mobilePricePanel, setMobilePricePanel] = useState<"orderbook" | "trades">("orderbook");
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
@@ -647,6 +649,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const heroSide = mobileTradeSide;
   const heroPrice = heroSide === "yes" ? yesPrice : noPrice;
   const heroColor = heroSide === "yes" ? "text-[#0ECB81]" : "text-[#F6465D]";
+  const marketBiasLabel = yesPrice >= noPrice ? yesLabel : noLabel;
+  const marketBiasGap = Math.abs(yesPrice - noPrice) * 100;
+  const combinedPrice = yesPrice + noPrice;
 
   if (loading) {
     return (
@@ -816,26 +821,59 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
 
-                <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
-                  <div className="h-full min-h-[72dvh]">
-                    {historyLoading ? (
-                      <div className="flex h-full items-center justify-center">
-                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
-                      </div>
-                    ) : (
-                      <RealtimeCandlestickChart
-                        tokenId={selectedMarket?.yesTokenId}
-                        initialData={priceHistory}
-                        historyBaseInterval={historyBaseInterval}
-                        height={0}
-                        defaultTimeframe={selectedTimeframe}
-                        onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                        defaultChartMode="candle"
-                        allowedTimeframes={allowedTimeframes}
-                        enableRealtime={false}
-                        compactMobile
-                      />
-                    )}
+                <div className="mt-2 min-h-0 flex flex-1 flex-col overflow-hidden rounded-[24px] bg-transparent">
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <div className="h-full min-h-[54dvh]">
+                      {historyLoading ? (
+                        <div className="flex h-full items-center justify-center">
+                          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
+                        </div>
+                      ) : (
+                        <RealtimeCandlestickChart
+                          tokenId={selectedMarket?.yesTokenId}
+                          initialData={priceHistory}
+                          historyBaseInterval={historyBaseInterval}
+                          height={0}
+                          defaultTimeframe={selectedTimeframe}
+                          onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                          defaultChartMode="candle"
+                          allowedTimeframes={allowedTimeframes}
+                          enableRealtime={false}
+                          compactMobile
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 overflow-hidden rounded-[20px] border border-[#20242d] bg-[#12161c]">
+                    <div className="flex gap-4 border-b border-[#20242d] px-3 pt-2 text-[11px]">
+                      {[
+                        ["orderbook", "委托订单"],
+                        ["trades", "最新成交"],
+                      ].map(([id, label]) => {
+                        const active = mobilePricePanel === id;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => setMobilePricePanel(id as "orderbook" | "trades")}
+                            className={`border-b-2 pb-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#8a8e99]"}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="max-h-[24dvh] overflow-y-auto p-3">
+                      {mobilePricePanel === "orderbook" ? (
+                        selectedMarket?.yesTokenId ? (
+                          <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={6} showHeader />
+                        ) : (
+                          <p className="py-6 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
+                        )
+                      ) : (
+                        <RecentTradesPanel tokenId={selectedMarket?.yesTokenId} limit={10} />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

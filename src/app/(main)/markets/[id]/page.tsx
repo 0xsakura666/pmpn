@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
+import { RecentTradesPanel } from "@/components/trading/RecentTradesPanel";
 import { Time, CandlestickData } from "lightweight-charts";
 import {
   usePolymarket,
@@ -461,6 +462,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const [historyLoading, setHistoryLoading] = useState(false);
   const [mobileTradeSide, setMobileTradeSide] = useState<"yes" | "no">("yes");
   const [mobileTab, setMobileTab] = useState<"price" | "info" | "trade-data" | "trade">("price");
+  const [mobilePricePanel, setMobilePricePanel] = useState<"orderbook" | "trades">("orderbook");
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
@@ -714,6 +716,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const heroPrice = heroSide === "yes" ? yesPrice : noPrice;
   const heroLabel = heroSide === "yes" ? yesLabel : noLabel;
   const heroColor = heroSide === "yes" ? "text-[#0ECB81]" : "text-[#F6465D]";
+  const combinedPrice = yesPrice + noPrice;
+  const marketBiasLabel = yesPrice >= noPrice ? yesLabel : noLabel;
+  const marketBiasGap = Math.abs(yesPrice - noPrice) * 100;
+  const edgeToOne = (1 - combinedPrice) * 100;
 
   if (loading) {
     return (
@@ -908,19 +914,48 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             )}
 
             {mobileTab === "trade-data" && (
-              <div className="grid grid-cols-1 gap-3 p-3">
-                <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                    <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
-                  </div>
-                  {yesToken?.token_id ? (
-                    <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
-                  ) : (
-                    <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
-                  )}
+              <div className="grid h-full grid-cols-2 gap-3 overflow-y-auto p-3 pb-28">
+                <div className="rounded-[20px] border border-[#22252f] bg-[#15161c] p-3">
+                  <div className="text-[11px] text-[#7d818d]">领先方向</div>
+                  <div className="mt-1 text-lg font-semibold text-white">{marketBiasLabel}</div>
+                  <div className="mt-1 text-xs text-[#0ECB81]">优势 {marketBiasGap.toFixed(1)}¢</div>
                 </div>
-                <PositionsPanelCompact />
+                <div className="rounded-[20px] border border-[#22252f] bg-[#15161c] p-3">
+                  <div className="text-[11px] text-[#7d818d]">组合价格</div>
+                  <div className="mt-1 text-lg font-semibold text-white">{combinedPrice.toFixed(3)}</div>
+                  <div className={`mt-1 text-xs ${edgeToOne >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>距 1.00 {edgeToOne >= 0 ? "+" : ""}{edgeToOne.toFixed(1)}¢</div>
+                </div>
+                <div className="rounded-[20px] border border-[#22252f] bg-[#15161c] p-3">
+                  <div className="text-[11px] text-[#7d818d]">Tick Size</div>
+                  <div className="mt-1 text-lg font-semibold text-white">{market.tickSize || "0.01"}</div>
+                  <div className="mt-1 text-xs text-[#8b8d98]">最小价格跳动</div>
+                </div>
+                <div className="rounded-[20px] border border-[#22252f] bg-[#15161c] p-3">
+                  <div className="text-[11px] text-[#7d818d]">市场类型</div>
+                  <div className="mt-1 text-lg font-semibold text-white">{market.negRisk ? "Neg Risk" : "Standard"}</div>
+                  <div className="mt-1 text-xs text-[#8b8d98]">到期 {settlementLabel}</div>
+                </div>
+                <div className="col-span-2 rounded-[20px] border border-[#22252f] bg-[#15161c] p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-white">分析摘要</h3>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="text-[#7d818d]">Yes Token</div>
+                      <div className="mt-1 font-mono text-white">{formatCompactId(yesToken?.token_id || "--", 16)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#7d818d]">No Token</div>
+                      <div className="mt-1 font-mono text-white">{formatCompactId(noToken?.token_id || "--", 16)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#7d818d]">Yes 价格</div>
+                      <div className="mt-1 text-white">${yesPrice.toFixed(3)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#7d818d]">No 价格</div>
+                      <div className="mt-1 text-white">${noPrice.toFixed(3)}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
