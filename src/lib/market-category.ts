@@ -8,7 +8,7 @@ export interface MarketTag {
 const POLITICS_KEYWORDS =
   /trump|biden|election|president|vote|congress|senate|governor|republican|democrat|kamala|harris|white house|supreme court|iran|iranian|israel|gaza|ukraine|russia|war|regime|military|sanctions|geopolitics|china|taiwan/i;
 const CRYPTO_KEYWORDS =
-  /crypto|cryptocurrency|bitcoin|ethereum|btc|eth|solana|sol|xrp|doge|token|memecoin|coin|defi|nft|stablecoin|airdrop|walletconnect|wallet/i;
+  /\bcrypto\b|cryptocurrency|\bbitcoin\b|\bethereum\b|\bbtc\b|\beth\b|\bsolana\b|\bsol\b|\bxrp\b|\bdoge\b|\btoken\b|memecoin|\bcoin\b|\bdefi\b|\bnft\b|stablecoin|airdrop|walletconnect|\bwallet\b/i;
 const SPORTS_KEYWORDS =
   /sport|sports|nba|nfl|nhl|mlb|ncaa|soccer|football|baseball|basketball|tennis|golf|ufc|mma|boxing|f1|formula 1|nascar|wwe|championship|playoffs|match|game|team|player|super bowl|world cup|champion|laliga|premier league|champions league|counter[-\s]?strike|cs2|valorant|dota|dota 2|league of legends|league-of-legends|lol esports|esports|lcs|lec|lck|vct|iem|blast|major/i;
 const ECONOMY_KEYWORDS =

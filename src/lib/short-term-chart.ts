@@ -1,6 +1,6 @@
 import type { TimeframeType } from "@/lib/chart-timeframe";
 
-const SHORT_TERM_WINDOW_MS = 48 * 60 * 60 * 1000;
+const SHORT_TERM_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function getHoursUntil(endDate?: string | null): number | null {
   if (!endDate) return null;
@@ -12,25 +12,25 @@ export function getHoursUntil(endDate?: string | null): number | null {
 export function isShortTermChartMarket(endDate?: string | null): boolean {
   const hours = getHoursUntil(endDate);
   if (hours === null) return false;
-  return hours <= 48;
+  return hours > 0 && hours <= 24;
 }
 
 export function getRecommendedChartTimeframe(endDate?: string | null): TimeframeType {
   const hours = getHoursUntil(endDate);
   if (hours === null) return "5M";
-  if (hours <= 3) return "15S";
-  if (hours <= 12) return "1M";
-  if (hours <= 48) return "5M";
+  if (hours > 0 && hours <= 3) return "15S";
+  if (hours > 0 && hours <= 12) return "1M";
+  if (hours > 0 && hours <= 24) return "5M";
   if (hours <= 24 * 7) return "15M";
   return "1H";
 }
 
 export function getAvailableChartTimeframes(endDate?: string | null): TimeframeType[] {
   const hours = getHoursUntil(endDate);
-  if (hours === null) return ["5S", "15S", "1M", "5M", "15M", "1H", "4H", "1D"];
-  if (hours <= 3) return ["5S", "15S", "1M", "5M", "15M", "1H", "4H", "1D"];
-  if (hours <= 12) return ["5S", "15S", "1M", "5M", "15M", "1H", "4H", "1D"];
-  if (hours <= 48) return ["5S", "15S", "1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours === null) return ["1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours > 0 && hours <= 3) return ["5S", "15S", "1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours > 0 && hours <= 12) return ["5S", "15S", "1M", "5M", "15M", "1H", "4H", "1D"];
+  if (hours > 0 && hours <= 24) return ["15S", "1M", "5M", "15M", "1H", "4H", "1D"];
   if (hours <= 24 * 7) return ["1M", "5M", "15M", "1H", "4H", "1D"];
   return ["1M", "5M", "15M", "1H", "4H", "1D"];
 }
@@ -43,8 +43,8 @@ export function getShortTermStartTs(endDate: string | null | undefined, timefram
     "5S": 2 * 60 * 60,
     "15S": 6 * 60 * 60,
     "1M": 24 * 60 * 60,
-    "5M": 48 * 60 * 60,
-    "15M": 72 * 60 * 60,
+    "5M": 24 * 60 * 60,
+    "15M": 48 * 60 * 60,
     "1H": 7 * 24 * 60 * 60,
     "4H": 30 * 24 * 60 * 60,
     "1D": 365 * 24 * 60 * 60,
@@ -53,7 +53,10 @@ export function getShortTermStartTs(endDate: string | null | undefined, timefram
   const nowSec = Math.floor(Date.now() / 1000);
   const lookbackSeconds = lookbackSecondsByTimeframe[timeframe];
   const marketEndTs = Math.floor(new Date(endDate!).getTime() / 1000);
-  const floorByMarketLifetime = Math.max(nowSec - lookbackSeconds, marketEndTs - Math.floor(SHORT_TERM_WINDOW_MS / 1000));
+  const floorByMarketLifetime = Math.max(
+    nowSec - lookbackSeconds,
+    marketEndTs - Math.floor(SHORT_TERM_WINDOW_MS / 1000)
+  );
 
   return Math.max(0, floorByMarketLifetime);
 }

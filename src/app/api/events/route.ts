@@ -270,7 +270,7 @@ function transformPriorityMarket(market: RawPriorityMarket, fallbackId: number):
       },
     ],
     daysLeft: calculateDaysLeft(endDate),
-    isShortTerm: true,
+    isShortTerm: isShortTermPriorityMarket(market),
   };
 }
 
