@@ -110,7 +110,6 @@ body {
   body.mobile-locked,
   .mobile-locked {
     overflow: hidden;
-    touch-action: manipulation;
   }
 }
 

@@ -861,25 +861,58 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
 
-                <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
-                  <div className="h-full min-h-[72dvh]">
-                    {historyLoading ? (
-                      <div className="flex h-full items-center justify-center">
-                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
-                      </div>
-                    ) : (
-                      <RealtimeCandlestickChart
-                        tokenId={yesToken?.token_id}
-                        initialData={priceHistory}
-                        historyBaseInterval={historyBaseInterval}
-                        height={0}
-                        defaultTimeframe={selectedTimeframe}
-                        onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                        defaultChartMode="candle"
-                        allowedTimeframes={allowedTimeframes}
-                        compactMobile
-                      />
-                    )}
+                <div className="mt-2 min-h-0 flex flex-1 flex-col overflow-hidden rounded-[24px] bg-transparent">
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <div className="h-full min-h-[54dvh]">
+                      {historyLoading ? (
+                        <div className="flex h-full items-center justify-center">
+                          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
+                        </div>
+                      ) : (
+                        <RealtimeCandlestickChart
+                          tokenId={yesToken?.token_id}
+                          initialData={priceHistory}
+                          historyBaseInterval={historyBaseInterval}
+                          height={0}
+                          defaultTimeframe={selectedTimeframe}
+                          onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
+                          defaultChartMode="candle"
+                          allowedTimeframes={allowedTimeframes}
+                          compactMobile
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 overflow-hidden rounded-[20px] border border-[#20242d] bg-[#12161c]">
+                    <div className="flex gap-4 border-b border-[#20242d] px-3 pt-2 text-[11px]">
+                      {[
+                        ["orderbook", "委托订单"],
+                        ["trades", "最新成交"],
+                      ].map(([id, label]) => {
+                        const active = mobilePricePanel === id;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => setMobilePricePanel(id as "orderbook" | "trades")}
+                            className={`border-b-2 pb-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#8a8e99]"}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="max-h-[22dvh] overflow-y-auto p-3">
+                      {mobilePricePanel === "orderbook" ? (
+                        yesToken?.token_id ? (
+                          <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
+                        ) : (
+                          <p className="py-6 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
+                        )
+                      ) : (
+                        <RecentTradesPanel tokenId={yesToken?.token_id} limit={10} />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
