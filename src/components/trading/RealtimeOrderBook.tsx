@@ -37,6 +37,39 @@ function formatCents(price: number | null) {
   return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
+
+function sanitizeOrderBookQuote(bestBid: number | null, bestAsk: number | null, lastTradePrice: number | null) {
+  const normalizedBid = bestBid != null && Number.isFinite(bestBid) && bestBid > 0 && bestBid < 1 ? bestBid : null;
+  const normalizedAsk = bestAsk != null && Number.isFinite(bestAsk) && bestAsk > 0 && bestAsk < 1 ? bestAsk : null;
+
+  const bookLooksBroken =
+    normalizedBid != null &&
+    normalizedAsk != null &&
+    (
+      normalizedBid >= normalizedAsk ||
+      (normalizedBid <= 0.02 && normalizedAsk >= 0.98) ||
+      normalizedAsk - normalizedBid >= 0.9
+    );
+
+  const safeBid = bookLooksBroken ? null : normalizedBid;
+  const safeAsk = bookLooksBroken ? null : normalizedAsk;
+
+  const safeLastTrade =
+    lastTradePrice != null &&
+    Number.isFinite(lastTradePrice) &&
+    lastTradePrice > 0 &&
+    lastTradePrice < 1 &&
+    !bookLooksBroken
+      ? lastTradePrice
+      : null;
+
+  return {
+    bestBid: safeBid,
+    bestAsk: safeAsk,
+    lastTradePrice: safeLastTrade,
+  };
+}
+
 function normalizeLevels(levels: OrderLevel[] | undefined, descending: boolean, maxDepth: number) {
   return (levels || [])
     .map((level) => ({ price: parseFloat(level.price), size: parseFloat(level.size) }))
@@ -109,9 +142,16 @@ export function RealtimeOrderBook({
   const asks = useMemo(() => normalizeLevels(orderBook?.asks, false, maxDepth), [orderBook?.asks, maxDepth]);
 
   const maxSize = Math.max(...bids.map((b) => b.size), ...asks.map((a) => a.size), 1);
-  const bestBidPrice = bids.length > 0 ? bids[0].price : null;
-  const bestAskPrice = asks.length > 0 ? asks[0].price : null;
-  const lastPrice = orderBook?.last_trade_price ? parseFloat(orderBook.last_trade_price) : null;
+  const rawBestBidPrice = bids.length > 0 ? bids[0].price : null;
+  const rawBestAskPrice = asks.length > 0 ? asks[0].price : null;
+  const rawLastPrice = orderBook?.last_trade_price ? parseFloat(orderBook.last_trade_price) : null;
+  const sanitizedQuote = useMemo(
+    () => sanitizeOrderBookQuote(rawBestBidPrice, rawBestAskPrice, rawLastPrice),
+    [rawBestBidPrice, rawBestAskPrice, rawLastPrice]
+  );
+  const bestBidPrice = sanitizedQuote.bestBid;
+  const bestAskPrice = sanitizedQuote.bestAsk;
+  const lastPrice = sanitizedQuote.lastTradePrice;
   const spread = bestAskPrice != null && bestBidPrice != null ? bestAskPrice - bestBidPrice : null;
 
   useEffect(() => {
@@ -147,7 +187,7 @@ export function RealtimeOrderBook({
         <div className="mb-2 flex items-center justify-between text-xs text-[#6b6b80]">
           <span className="flex items-center gap-1">
             {error ? <WifiOff className="h-3 w-3 text-[#FF6B6B]" /> : <Wifi className="h-3 w-3 text-[#0ECB81]" />}
-            {error ? "异常" : "实时"}
+            {error ? "异常" : lastPrice != null || bestBidPrice != null || bestAskPrice != null ? "实时" : "盘口"}
           </span>
           <span className="font-mono">最新: {formatCents(lastPrice)}</span>
         </div>
