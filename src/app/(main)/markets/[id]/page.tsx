@@ -839,7 +839,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
                     <button
                       onClick={() => setMobileTradeSide("yes")}
-                      className={`px-4 py-3 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
+                      className={`px-4 py-2 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
                     >
                       <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
                       <div className="mt-1 text-[26px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
@@ -855,7 +855,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 </div>
 
                 <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
-                  <div className="h-full min-h-[60dvh]">
+                  <div className="h-full min-h-[72dvh]">
                     {historyLoading ? (
                       <div className="flex h-full items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />

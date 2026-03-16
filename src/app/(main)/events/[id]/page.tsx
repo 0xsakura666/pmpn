@@ -737,9 +737,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
         <main className="flex-1 overflow-hidden pb-24 lg:flex lg:pb-0">
           <div className="h-full lg:hidden">
-            <div className="px-3 pt-3">
+            <div className="px-3 pt-2.5">
               <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex min-w-max gap-2">
+                <div className="flex min-w-max gap-1.5">
                   {event.markets.map((market) => {
                     const active = selectedMarket?.conditionId === market.conditionId;
                     return (
@@ -817,7 +817,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[24px] bg-transparent">
-                  <div className="h-full min-h-[60dvh]">
+                  <div className="h-full min-h-[72dvh]">
                     {historyLoading ? (
                       <div className="flex h-full items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />

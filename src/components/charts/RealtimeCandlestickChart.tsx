@@ -240,7 +240,7 @@ export function RealtimeCandlestickChart({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 rounded-full bg-[#111319] p-0.5">
+          <div className="flex items-center gap-1 rounded-full bg-[#111319] p-0.5 shrink-0">
             <button
               onClick={() => setChartMode("line")}
               className={`rounded-full p-1.5 transition-all ${
