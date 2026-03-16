@@ -212,6 +212,7 @@ export function CandlestickChart({
             priceLineVisible: false,
             lastValueVisible: false,
             crosshairMarkerVisible: false,
+            priceFormat: centsPriceFormat,
           });
           series.setData(buildMovingAverageSeries(safeData, period));
           return series;
