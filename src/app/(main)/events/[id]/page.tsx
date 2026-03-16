@@ -431,6 +431,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const [mobileTradeSide, setMobileTradeSide] = useState<"yes" | "no">("yes");
   const [mobileTab, setMobileTab] = useState<"price" | "info" | "trade-data" | "trade">("price");
   const [mobilePricePanel, setMobilePricePanel] = useState<"orderbook" | "trades">("orderbook");
+  const [liveQuote, setLiveQuote] = useState<{ bestBid: number | null; bestAsk: number | null; lastTradePrice: number | null }>({
+    bestBid: null,
+    bestAsk: null,
+    lastTradePrice: null,
+  });
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
@@ -589,15 +594,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     [selectedMarket?.endDate]
   );
 
+  const currentTokenId = mobileTradeSide === "yes" ? selectedMarket?.yesTokenId : selectedMarket?.noTokenId;
+
   useEffect(() => {
-    if (selectedMarket?.yesTokenId) {
+    if (currentTokenId) {
       const controller = new AbortController();
-      fetchPriceHistory(selectedMarket.yesTokenId, selectedTimeframe, controller.signal);
+      fetchPriceHistory(currentTokenId, selectedTimeframe, controller.signal);
       return () => controller.abort();
     }
     setPriceHistory([]);
     setHistoryBaseInterval("1m");
-  }, [selectedMarket, selectedTimeframe, fetchPriceHistory]);
+  }, [currentTokenId, selectedTimeframe, fetchPriceHistory]);
 
   const jumpToTradePanel = (side: "yes" | "no") => {
     setMobileTradeSide(side);
@@ -622,13 +629,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         minute: "2-digit",
       })
     : "--";
+  const currentStaticPrice = mobileTradeSide === "yes" ? yesPrice : noPrice;
 
   const priceStats = useMemo(() => {
     if (priceHistory.length === 0) {
       return {
-        high: yesPrice,
-        low: yesPrice,
-        last: yesPrice,
+        high: currentStaticPrice,
+        low: currentStaticPrice,
+        last: currentStaticPrice,
         changePct: 0,
       };
     }
@@ -645,14 +653,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       last: last.close,
       changePct: ((last.close - first.open) / base) * 100,
     };
-  }, [priceHistory, yesPrice]);
+  }, [priceHistory, currentStaticPrice]);
 
   const heroSide = mobileTradeSide;
-  const heroPrice = heroSide === "yes" ? yesPrice : noPrice;
+  const liveCurrentPrice = liveQuote.lastTradePrice ?? priceStats.last ?? currentStaticPrice;
+  const displayYesPrice = heroSide === "yes" && liveQuote.lastTradePrice != null ? liveCurrentPrice : yesPrice;
+  const displayNoPrice = heroSide === "no" && liveQuote.lastTradePrice != null ? liveCurrentPrice : noPrice;
+  const heroPrice = liveCurrentPrice;
   const heroColor = heroSide === "yes" ? "text-[#0ECB81]" : "text-[#F6465D]";
-  const marketBiasLabel = yesPrice >= noPrice ? yesLabel : noLabel;
-  const marketBiasGap = Math.abs(yesPrice - noPrice) * 100;
-  const combinedPrice = yesPrice + noPrice;
+  const marketBiasLabel = displayYesPrice >= displayNoPrice ? yesLabel : noLabel;
+  const marketBiasGap = Math.abs(displayYesPrice - displayNoPrice) * 100;
+  const combinedPrice = displayYesPrice + displayNoPrice;
 
   if (loading) {
     return (
@@ -699,7 +710,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
               <span className="text-[#333845]">/</span>
               <span className="text-[#8a8f9c]">{noLabel}</span>
-              <span className="font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</span>
+              <button onClick={() => setMobileTradeSide("no")} className="font-semibold text-[#F6465D]">{formatPriceInt(displayNoPrice)}</button>
             </div>
           </div>
 
@@ -1093,7 +1104,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               onClick={() => jumpToTradePanel("no")}
               className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
             >
-              买入 {noCompactLabel} · {formatPriceInt(noPrice)}
+              买入 {noCompactLabel} · {formatPriceInt(displayNoPrice)}
             </button>
           </div>
         </div>
@@ -1101,3 +1112,4 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     </div>
   );
 }
+

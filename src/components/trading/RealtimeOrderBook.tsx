@@ -22,6 +22,12 @@ interface RealtimeOrderBookProps {
   tokenId: string;
   maxDepth?: number;
   showHeader?: boolean;
+  onQuoteChange?: (quote: {
+    tokenId: string;
+    bestBid: number | null;
+    bestAsk: number | null;
+    lastTradePrice: number | null;
+  }) => void;
 }
 
 interface PriceChange {

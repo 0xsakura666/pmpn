@@ -464,6 +464,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const [mobileTradeSide, setMobileTradeSide] = useState<"yes" | "no">("yes");
   const [mobileTab, setMobileTab] = useState<"price" | "info" | "trade-data" | "trade">("price");
   const [mobilePricePanel, setMobilePricePanel] = useState<"orderbook" | "trades">("orderbook");
+  const [liveQuote, setLiveQuote] = useState<{ bestBid: number | null; bestAsk: number | null; lastTradePrice: number | null }>({
+    bestBid: null,
+    bestAsk: null,
+    lastTradePrice: null,
+  });
   const historyCacheRef = useRef<Map<string, { candles: CandlestickData<Time>[]; interval: CandleInterval }>>(
     new Map()
   );
@@ -649,19 +654,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     [resolvedParams.id, market?.endDate]
   );
 
-  useEffect(() => {
-    const yesTokenId = market?.tokens?.[0]?.token_id;
-    if (!yesTokenId) {
-      setPriceHistory([]);
-      setHistoryBaseInterval("1m");
-      return;
-    }
-
-    const controller = new AbortController();
-    fetchPriceHistory(yesTokenId, selectedTimeframe, controller.signal);
-    return () => controller.abort();
-  }, [market, selectedTimeframe, fetchPriceHistory]);
-
   const jumpToTradePanel = (side: "yes" | "no") => {
     setMobileTradeSide(side);
     setMobileTab("trade");
@@ -669,12 +661,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   const yesToken = market?.tokens?.[0];
   const noToken = market?.tokens?.[1];
+  const currentToken = mobileTradeSide === "yes" ? yesToken : noToken;
   const yesLabel = normalizeOutcomeLabel(yesToken?.outcome, "Yes");
   const noLabel = normalizeOutcomeLabel(noToken?.outcome, "No");
   const yesCompactLabel = getCompactOutcomeLabel(yesLabel, 10);
   const noCompactLabel = getCompactOutcomeLabel(noLabel, 10);
   const yesPrice = yesToken?.price || 0.5;
   const noPrice = noToken?.price || 0.5;
+  const currentLabel = mobileTradeSide === "yes" ? yesLabel : noLabel;
+  const currentStaticPrice = mobileTradeSide === "yes" ? yesPrice : noPrice;
   const allowedTimeframes: TimeframeType[] = market?.endDate
     ? getAvailableChartTimeframes(market.endDate)
     : ["1M"];
@@ -689,12 +684,25 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       })
     : "--";
 
+  useEffect(() => {
+    const tokenId = currentToken?.token_id;
+    if (!tokenId) {
+      setPriceHistory([]);
+      setHistoryBaseInterval("1m");
+      return;
+    }
+
+    const controller = new AbortController();
+    fetchPriceHistory(tokenId, selectedTimeframe, controller.signal);
+    return () => controller.abort();
+  }, [currentToken?.token_id, selectedTimeframe, fetchPriceHistory]);
+
   const priceStats = useMemo(() => {
     if (priceHistory.length === 0) {
       return {
-        high: yesPrice,
-        low: yesPrice,
-        last: yesPrice,
+        high: currentStaticPrice,
+        low: currentStaticPrice,
+        last: currentStaticPrice,
         changePct: 0,
       };
     }
@@ -711,15 +719,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       last: last.close,
       changePct: ((last.close - first.open) / base) * 100,
     };
-  }, [priceHistory, yesPrice]);
+  }, [priceHistory, currentStaticPrice]);
 
   const heroSide = mobileTradeSide;
-  const heroPrice = heroSide === "yes" ? yesPrice : noPrice;
-  const heroLabel = heroSide === "yes" ? yesLabel : noLabel;
+  const liveCurrentPrice = liveQuote.lastTradePrice ?? priceStats.last ?? currentStaticPrice;
+  const displayYesPrice = heroSide === "yes" && liveQuote.lastTradePrice != null ? liveCurrentPrice : yesPrice;
+  const displayNoPrice = heroSide === "no" && liveQuote.lastTradePrice != null ? liveCurrentPrice : noPrice;
+  const heroPrice = liveCurrentPrice;
+  const heroLabel = currentLabel;
   const heroColor = heroSide === "yes" ? "text-[#0ECB81]" : "text-[#F6465D]";
-  const combinedPrice = yesPrice + noPrice;
-  const marketBiasLabel = yesPrice >= noPrice ? yesLabel : noLabel;
-  const marketBiasGap = Math.abs(yesPrice - noPrice) * 100;
+  const combinedPrice = displayYesPrice + displayNoPrice;
+  const marketBiasLabel = displayYesPrice >= displayNoPrice ? yesLabel : noLabel;
+  const marketBiasGap = Math.abs(displayYesPrice - displayNoPrice) * 100;
   const edgeToOne = (1 - combinedPrice) * 100;
 
   if (loading) {
@@ -904,8 +915,13 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                     <div className="max-h-[22dvh] overflow-y-auto p-3">
                       {mobilePricePanel === "orderbook" ? (
-                        yesToken?.token_id ? (
-                          <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
+                        currentToken?.token_id ? (
+                          <RealtimeOrderBook
+                            tokenId={currentToken.token_id}
+                            maxDepth={6}
+                            showHeader
+                            onQuoteChange={({ bestBid, bestAsk, lastTradePrice }) => setLiveQuote({ bestBid, bestAsk, lastTradePrice })}
+                          />
                         ) : (
                           <p className="py-6 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                         )
@@ -1056,7 +1072,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
                   </div>
                   {yesToken?.token_id ? (
-                    <RealtimeOrderBook tokenId={yesToken.token_id} maxDepth={6} showHeader />
+                    <RealtimeOrderBook
+                      tokenId={currentToken?.token_id || yesToken.token_id}
+                      maxDepth={6}
+                      showHeader
+                      onQuoteChange={({ bestBid, bestAsk, lastTradePrice }) => setLiveQuote({ bestBid, bestAsk, lastTradePrice })}
+                    />
                   ) : (
                     <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
                   )}
