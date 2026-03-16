@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { RecentTradesPanel } from "@/components/trading/RecentTradesPanel";
+import { MarketAnalyticsPanel } from "@/components/trading/MarketAnalyticsPanel";
 import { Time, CandlestickData } from "lightweight-charts";
 import { usePolymarket, usePolymarketTrade, usePolymarketPositions, usePolymarketOrders } from "@/hooks/usePolymarket";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
@@ -913,20 +914,31 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {mobileTab === "trade-data" && (
-              <div className="grid h-full grid-cols-1 gap-3 overflow-y-auto p-3 pb-28">
-                <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                    <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
-                  </div>
-                  {selectedMarket?.yesTokenId ? (
-                    <RealtimeOrderBook tokenId={selectedMarket.yesTokenId} maxDepth={6} showHeader />
-                  ) : (
-                    <p className="py-3 text-center text-xs text-[#8b8d98]">暂无盘口数据</p>
-                  )}
-                </div>
-                <PositionsPanelCompact />
-              </div>
+              <MarketAnalyticsPanel
+                marketTitle={selectedMarket?.question || event.title}
+                summaryItems={[
+                  {
+                    label: "24h Volume",
+                    value: formatMoney(event.volume24h),
+                    helper: "近 24h 成交额",
+                  },
+                  {
+                    label: "Liquidity",
+                    value: formatMoney(event.liquidity),
+                    helper: "当前流动性",
+                  },
+                  {
+                    label: "领先方向",
+                    value: marketBiasLabel,
+                    helper: `领先 ${marketBiasGap.toFixed(1)}¢`,
+                  },
+                  {
+                    label: "组合价格",
+                    value: combinedPrice.toFixed(3),
+                    helper: "Yes + No",
+                  },
+                ]}
+              />
             )}
 
             {mobileTab === "trade" && (
