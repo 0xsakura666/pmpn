@@ -913,12 +913,13 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                         );
                       })}
                     </div>
-                    <div className="max-h-[22dvh] overflow-y-auto p-3">
+                    <div className="max-h-[28dvh] overflow-y-auto p-3">
                       {mobilePricePanel === "orderbook" ? (
                         currentToken?.token_id ? (
                           <RealtimeOrderBook
                             tokenId={currentToken.token_id}
-                            maxDepth={6}
+                            maxDepth={10}
+                            layout="split"
                             showHeader
                             onQuoteChange={({ bestBid, bestAsk, lastTradePrice }) => setLiveQuote({ bestBid, bestAsk, lastTradePrice })}
                           />
