@@ -42,7 +42,9 @@ const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: str
 const DEFAULT_VISIBLE_TIMEFRAMES: TimeframeType[] = ["1M", "5M", "15M", "1H", "4H"];
 
 function formatPriceInt(value: number) {
-  return `${Math.round(value * 100)}`;
+  if (!Number.isFinite(value)) return "--";
+  const cents = value * 100;
+  return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
 function normalizeCandleTimeToSeconds(rawTime: Time): number | null {
@@ -128,6 +130,8 @@ export function RealtimeCandlestickChart({
       .filter((candle): candle is CandlestickData<Time> => candle !== null);
   }, [initialData]);
 
+  const realtimeTokenId = enableRealtime ? tokenId || "" : "";
+
   const {
     isConnected,
     lastPrice,
@@ -135,7 +139,7 @@ export function RealtimeCandlestickChart({
     getCandles: wsGetCandles,
     getCurrentCandle: wsGetCurrentCandle,
   } = useMultiTimeframeCandles({
-    tokenId: tokenId || "",
+    tokenId: realtimeTokenId,
     initialData: normalizedInitialData as CandleData[],
   });
 
@@ -162,10 +166,15 @@ export function RealtimeCandlestickChart({
   }, [normalizedInitialData, currentInterval, historyBaseInterval]);
 
   const displayCurrentCandle = useMemo(() => {
+    if (!enableRealtime) return null;
     return wsGetCurrentCandle(currentInterval) as CandlestickData<Time> | null;
-  }, [wsGetCurrentCandle, currentInterval, lastUpdate]);
+  }, [enableRealtime, wsGetCurrentCandle, currentInterval, lastUpdate]);
 
   const displayCandles = useMemo(() => {
+    if (!enableRealtime) {
+      return historicalCandlesForInterval;
+    }
+
     const wsCandles = wsGetCandles(currentInterval) as CandlestickData<Time>[];
     const latestHistoricalTime = getLatestCandleTime(historicalCandlesForInterval);
     const currentRealtimeTime = displayCurrentCandle ? Number(displayCurrentCandle.time as unknown) : null;
@@ -187,7 +196,7 @@ export function RealtimeCandlestickChart({
     }
 
     return mergeCandlesByTime(historicalCandlesForInterval, finalizedRealtimeCandles);
-  }, [wsGetCandles, currentInterval, lastUpdate, historicalCandlesForInterval, displayCurrentCandle]);
+  }, [enableRealtime, wsGetCandles, currentInterval, lastUpdate, historicalCandlesForInterval, displayCurrentCandle]);
 
   const handleTimeframeChange = (tf: TimeframeType) => {
     setSelectedTimeframe(tf);
@@ -270,7 +279,7 @@ export function RealtimeCandlestickChart({
           <span>H <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.high) : "--"}</span></span>
           <span>L <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.low) : "--"}</span></span>
           <span className="ml-auto inline-flex items-center gap-1.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "animate-pulse bg-[#0ECB81]" : "bg-[#F6465D]"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${enableRealtime && isConnected ? "animate-pulse bg-[#0ECB81]" : "bg-[#F6465D]"}`} />
             {enableRealtime && isConnected ? "实时" : "静态"}
           </span>
         </div>
@@ -297,7 +306,7 @@ export function RealtimeCandlestickChart({
           currentCandle={displayCurrentCandle}
           showSeconds={config.showSeconds}
           isRealtime={Boolean(enableRealtime)}
-          lastPrice={lastPrice}
+          lastPrice={enableRealtime ? lastPrice : null}
           chartMode={chartMode}
           resetViewKey={`${selectedTimeframe}-${chartMode}`}
           accentColor="#0ECB81"

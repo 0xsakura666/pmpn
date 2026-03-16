@@ -33,7 +33,8 @@ interface RealtimeOrderBookProps {
 
 function formatCents(price: number | null) {
   if (price == null || !Number.isFinite(price)) return "--";
-  return `${Math.round(price * 100)}`;
+  const cents = price * 100;
+  return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
 function normalizeLevels(levels: OrderLevel[] | undefined, descending: boolean, maxDepth: number) {
@@ -166,7 +167,7 @@ export function RealtimeOrderBook({
 
       {spread != null && (
         <div className="rounded-xl bg-[#111319] px-2 py-1 text-center text-[10px] text-[#8a8e99]">
-          价差 {formatCents(spread / 100 ? spread : spread)} / {spread.toFixed(3)}
+          价差 {formatCents(spread)}¢
         </div>
       )}
 
@@ -251,7 +252,7 @@ function OrderRow({
           opacity: 0.12,
         }}
       />
-      <span className={`relative z-10 ${textColor}`}>{Math.round(price * 100)}</span>
+      <span className={`relative z-10 ${textColor}`}>{formatCents(price)}</span>
       <span className="relative z-10 text-white">{size.toFixed(1)}</span>
     </div>
   );

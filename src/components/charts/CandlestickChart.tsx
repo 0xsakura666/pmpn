@@ -84,7 +84,8 @@ function buildMovingAverageSeries(candles: CandleData[], period: number): Array<
 
 function formatPriceInt(price: number): string {
   if (!Number.isFinite(price)) return "--";
-  return `${Math.round(price * 100)}`;
+  const cents = price * 100;
+  return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
 export function CandlestickChart({
@@ -130,8 +131,8 @@ export function CandlestickChart({
     const chartHeight = getChartHeight();
     const centsPriceFormat = {
       type: "price" as const,
-      precision: 0,
-      minMove: 0.0001,
+      precision: 1,
+      minMove: 0.001,
       formatter: (price: number) => formatPriceInt(price),
     };
 

@@ -49,7 +49,9 @@ interface EventData {
 }
 
 function formatPriceInt(value: number) {
-  return `${Math.round(value * 100)}`;
+  if (!Number.isFinite(value)) return "--";
+  const cents = value * 100;
+  return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
 function formatCompactId(value: string, size = 12) {
@@ -795,7 +797,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                           {formatPriceInt(heroPrice)}
                         </div>
                         <div className="mt-2 flex items-center gap-2 text-sm">
-                          <span className="font-medium text-white">${heroPrice.toFixed(3)}</span>
+                          <span className="font-medium text-white">{formatPriceInt(heroPrice)}¢</span>
                           <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
                             {priceStats.changePct >= 0 ? "+" : ""}{priceStats.changePct.toFixed(2)}%
                           </span>
@@ -945,7 +947,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   },
                   {
                     label: "组合价格",
-                    value: combinedPrice.toFixed(3),
+                    value: `${formatPriceInt(combinedPrice)}¢`,
                     helper: "Yes + No",
                   },
                 ]}

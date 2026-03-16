@@ -56,6 +56,12 @@ interface ApiMarketResponse {
   negRisk?: boolean;
 }
 
+function formatPriceCents(value: number) {
+  if (!Number.isFinite(value)) return "--";
+  const cents = value * 100;
+  return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
+}
+
 function TradePageContent() {
   const searchParams = useSearchParams();
   const initialMarketId = searchParams.get("market");
@@ -225,7 +231,7 @@ function TradePageContent() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-[#00D4AA]">
-                          {Math.round(market.yesPrice * 100)}%
+                          {formatPriceCents(market.yesPrice)}
                         </p>
                       </div>
                     </button>
@@ -255,13 +261,13 @@ function TradePageContent() {
               <div>
                 <span className="text-xs text-[#6b6b80]">{selectedMarket.yesLabel} 价格</span>
                 <p className="text-lg font-bold text-[#00D4AA]">
-                  ${selectedMarket.yesPrice.toFixed(3)}
+                  {formatPriceCents(selectedMarket.yesPrice)}
                 </p>
               </div>
               <div>
                 <span className="text-xs text-[#6b6b80]">{selectedMarket.noLabel} 价格</span>
                 <p className="text-lg font-bold text-[#FF6B6B]">
-                  ${selectedMarket.noPrice.toFixed(3)}
+                  {formatPriceCents(selectedMarket.noPrice)}
                 </p>
               </div>
               <div className="h-8 w-px bg-[#1e1e28]" />
@@ -364,7 +370,7 @@ function TradePageContent() {
                   <p className="text-sm truncate mb-2">{market.question}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-[#00D4AA]">
-                      {Math.round(market.yesPrice * 100)}%
+                      {formatPriceCents(market.yesPrice)}
                     </span>
                     <span className="text-xs text-[#6b6b80]">
                       {formatMoney(market.volume24h)}
