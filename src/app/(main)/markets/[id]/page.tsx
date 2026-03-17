@@ -1049,21 +1049,29 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
               <div className="hidden shrink-0 px-3 pb-3 lg:block">
                 <div className="flex items-center gap-3 text-xs">
-                  {market.tokens?.map((token, index) => (
-                    <div key={token.token_id} className="flex items-center gap-2 rounded-xl bg-[#15161c] px-3 py-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          index === 0
-                            ? "bg-[#0ECB81]/15 text-[#0ECB81]"
-                            : "bg-[#F6465D]/15 text-[#F6465D]"
-                        }`}
-                      >
-                        {token.outcome}
-                      </span>
-                      <span className="font-mono text-[10px] text-[#666]">{formatCompactId(token.token_id, 10)}</span>
-                      <span className="font-bold text-white">{formatPriceInt(toSafePrice(token.price))}</span>
-                    </div>
-                  ))}
+                  {market.tokens?.map((token, index) => {
+                    const alignedPrice = token.token_id === yesToken?.token_id
+                      ? displayYesPrice
+                      : token.token_id === noToken?.token_id
+                        ? displayNoPrice
+                        : toSafePrice(token.price);
+
+                    return (
+                      <div key={token.token_id} className="flex items-center gap-2 rounded-xl bg-[#15161c] px-3 py-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            index === 0
+                              ? "bg-[#0ECB81]/15 text-[#0ECB81]"
+                              : "bg-[#F6465D]/15 text-[#F6465D]"
+                          }`}
+                        >
+                          {token.outcome}
+                        </span>
+                        <span className="font-mono text-[10px] text-[#666]">{formatCompactId(token.token_id, 10)}</span>
+                        <span className="font-bold text-white">{formatPriceInt(alignedPrice)}</span>
+                      </div>
+                    );
+                  })}
                   {market.description && (
                     <span className="ml-2 truncate text-[#666]" title={market.description}>
                       {market.description.slice(0, 80)}...

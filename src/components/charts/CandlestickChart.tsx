@@ -142,6 +142,9 @@ export function CandlestickChart({
         textColor: "#8B949E",
         fontSize: 11,
       },
+      localization: {
+        priceFormatter: (price: number) => formatPriceInt(price),
+      },
       grid: {
         vertLines: { color: "rgba(255, 255, 255, 0.04)" },
         horzLines: { color: "rgba(255, 255, 255, 0.05)" },
