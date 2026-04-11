@@ -95,6 +95,12 @@ function formatPriceInt(value: number) {
   return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
+function normalizeCandleTime(raw: number): number | null {
+  if (!Number.isFinite(raw)) return null;
+  const normalized = raw > 10_000_000_000 ? Math.floor(raw / 1000) : Math.floor(raw);
+  return normalized > 0 ? normalized : null;
+}
+
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("1M");
@@ -379,6 +385,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const marketBiasLabel = displayYesPrice >= displayNoPrice ? yesLabel : noLabel;
   const marketBiasGap = Math.abs(displayYesPrice - displayNoPrice) * 100;
   const edgeToOne = (1 - combinedPrice) * 100;
+  const marketOverviewStats = [
+    { label: "结算时间", value: settlementDetailLabel },
+    { label: "主导方向", value: marketBiasLabel },
+    { label: "组合价格", value: `${formatPriceInt(combinedPrice)}¢` },
+    { label: "偏离 1.00", value: `${edgeToOne >= 0 ? "+" : ""}${edgeToOne.toFixed(1)}¢` },
+  ];
 
   if (loading) {
     return (
@@ -410,41 +422,56 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         <header className="sticky top-0 z-20 shrink-0 border-b border-[#1d2028] bg-[#0d0d0f]/95 backdrop-blur">
           <div className="hidden items-center justify-between gap-4 px-4 py-3 lg:flex">
             <div className="flex min-w-0 items-center gap-3">
-              <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#252833] bg-[#14161d] text-[#cdd1db] transition hover:text-white">
+              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#252833] bg-[#14161d] text-[#d7dbe5] shadow-sm transition hover:text-white hover:bg-[#1a1d24]">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
-              {market.image && <img src={market.image} alt="" className="h-8 w-8 rounded-full object-cover" />}
+              <div className="flex h-10 w-10 shrink-0 flex-col overflow-hidden rounded-xl border border-[#252833] bg-[#14161d] shadow-sm">
+                <div className="flex h-[14px] items-center justify-center bg-[#1d2028] text-[8px] font-semibold uppercase tracking-wider text-[#8a8f9c]">ID</div>
+                <div className="flex flex-1 items-center justify-center font-mono text-[9px] font-medium text-[#cdd1db]">{formatCompactId(market.id, 4)}</div>
+              </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-white">{market.title}</div>
-                <div className="mt-1 text-xs text-[#7d818d]">截止 {settlementDetailLabel} · ID {marketIdLabel}</div>
+                <div className="truncate text-base font-semibold text-white tracking-tight">{market.title}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#7d818d]">
+                  <span className="font-mono text-[#6f7682]">ID {marketIdLabel}</span>
+                  <span>·</span>
+                  <span>截止 <span className="text-[#a3a8b3]">{settlementDetailLabel}</span></span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-sm">
-              <button onClick={() => setMobileTradeSide("yes")} className="text-[#8a8f9c]">{yesLabel}</button>
-              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(displayYesPrice)}</span>
+            <div className="flex items-center gap-2 rounded-xl border border-[#252833] bg-[#14161d] px-3.5 py-1.5 text-sm shadow-sm">
+              <span className="text-[#8a8f9c]">{yesLabel}</span>
+              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
               <span className="text-[#333845]">/</span>
-              <button onClick={() => setMobileTradeSide("no")} className="text-[#8a8f9c]">{noLabel}</button>
-              <span className="font-semibold text-[#F6465D]">{formatPriceInt(displayNoPrice)}</span>
+              <span className="text-[#8a8f9c]">{noLabel}</span>
+              <span className="font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</span>
             </div>
           </div>
 
           <div className="px-3 py-3 lg:hidden">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#252833] bg-[#14161d] text-[#d7dbe5]">
-                <ArrowLeft className="h-4 w-4" />
+            <div className="flex items-start gap-3">
+              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#252833] bg-[#14161d] text-[#d7dbe5] shadow-sm transition hover:text-white hover:bg-[#1a1d24]">
+                <ArrowLeft className="h-5 w-5" />
               </Link>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold text-white">{market.title}</div>
-                <div className="mt-1 text-xs text-[#7d818d]">{marketIdLabel} · 截止 {settlementDetailLabel}</div>
+                <div className="truncate text-lg font-semibold text-white tracking-tight">{market.title}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-[12px] text-[#7d818d]">
+                  <span className="font-mono text-[#6f7682]">ID {marketIdLabel}</span>
+                  <span>·</span>
+                  <span>截止 <span className="text-[#a3a8b3]">{settlementDetailLabel}</span></span>
+                </div>
               </div>
-              <div className="rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-[11px] text-[#b7bbc6]">
-                {formatPriceInt(yesPrice)}/{formatPriceInt(noPrice)}
+              <div className="flex flex-col items-end gap-2">
+                {market.image && <img src={market.image} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-white/10 shadow-sm" />}
+                <div className="flex h-10 w-10 shrink-0 flex-col overflow-hidden rounded-xl border border-[#252833] bg-[#14161d] shadow-sm">
+                  <div className="flex h-[14px] items-center justify-center bg-[#1d2028] text-[8px] font-semibold uppercase tracking-wider text-[#8a8f9c]">ID</div>
+                  <div className="flex flex-1 items-center justify-center font-mono text-[9px] font-medium text-[#cdd1db]">{formatCompactId(market.id, 4)}</div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max gap-1 rounded-full bg-[#11151b] p-1 text-xs">
+            <div className="mt-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max gap-1 rounded-xl bg-[#11151b] p-1 text-[13px] font-medium">
                 {[
                   ["price", "价格"],
                   ["info", "信息"],
@@ -456,7 +483,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     <button
                       key={id}
                       onClick={() => setMobileTab(id as "price" | "info" | "trade-data" | "trade")}
-                      className={`border-b-2 px-0.5 py-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#c3c7d1]"}`}
+                      className={`flex-1 rounded-lg px-3 py-1.5 transition-colors ${active ? "bg-[#1d222b] text-white shadow-sm" : "text-[#8a8e99] hover:text-white"}`}
                     >
                       {label}
                     </button>
@@ -476,45 +503,50 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     <div className="flex items-end justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] uppercase tracking-[0.18em] text-[#6f7682]">{heroLabel}</div>
-                        <div className={`mt-1 text-[38px] font-semibold leading-none tracking-tight ${heroColor}`}>
+                        <div className={`mt-1 text-[44px] font-bold tracking-tight leading-[1.1] ${heroColor}`}>
                           {formatPriceInt(heroPrice)}
                         </div>
-                        <div className="mt-2 flex items-center gap-2 text-sm">
-                          <span className="font-medium text-white">{formatPriceInt(heroPrice)}¢</span>
-                          <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
-                            {priceStats.changePct >= 0 ? "+" : ""}
-                            {priceStats.changePct.toFixed(2)}%
+                        <div className="mt-2 flex items-baseline gap-2">
+                          <span className="font-mono text-sm font-semibold text-white/90">{formatPriceInt(heroPrice)}¢</span>
+                          <span className={`font-mono text-xs font-semibold ${priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>
+                            {priceStats.changePct >= 0 ? "+" : ""}{priceStats.changePct.toFixed(2)}%
                           </span>
                         </div>
                       </div>
-                      <div className="shrink-0 rounded-2xl bg-[#0d1015] px-3 py-2 text-right text-[11px]">
-                        <div className="text-[#6f7682]">结算</div>
-                        <div className="mt-1 text-white">{settlementLabel}</div>
+                      <div className="shrink-0 rounded-[14px] bg-[#0d1015] px-3.5 py-2.5 text-right text-[11px] shadow-inner ring-1 ring-white/5">
+                        <div className="text-[#6f7682] uppercase tracking-wider text-[9px] font-semibold">结算</div>
+                        <div className="mt-1 font-mono text-[13px] font-medium text-white">{settlementLabel}</div>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[#9aa0aa]">
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">高 {formatPriceInt(priceStats.high)}</span>
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">低 {formatPriceInt(priceStats.low)}</span>
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">Tick {market.tickSize || "0.01"}</span>
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">{market.negRisk ? "Neg Risk" : "标准盘"}</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-medium text-[#9aa0aa]">
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">高 {formatPriceInt(priceStats.high)}</span>
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">低 {formatPriceInt(priceStats.low)}</span>
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">Tick {market.tickSize || "0.01"}</span>
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">{market.negRisk ? "Neg Risk" : "标准盘"}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
                     <button
                       onClick={() => setMobileTradeSide("yes")}
-                      className={`px-3 py-1.5 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
+                      className={`px-3 py-2 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b] hover:bg-[#1a2029]"}`}
                     >
-                      <div className="text-[10px] text-[#79808d]">{yesLabel}</div>
-                      <div className="mt-0.5 text-[20px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
+                      <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
+                      <div className="mt-1 flex items-baseline justify-between">
+                        <div className="text-[20px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}¢</div>
+                        <div className="text-[10px] text-[#0ECB81]/60">Buy</div>
+                      </div>
                     </button>
                     <button
                       onClick={() => setMobileTradeSide("no")}
-                      className={`px-3 py-1.5 text-left transition ${mobileTradeSide === "no" ? "bg-[#2a171d]" : "bg-[#11151b]"}`}
+                      className={`px-3 py-2 text-left transition ${mobileTradeSide === "no" ? "bg-[#2a171d]" : "bg-[#11151b] hover:bg-[#1a2029]"}`}
                     >
-                      <div className="text-[10px] text-[#79808d]">{noLabel}</div>
-                      <div className="mt-0.5 text-[20px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}</div>
+                      <div className="text-[11px] text-[#79808d]">{noLabel}</div>
+                      <div className="mt-1 flex items-baseline justify-between">
+                        <div className="text-[20px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}¢</div>
+                        <div className="text-[10px] text-[#F6465D]/60">Buy</div>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -544,7 +576,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   </div>
 
                   <div className="mt-2 overflow-hidden rounded-[20px] border border-[#20242d] bg-[#12161c]">
-                    <div className="flex gap-4 border-b border-[#20242d] px-3 pt-2 text-[11px]">
+                    <div className="flex gap-4 border-b border-[#20242d] px-3 pt-2 text-[13px] font-medium">
                       {[
                         ["orderbook", "委托订单"],
                         ["trades", "最新成交"],
@@ -554,7 +586,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           <button
                             key={id}
                             onClick={() => setMobilePricePanel(id as "orderbook" | "trades")}
-                            className={`border-b-2 pb-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#8a8e99]"}`}
+                            className={`border-b-2 pb-2.5 px-1 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#8a8e99] hover:text-[#cdd1db]"}`}
                           >
                             {label}
                           </button>
@@ -588,24 +620,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
                   <div className="space-y-2 text-xs">
+                    {marketOverviewStats.map((stat, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3">
+                        <span className="text-[#7b7f8a]">{stat.label}</span>
+                        <span className="font-mono text-[#c8ccd5]">{stat.value}</span>
+                      </div>
+                    ))}
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[#7b7f8a]">Market ID</span>
                       <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">结算时间</span>
-                      <span className="text-white">{settlementDetailLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Tick Size</span>
-                      <span className="text-white">{market.tickSize || "0.01"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Neg Risk</span>
-                      <span className="text-white">{market.negRisk ? "Yes" : "No"}</span>
-                    </div>
                     {market.description && (
-                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{market.description}</div>
+                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3] leading-relaxed">{market.description}</div>
                     )}
                   </div>
                 </div>
@@ -723,9 +749,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             <aside className="w-[360px] shrink-0 border-t border-[#1d2028] lg:border-t-0 lg:overflow-y-auto">
               <div className="grid grid-cols-1 gap-3 p-3">
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                    <span className="text-[11px] text-[#7c818d]">{currentLabel} 深度</span>
+                    <span className="rounded-full bg-[#1a2029] px-3 py-1 text-[11px] font-medium text-[#7c818d]">{currentLabel} 深度</span>
                   </div>
                   {currentToken?.token_id ? (
                     <RealtimeOrderBook
@@ -756,24 +782,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
                   <div className="space-y-2 text-xs">
+                    {marketOverviewStats.map((stat, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3">
+                        <span className="text-[#7b7f8a]">{stat.label}</span>
+                        <span className="font-mono text-[#c8ccd5]">{stat.value}</span>
+                      </div>
+                    ))}
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[#7b7f8a]">Market ID</span>
                       <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">结算时间</span>
-                      <span className="text-white">{settlementDetailLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Tick Size</span>
-                      <span className="text-white">{market.tickSize || "0.01"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Neg Risk</span>
-                      <span className="text-white">{market.negRisk ? "Yes" : "No"}</span>
-                    </div>
                     {market.description && (
-                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{market.description}</div>
+                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3] leading-relaxed">{market.description}</div>
                     )}
                   </div>
                 </div>
@@ -786,15 +806,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => jumpToTradePanel("yes")}
-              className="rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black"
+              className="rounded-xl bg-[#0ECB81] px-4 py-3.5 text-[15px] font-semibold text-black shadow-lg shadow-[#0ECB81]/20 active:scale-95 transition-transform"
             >
-              买入 {yesLabel} · {formatPriceInt(yesPrice)}
+              买入 {yesLabel} · {formatPriceInt(yesPrice)}¢
             </button>
             <button
               onClick={() => jumpToTradePanel("no")}
-              className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
+              className="rounded-xl bg-[#F6465D] px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-[#F6465D]/20 active:scale-95 transition-transform"
             >
-              买入 {noCompactLabel} · {formatPriceInt(noPrice)}
+              买入 {noCompactLabel} · {formatPriceInt(noPrice)}¢
             </button>
           </div>
         </div>

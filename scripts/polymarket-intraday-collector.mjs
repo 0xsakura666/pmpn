@@ -59,12 +59,6 @@ function getTopBookPrice(levels, mode) {
   return selected;
 }
 
-function isReasonablePriceJump(nextPrice, previousPrice, maxDeviation = 0.35) {
-  if (previousPrice == null || previousPrice <= 0) return true;
-  const deviation = Math.abs(nextPrice - previousPrice) / previousPrice;
-  return deviation <= maxDeviation;
-}
-
 function resolveLifecycleDateCandidates(market) {
   return [
     market.endDate,
@@ -227,6 +221,7 @@ class Collector {
     this.heartbeatTimer = null;
     this.trackedTokens = new Map();
     this.stateByToken = new Map();
+    this.pendingRows = [];
     this.latestSecond = null;
     this.reconnectAttempts = 0;
     this.cleanupTimer = null;
@@ -292,6 +287,7 @@ class Collector {
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
       console.log("[collector] websocket connected");
+      this.startHeartbeat();
       this.subscribe();
     };
 
@@ -319,11 +315,13 @@ class Collector {
 
     this.ws.onclose = () => {
       console.warn("[collector] websocket closed");
+      this.stopHeartbeat();
       this.scheduleReconnect();
     };
 
     this.ws.onerror = (error) => {
       console.warn("[collector] websocket error", error);
+      this.stopHeartbeat();
       this.ws?.close();
     };
   }
@@ -351,6 +349,22 @@ class Collector {
     }, delay);
   }
 
+  startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send("PING");
+      }
+    }, 10_000);
+  }
+
+  stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
   ensureState(tokenId) {
     if (!this.stateByToken.has(tokenId)) {
       this.stateByToken.set(tokenId, {
@@ -360,7 +374,7 @@ class Collector {
         low: null,
         close: null,
         sampleCount: 0,
-        lastMid: null,
+        lastBarClose: null,
         lastBid: null,
         lastAsk: null,
         lastTrade: null,
@@ -376,47 +390,85 @@ class Collector {
     state.low = price;
     state.close = price;
     state.sampleCount = 1;
+    state.lastBarClose = price;
   }
 
-  updatePrice(tokenId, second, { bestBid, bestAsk, lastTrade }) {
+  buildRow(tokenId, bucketSecond, state, meta) {
+    if (!meta) return null;
+    if (
+      !Number.isFinite(state.open) ||
+      !Number.isFinite(state.high) ||
+      !Number.isFinite(state.low) ||
+      !Number.isFinite(state.close)
+    ) {
+      return null;
+    }
+
+    return {
+      tokenId,
+      interval: "1s",
+      bucketStart: new Date(bucketSecond * 1000),
+      tradingDay: toTradingDay(new Date(bucketSecond * 1000)),
+      conditionId: meta.conditionId,
+      marketTitle: meta.marketTitle,
+      eventSlug: meta.eventSlug,
+      outcome: meta.outcome,
+      open: state.open,
+      high: state.high,
+      low: state.low,
+      close: state.close,
+      bestBid: state.lastBid,
+      bestAsk: state.lastAsk,
+      lastTradePrice: state.lastTrade,
+      sampleCount: state.sampleCount,
+      expiresAt: meta.expiresAt,
+    };
+  }
+
+  queueActiveState(tokenId, bucketSecond, state) {
+    const row = this.buildRow(tokenId, bucketSecond, state, this.trackedTokens.get(tokenId));
+    if (!row) return;
+    this.pendingRows.push(row);
+    state.lastBarClose = state.close;
+    state.activeSecond = null;
+  }
+
+  updateQuote(tokenId, { bestBid, bestAsk }) {
     const state = this.ensureState(tokenId);
 
     const parsedBid = parseUnitPrice(bestBid);
     const parsedAsk = parseUnitPrice(bestAsk);
-    const parsedTrade = parseUnitPrice(lastTrade);
 
     if (parsedBid !== null) state.lastBid = parsedBid;
     if (parsedAsk !== null) state.lastAsk = parsedAsk;
-    if (parsedTrade !== null) state.lastTrade = parsedTrade;
+  }
 
-    let nextPrice = null;
+  updateTrade(tokenId, second, tradePrice) {
+    const state = this.ensureState(tokenId);
+    const parsedTrade = parseUnitPrice(tradePrice);
+    if (parsedTrade === null) return;
 
-    // Prefer real trades. Book-derived midpoint is only a conservative fallback.
-    if (Number.isFinite(state.lastTrade)) {
-      nextPrice = state.lastTrade;
-    } else if (
-      Number.isFinite(state.lastBid) &&
-      Number.isFinite(state.lastAsk) &&
-      state.lastAsk >= state.lastBid &&
-      state.lastAsk - state.lastBid <= 0.03
-    ) {
-      nextPrice = (state.lastBid + state.lastAsk) / 2;
-    }
-
-    if (!Number.isFinite(nextPrice)) return;
-    if (!isReasonablePriceJump(nextPrice, state.lastMid, 0.15)) return;
-
-    state.lastMid = nextPrice;
-
-    if (state.activeSecond !== second) {
-      this.startSecond(state, second, nextPrice);
+    if (Number.isFinite(state.activeSecond) && second < state.activeSecond) {
       return;
     }
 
-    state.high = Math.max(state.high, nextPrice);
-    state.low = Math.min(state.low, nextPrice);
-    state.close = nextPrice;
+    if (Number.isFinite(state.activeSecond) && state.activeSecond < second) {
+      this.queueActiveState(tokenId, state.activeSecond, state);
+    }
+
+    state.lastTrade = parsedTrade;
+    state.lastBarClose = parsedTrade;
+
+    if (state.activeSecond !== second) {
+      this.startSecond(state, second, parsedTrade);
+      return;
+    }
+
+    state.high = Math.max(state.high, parsedTrade);
+    state.low = Math.min(state.low, parsedTrade);
+    state.close = parsedTrade;
     state.sampleCount += 1;
+    state.lastBarClose = state.close;
   }
 
   handleMessage(message) {
@@ -429,35 +481,30 @@ class Collector {
     if (message.event_type === "price_change" && Array.isArray(message.price_changes)) {
       for (const change of message.price_changes) {
         if (!this.trackedTokens.has(change.asset_id)) continue;
-        this.updatePrice(change.asset_id, second, {
+        this.updateQuote(change.asset_id, {
           bestBid: Number(change.best_bid),
           bestAsk: Number(change.best_ask),
-          lastTrade: Number(change.price),
         });
       }
       return;
     }
 
     if (message.event_type === "book" && this.trackedTokens.has(message.asset_id)) {
-      this.updatePrice(message.asset_id, second, {
+      this.updateQuote(message.asset_id, {
         bestBid: getTopBookPrice(message.bids, "bestBid"),
         bestAsk: getTopBookPrice(message.asks, "bestAsk"),
-        lastTrade: Number(message.last_trade_price),
       });
       return;
     }
 
     if (message.event_type === "last_trade_price" && this.trackedTokens.has(message.asset_id)) {
-      this.updatePrice(message.asset_id, second, {
-        lastTrade: Number(message.price),
-      });
+      this.updateTrade(message.asset_id, second, Number(message.price));
     }
   }
 
   async flushPreviousSecond() {
     const nowSecond = Math.floor(Date.now() / 1000);
-    const flushSecond = nowSecond - 1;
-    const rows = [];
+    const rows = this.pendingRows.splice(0);
 
     for (const [tokenId, meta] of this.trackedTokens.entries()) {
       const state = this.ensureState(tokenId);
@@ -467,38 +514,13 @@ class Collector {
         continue;
       }
 
-      if (state.activeSecond !== flushSecond || !Number.isFinite(state.open)) continue;
+      if (!Number.isFinite(state.activeSecond) || state.activeSecond >= nowSecond) continue;
 
-      const open = state.open;
-      const high = state.high;
-      const low = state.low;
-      const close = state.close;
-      const sampleCount = state.sampleCount;
+      this.queueActiveState(tokenId, state.activeSecond, state);
+    }
 
-      if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) continue;
-
-      state.lastMid = close;
-      state.activeSecond = null;
-
-      rows.push({
-        tokenId,
-        interval: "1s",
-        bucketStart: new Date(flushSecond * 1000),
-        tradingDay: toTradingDay(new Date(flushSecond * 1000)),
-        conditionId: meta.conditionId,
-        marketTitle: meta.marketTitle,
-        eventSlug: meta.eventSlug,
-        outcome: meta.outcome,
-        open,
-        high,
-        low,
-        close,
-        bestBid: state.lastBid,
-        bestAsk: state.lastAsk,
-        lastTradePrice: state.lastTrade,
-        sampleCount,
-        expiresAt: meta.expiresAt,
-      });
+    if (this.pendingRows.length) {
+      rows.push(...this.pendingRows.splice(0));
     }
 
     if (rows.length) {
@@ -626,12 +648,14 @@ process.on("uncaughtException", (error) => {
 
 process.on("SIGTERM", async () => {
   console.log("[collector] SIGTERM");
+  collector.stopHeartbeat();
   await pool.end();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("[collector] SIGINT");
+  collector.stopHeartbeat();
   await pool.end();
   process.exit(0);
 });

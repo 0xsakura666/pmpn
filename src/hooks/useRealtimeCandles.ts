@@ -57,33 +57,6 @@ function parseUnitPrice(value: unknown): number | null {
   return price;
 }
 
-function isReasonablePriceJump(nextPrice: number, previousPrice: number | null, maxDeviation = 0.35): boolean {
-  if (previousPrice === null || previousPrice <= 0) return true;
-  const deviation = Math.abs(nextPrice - previousPrice) / previousPrice;
-  return deviation <= maxDeviation;
-}
-
-function getTopBookPrice(levels: Array<{ price?: unknown }> | undefined, mode: "bestBid" | "bestAsk"): number | null {
-  if (!Array.isArray(levels) || levels.length === 0) return null;
-
-  let selected: number | null = null;
-  for (const level of levels) {
-    const price = parseUnitPrice(level?.price);
-    if (price === null) continue;
-    if (selected === null) {
-      selected = price;
-      continue;
-    }
-    if (mode === "bestBid") {
-      selected = Math.max(selected, price);
-    } else {
-      selected = Math.min(selected, price);
-    }
-  }
-
-  return selected;
-}
-
 function parseWsTimestampToMs(input: unknown): number {
   if (typeof input === "number" && Number.isFinite(input)) {
     return input > 1e12 ? input : input * 1000;
@@ -118,13 +91,14 @@ export function useMultiTimeframeCandles({
 }: MultiTimeframeCandlesOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastPrice, setLastPrice] = useState<number | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
+  const [lastUpdate, setLastUpdate] = useState<number>(() => Date.now());
   const [activeInterval, setActiveInterval] = useState<IntervalType>("1s");
   const [transportMode, setTransportMode] = useState<RealtimeTransportMode>(tokenId ? "connecting" : "idle");
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const ticksRef = useRef<TickData[]>([]);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());
@@ -246,8 +220,6 @@ export function useMultiTimeframeCandles({
 
   const processTradePrice = useCallback(
     (price: number, timestamp: number) => {
-      const last = lastPriceRef.current;
-      if (!isReasonablePriceJump(price, last, 0.4)) return;
       processPrice(price, timestamp);
     },
     [processPrice]
@@ -265,6 +237,14 @@ export function useMultiTimeframeCandles({
       wsRef.current.onopen = () => {
         setIsConnected(true);
         setTransportMode("ws");
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send("PING");
+          }
+        }, 10_000);
         wsRef.current?.send(
           JSON.stringify({
             type: "market",
@@ -280,40 +260,10 @@ export function useMultiTimeframeCandles({
           const messageArray = Array.isArray(messages) ? messages : [messages];
 
           for (const msg of messageArray) {
-            // New schema: batched changes under price_changes[]
-            if (msg.event_type === "price_change" && Array.isArray(msg.price_changes)) {
-              const timestamp = parseWsTimestampToMs(msg.timestamp);
-
-              for (const change of msg.price_changes) {
-                if (change.asset_id !== tokenId) continue;
-                const price = parseUnitPrice(change.price);
-                if (price === null) continue;
-                processTradePrice(price, timestamp);
-              }
-            }
-
-            // Legacy schema: single change
-            if (msg.event_type === "price_change" && msg.asset_id === tokenId) {
-              const price = parseUnitPrice(msg.price);
-              if (price === null) continue;
-              const timestamp = parseWsTimestampToMs(msg.timestamp);
-              processTradePrice(price, timestamp);
-            }
-
-            // Orderbook snapshot updates should prefer mid-price from top of book.
-            if (msg.event_type === "book" && msg.asset_id === tokenId) {
-              const timestamp = parseWsTimestampToMs(msg.timestamp);
-              const lastTrade = parseUnitPrice(msg.last_trade_price);
-              if (lastTrade !== null) {
-                processTradePrice(lastTrade, timestamp);
-              }
-            }
-
             if (msg.event_type === "last_trade_price" && msg.asset_id === tokenId) {
               const price = parseUnitPrice(msg.price);
               if (price !== null) {
-                const timestamp = parseWsTimestampToMs(msg.timestamp);
-                processPrice(price, timestamp);
+                processTradePrice(price, parseWsTimestampToMs(msg.timestamp));
               }
             }
 
@@ -330,6 +280,10 @@ export function useMultiTimeframeCandles({
       };
 
       wsRef.current.onclose = () => {
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
         setIsConnected(false);
         setTransportMode((current) => (current === "polling" ? "polling" : tokenId ? "connecting" : "idle"));
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -356,6 +310,10 @@ export function useMultiTimeframeCandles({
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();
@@ -401,18 +359,10 @@ export function useMultiTimeframeCandles({
         if (cancelled) return;
 
         const lastTradePrice = parseUnitPrice(data.last_trade_price);
-        const bestBid = getTopBookPrice(data.bids, "bestBid");
-        const bestAsk = getTopBookPrice(data.asks, "bestAsk");
-        const midpoint =
-          bestBid !== null && bestAsk !== null && bestAsk >= bestBid && bestAsk - bestBid <= 0.03
-            ? (bestBid + bestAsk) / 2
-            : null;
-
-        const fallbackPrice = lastTradePrice ?? midpoint;
-        if (fallbackPrice === null) return;
+        if (lastTradePrice === null) return;
 
         setTransportMode("polling");
-        processTradePrice(fallbackPrice, Date.now());
+        processTradePrice(lastTradePrice, Date.now());
       } catch {
         // Keep silent; websocket reconnect loop remains the primary transport.
       }
@@ -549,7 +499,7 @@ export function useSimulatedMultiTimeframeCandles({
   updateInterval = 100,
 }: SimulatedMultiTimeframeOptions = {}) {
   const [lastPrice, setLastPrice] = useState(initialPrice);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const [lastUpdate, setLastUpdate] = useState(() => Date.now());
 
   const priceRef = useRef(initialPrice);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());

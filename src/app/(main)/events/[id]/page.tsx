@@ -318,6 +318,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const marketBiasLabel = displayYesPrice >= displayNoPrice ? yesLabel : noLabel;
   const marketBiasGap = Math.abs(displayYesPrice - displayNoPrice) * 100;
   const combinedPrice = displayYesPrice + displayNoPrice;
+  
+  const eventOverviewStats = event ? [
+    { label: "24h 成交", value: formatMoney(event.volume24h) },
+    { label: "流动性", value: formatMoney(event.liquidity) },
+    { label: "结算时间", value: settlementDetailLabel },
+    { label: "主导方向", value: marketBiasLabel },
+  ] : [];
 
   if (loading) {
     return (
@@ -349,17 +356,20 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         <header className="sticky top-0 z-20 shrink-0 border-b border-[#1d2028] bg-[#0d0d0f]/95 backdrop-blur">
           <div className="hidden items-center justify-between gap-4 px-4 py-3 lg:flex">
             <div className="flex min-w-0 items-center gap-3">
-              <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#252833] bg-[#14161d] text-[#cdd1db] transition hover:text-white">
+              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#252833] bg-[#14161d] text-[#d7dbe5] shadow-sm transition hover:text-white hover:bg-[#1a1d24]">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
-              {event.image && <img src={event.image} alt="" className="h-8 w-8 rounded-full object-cover" />}
+              <div className="flex h-10 w-10 shrink-0 flex-col overflow-hidden rounded-xl border border-[#252833] bg-[#14161d] shadow-sm">
+                <div className="flex h-[14px] items-center justify-center bg-[#1d2028] text-[8px] font-semibold uppercase tracking-wider text-[#8a8f9c]">ID</div>
+                <div className="flex flex-1 items-center justify-center font-mono text-[9px] font-medium text-[#cdd1db]">{formatCompactId(event.id, 4)}</div>
+              </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-white">{event.title}</div>
-                <div className="mt-1 text-xs text-[#7d818d]">{event.category || "Event"} · {event.markets.length} markets</div>
+                <div className="truncate text-base font-semibold text-white tracking-tight">{event.title}</div>
+                <div className="mt-1 text-xs text-[#7d818d]">{event.category || "Event"} · <span className="text-[#a3a8b3]">{event.markets.length}</span> 个子市场</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-sm">
+            <div className="flex items-center gap-2 rounded-xl border border-[#252833] bg-[#14161d] px-3.5 py-1.5 text-sm shadow-sm">
               <span className="text-[#8a8f9c]">{yesLabel}</span>
               <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
               <span className="text-[#333845]">/</span>
@@ -369,21 +379,25 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div className="px-3 py-3 lg:hidden">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#252833] bg-[#14161d] text-[#d7dbe5]">
-                <ArrowLeft className="h-4 w-4" />
+            <div className="flex items-start gap-3">
+              <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#252833] bg-[#14161d] text-[#d7dbe5] shadow-sm transition hover:text-white hover:bg-[#1a1d24]">
+                <ArrowLeft className="h-5 w-5" />
               </Link>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold text-white">{event.title}</div>
-                <div className="mt-1 text-xs text-[#7d818d]">{event.category || "Event"} · {event.markets.length} 个子市场</div>
+                <div className="truncate text-lg font-semibold text-white tracking-tight">{event.title}</div>
+                <div className="mt-1 text-[12px] text-[#7d818d]">{event.category || "Event"} · <span className="text-[#a3a8b3]">{event.markets.length}</span> 个子市场</div>
               </div>
-              <div className="rounded-full border border-[#252833] bg-[#14161d] px-3 py-1.5 text-[11px] text-[#b7bbc6]">
-                {formatPriceInt(yesPrice)}/{formatPriceInt(noPrice)}
+              <div className="flex flex-col items-end gap-2">
+                {event.image && <img src={event.image} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-white/10 shadow-sm" />}
+                <div className="flex h-10 w-10 shrink-0 flex-col overflow-hidden rounded-xl border border-[#252833] bg-[#14161d] shadow-sm">
+                  <div className="flex h-[14px] items-center justify-center bg-[#1d2028] text-[8px] font-semibold uppercase tracking-wider text-[#8a8f9c]">ID</div>
+                  <div className="flex flex-1 items-center justify-center font-mono text-[9px] font-medium text-[#cdd1db]">{formatCompactId(event.id, 4)}</div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max gap-1 rounded-full bg-[#11151b] p-1 text-xs">
+            <div className="mt-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max gap-1 rounded-xl bg-[#11151b] p-1 text-[13px] font-medium">
                 {[
                   ["price", "价格"],
                   ["info", "信息"],
@@ -395,7 +409,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <button
                       key={id}
                       onClick={() => setMobileTab(id as "price" | "info" | "trade-data" | "trade")}
-                      className={`border-b-2 px-0.5 py-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#c3c7d1]"}`}
+                      className={`flex-1 rounded-lg px-3 py-1.5 transition-colors ${active ? "bg-[#1d222b] text-white shadow-sm" : "text-[#8a8e99] hover:text-white"}`}
                     >
                       {label}
                     </button>
@@ -417,19 +431,19 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <button
                         key={market.conditionId}
                         onClick={() => setSelectedMarket(market)}
-                        className={`min-w-[220px] rounded-[22px] border px-4 py-3 text-left transition ${
+                        className={`group min-w-[220px] shrink-0 rounded-[16px] border p-3.5 text-left transition-all ${
                           active
-                            ? "border-[#0ECB81]/35 bg-[#1a1c24] shadow-[0_10px_24px_rgba(14,203,129,0.10)]"
-                            : "border-[#232632] bg-[#14161c]"
+                            ? "border-[#0ECB81]/40 bg-gradient-to-b from-[#121c17] to-[#12161c] shadow-[0_4px_24px_rgba(14,203,129,0.12)]"
+                            : "border-[#20242d] bg-[#12161c] hover:border-[#2d323e] hover:bg-[#151a21]"
                         }`}
                       >
-                        <div className="line-clamp-2 text-sm font-medium text-white">{market.question}</div>
-                        <div className="mt-3 flex items-center justify-between text-xs">
+                        <div className="line-clamp-2 min-h-[40px] text-[13px] font-medium leading-relaxed text-white/90 group-hover:text-white transition-colors">{market.question}</div>
+                        <div className="mt-4 flex items-center justify-between text-[11px]">
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-[#0ECB81]/12 px-2 py-1 text-[#0ECB81]">{market.yesLabel || "Yes"} {formatPriceInt(market.yesPrice)}</span>
-                            <span className="rounded-full bg-[#F6465D]/12 px-2 py-1 text-[#F6465D]">{market.noLabel || "No"} {formatPriceInt(market.noPrice)}</span>
+                            <span className="rounded bg-[#0ECB81]/10 px-2 py-1 font-mono text-[#0ECB81] font-semibold">{market.yesLabel || "Yes"} <span className="opacity-90">{formatPriceInt(market.yesPrice)}¢</span></span>
+                            <span className="rounded bg-[#F6465D]/10 px-2 py-1 font-mono text-[#F6465D] font-semibold">{market.noLabel || "No"} <span className="opacity-90">{formatPriceInt(market.noPrice)}¢</span></span>
                           </div>
-                          <span className="text-[#7d818d]">{market.daysLeft}d</span>
+                          <span className="font-mono text-[#6f7682]">ID {formatCompactId(market.conditionId, 4)}</span>
                         </div>
                       </button>
                     );
@@ -445,44 +459,50 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <div className="flex items-end justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] uppercase tracking-[0.18em] text-[#6f7682]">{heroSide === "yes" ? yesLabel : noLabel}</div>
-                        <div className={`mt-1 text-[42px] font-semibold leading-none tracking-tight ${heroColor}`}>
+                        <div className={`mt-1 text-[44px] font-bold tracking-tight leading-[1.1] ${heroColor}`}>
                           {formatPriceInt(heroPrice)}
                         </div>
-                        <div className="mt-2 flex items-center gap-2 text-sm">
-                          <span className="font-medium text-white">{formatPriceInt(heroPrice)}¢</span>
-                          <span className={priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                        <div className="mt-2 flex items-baseline gap-2">
+                          <span className="font-mono text-sm font-semibold text-white/90">{formatPriceInt(heroPrice)}¢</span>
+                          <span className={`font-mono text-xs font-semibold ${priceStats.changePct >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>
                             {priceStats.changePct >= 0 ? "+" : ""}{priceStats.changePct.toFixed(2)}%
                           </span>
                         </div>
                       </div>
-                      <div className="shrink-0 rounded-2xl bg-[#0d1015] px-3 py-2 text-right text-[11px]">
-                        <div className="text-[#6f7682]">市场</div>
-                        <div className="mt-1 text-white">{event.markets.length}</div>
+                      <div className="shrink-0 rounded-[14px] bg-[#0d1015] px-3.5 py-2.5 text-right text-[11px] shadow-inner ring-1 ring-white/5">
+                        <div className="text-[#6f7682] uppercase tracking-wider text-[9px] font-semibold">市场</div>
+                        <div className="mt-1 font-mono text-[13px] font-medium text-white">{event.markets.length}</div>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[#9aa0aa]">
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">高 {formatPriceInt(priceStats.high)}</span>
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">低 {formatPriceInt(priceStats.low)}</span>
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">{event.category || "--"}</span>
-                      <span className="rounded-full bg-[#0d1015] px-2.5 py-1">ID {marketIdLabel}</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-medium text-[#9aa0aa]">
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">高 {formatPriceInt(priceStats.high)}</span>
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">低 {formatPriceInt(priceStats.low)}</span>
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5">{event.category || "--"}</span>
+                      <span className="rounded-md bg-[#0d1015] px-2.5 py-1 ring-1 ring-white/5 font-mono">ID {marketIdLabel}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-px bg-[#20242d] p-px">
                     <button
                       onClick={() => setMobileTradeSide("yes")}
-                      className={`px-3 py-1.5 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b]"}`}
+                      className={`px-3 py-2 text-left transition ${mobileTradeSide === "yes" ? "bg-[#10251d]" : "bg-[#11151b] hover:bg-[#1a2029]"}`}
                     >
-                      <div className="text-[10px] text-[#79808d]">{yesLabel}</div>
-                      <div className="mt-0.5 text-[20px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}</div>
+                      <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
+                      <div className="mt-1 flex items-baseline justify-between">
+                        <div className="text-[20px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}¢</div>
+                        <div className="text-[10px] text-[#0ECB81]/60">Buy</div>
+                      </div>
                     </button>
                     <button
                       onClick={() => setMobileTradeSide("no")}
-                      className={`px-3 py-1.5 text-left transition ${mobileTradeSide === "no" ? "bg-[#2a171d]" : "bg-[#11151b]"}`}
+                      className={`px-3 py-2 text-left transition ${mobileTradeSide === "no" ? "bg-[#2a171d]" : "bg-[#11151b] hover:bg-[#1a2029]"}`}
                     >
-                      <div className="text-[10px] text-[#79808d]">{noLabel}</div>
-                      <div className="mt-0.5 text-[20px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}</div>
+                      <div className="text-[11px] text-[#79808d]">{noLabel}</div>
+                      <div className="mt-1 flex items-baseline justify-between">
+                        <div className="text-[20px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}¢</div>
+                        <div className="text-[10px] text-[#F6465D]/60">Buy</div>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -512,7 +532,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
 
                   <div className="mt-2 overflow-hidden rounded-[20px] border border-[#20242d] bg-[#12161c]">
-                    <div className="flex gap-4 border-b border-[#20242d] px-3 pt-2 text-[11px]">
+                    <div className="flex gap-4 border-b border-[#20242d] px-3 pt-2 text-[13px] font-medium">
                       {[
                         ["orderbook", "委托订单"],
                         ["trades", "最新成交"],
@@ -522,7 +542,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                           <button
                             key={id}
                             onClick={() => setMobilePricePanel(id as "orderbook" | "trades")}
-                            className={`border-b-2 pb-2 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#8a8e99]"}`}
+                            className={`border-b-2 pb-2.5 px-1 transition ${active ? "border-[#0ECB81] text-[#0ECB81]" : "border-transparent text-[#8a8e99] hover:text-[#cdd1db]"}`}
                           >
                             {label}
                           </button>
@@ -550,28 +570,18 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white">事件信息</h3>
                   <div className="space-y-2 text-xs">
+                    {eventOverviewStats.map((stat, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3">
+                        <span className="text-[#7b7f8a]">{stat.label}</span>
+                        <span className="font-mono text-[#c8ccd5]">{stat.value}</span>
+                      </div>
+                    ))}
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Category</span>
-                      <span className="text-white">{event.category || "--"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">24h Volume</span>
-                      <span className="text-white">{formatMoney(event.volume24h)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Total Volume</span>
-                      <span className="text-white">{formatMoney(event.totalVolume)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Liquidity</span>
-                      <span className="text-white">{formatMoney(event.liquidity)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Market ID</span>
-                      <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
+                      <span className="text-[#7b7f8a]">Event ID</span>
+                      <span className="font-mono text-[#c8ccd5]">{formatCompactId(event.id, 12)}</span>
                     </div>
                     {event.description && (
-                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{event.description}</div>
+                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3] leading-relaxed">{event.description}</div>
                     )}
                   </div>
                 </div>
@@ -625,7 +635,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden">
             <section className="flex min-w-0 flex-col lg:flex-1 lg:border-r lg:border-[#1d2028]">
-              <div className="px-3 pt-3">
+              <div className="px-3 pt-3 lg:flex-none">
                 <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <div className="flex min-w-max gap-2">
                     {event.markets.map((market) => {
@@ -634,19 +644,19 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         <button
                           key={market.conditionId}
                           onClick={() => setSelectedMarket(market)}
-                          className={`min-w-[220px] rounded-[22px] border px-4 py-3 text-left transition ${
+                          className={`group min-w-[240px] shrink-0 rounded-[16px] border p-4 text-left transition-all ${
                             active
-                              ? "border-[#0ECB81]/35 bg-[#1a1c24] shadow-[0_10px_24px_rgba(14,203,129,0.10)]"
-                              : "border-[#232632] bg-[#14161c]"
+                              ? "border-[#0ECB81]/40 bg-gradient-to-b from-[#121c17] to-[#12161c] shadow-[0_8px_32px_rgba(14,203,129,0.15)]"
+                              : "border-[#20242d] bg-[#12161c] hover:border-[#2d323e] hover:bg-[#151a21]"
                           }`}
                         >
-                          <div className="line-clamp-2 text-sm font-medium text-white">{market.question}</div>
-                          <div className="mt-3 flex items-center justify-between text-xs">
+                          <div className="line-clamp-2 min-h-[44px] text-[14px] font-medium leading-relaxed text-white/90 group-hover:text-white transition-colors">{market.question}</div>
+                          <div className="mt-4 flex items-center justify-between text-[12px]">
                             <div className="flex items-center gap-2">
-                              <span className="rounded-full bg-[#0ECB81]/12 px-2 py-1 text-[#0ECB81]">{market.yesLabel || "Yes"} {formatPriceInt(market.yesPrice)}</span>
-                              <span className="rounded-full bg-[#F6465D]/12 px-2 py-1 text-[#F6465D]">{market.noLabel || "No"} {formatPriceInt(market.noPrice)}</span>
+                              <span className="rounded-lg bg-[#0ECB81]/10 px-2 py-1 font-mono text-[#0ECB81] font-semibold">{market.yesLabel || "Yes"} <span className="opacity-90">{formatPriceInt(market.yesPrice)}¢</span></span>
+                              <span className="rounded-lg bg-[#F6465D]/10 px-2 py-1 font-mono text-[#F6465D] font-semibold">{market.noLabel || "No"} <span className="opacity-90">{formatPriceInt(market.noPrice)}¢</span></span>
                             </div>
-                            <span className="text-[#7d818d]">{market.daysLeft}d</span>
+                            <span className="font-mono text-[11px] text-[#6f7682]">ID {formatCompactId(market.conditionId, 4)}</span>
                           </div>
                         </button>
                       );
@@ -655,7 +665,28 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
 
-              <div className="px-3 pt-3 lg:flex-1 lg:min-h-0">
+              <div className="hidden shrink-0 px-3 pb-3 lg:block">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  {event.markets.map((market) => {
+                    const isActive = selectedMarket?.conditionId === market.conditionId;
+                    return (
+                      <button
+                        key={market.conditionId}
+                        onClick={() => setSelectedMarket(market)}
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
+                          isActive ? "bg-[#1d222b] shadow-inner text-white" : "bg-[#15161c] hover:bg-[#1a1d24] text-white/60"
+                        }`}
+                      >
+                        <span className="truncate max-w-[120px] font-medium" title={market.question}>{market.question}</span>
+                        <div className="h-3 w-px bg-[#2a2d36]" />
+                        <span className={`font-bold ${isActive ? "text-[#0ECB81]" : "text-[#0ECB81]/60"}`}>{formatPriceInt(market.yesPrice)}</span>
+                        <span className={`font-bold ${isActive ? "text-[#F6465D]" : "text-[#F6465D]/60"}`}>{formatPriceInt(market.noPrice)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="px-3 pt-3 pb-3 lg:flex-1 lg:min-h-0">
                 <div className="overflow-hidden rounded-[24px] bg-transparent lg:h-full">
                   <div className="h-[460px] lg:h-full">
                     {historyLoading ? (
@@ -684,9 +715,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <aside className="w-[360px] shrink-0 border-t border-[#1d2028] lg:border-t-0 lg:overflow-y-auto">
               <div className="grid grid-cols-1 gap-3 p-3">
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">买卖区</h3>
-                    <span className="text-[11px] text-[#7c818d]">{yesLabel} 深度</span>
+                    <span className="rounded-full bg-[#1a2029] px-3 py-1 text-[11px] font-medium text-[#7c818d]">{yesLabel} 深度</span>
                   </div>
                   {currentTokenId ? (
                     <RealtimeOrderBook
@@ -718,28 +749,18 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white">事件信息</h3>
                   <div className="space-y-2 text-xs">
+                    {eventOverviewStats.map((stat, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3">
+                        <span className="text-[#7b7f8a]">{stat.label}</span>
+                        <span className="font-mono text-[#c8ccd5]">{stat.value}</span>
+                      </div>
+                    ))}
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Category</span>
-                      <span className="text-white">{event.category || "--"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">24h Volume</span>
-                      <span className="text-white">{formatMoney(event.volume24h)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Total Volume</span>
-                      <span className="text-white">{formatMoney(event.totalVolume)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Liquidity</span>
-                      <span className="text-white">{formatMoney(event.liquidity)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#7b7f8a]">Market ID</span>
-                      <span className="font-mono text-[#c8ccd5]">{marketIdLabel}</span>
+                      <span className="text-[#7b7f8a]">Event ID</span>
+                      <span className="font-mono text-[#c8ccd5]">{formatCompactId(event.id, 12)}</span>
                     </div>
                     {event.description && (
-                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3]">{event.description}</div>
+                      <div className="mt-3 rounded-2xl bg-[#0f1015] p-3 text-[#a3a8b3] leading-relaxed">{event.description}</div>
                     )}
                   </div>
                 </div>
@@ -752,15 +773,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => jumpToTradePanel("yes")}
-              className="rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black"
+              className="rounded-xl bg-[#0ECB81] px-4 py-3.5 text-[15px] font-semibold text-black shadow-lg shadow-[#0ECB81]/20 active:scale-95 transition-transform"
             >
-              买入 {yesCompactLabel} · {formatPriceInt(yesPrice)}
+              买入 {yesLabel} · {formatPriceInt(yesPrice)}¢
             </button>
             <button
               onClick={() => jumpToTradePanel("no")}
-              className="rounded-2xl bg-[#F6465D] px-4 py-3 text-sm font-semibold text-white"
+              className="rounded-xl bg-[#F6465D] px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-[#F6465D]/20 active:scale-95 transition-transform"
             >
-              买入 {noCompactLabel} · {formatPriceInt(displayNoPrice)}
+              买入 {noCompactLabel} · {formatPriceInt(noPrice)}¢
             </button>
           </div>
         </div>
