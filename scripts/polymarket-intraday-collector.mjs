@@ -11,6 +11,9 @@ const RETENTION_HOURS = Number(process.env.INTRADAY_COLLECTOR_RETENTION_HOURS ||
 const FETCH_TIMEOUT_MS = Number(process.env.INTRADAY_COLLECTOR_FETCH_TIMEOUT_MS || 12000);
 const PAGE_SIZE = 500;
 const MAX_SCAN = 3000;
+const CLEANUP_BATCH_SIZE = 20000;
+const CLEANUP_MAX_PASSES = 25;
+const CLEANUP_MAX_DURATION_MS = 15000;
 
 if (!DATABASE_URL) {
   console.error("[collector] Missing DATABASE_URL");
@@ -62,11 +65,38 @@ function isReasonablePriceJump(nextPrice, previousPrice, maxDeviation = 0.35) {
   return deviation <= maxDeviation;
 }
 
-function isShortTermMarket(market) {
-  const now = Date.now();
-  const candidates = [market.gameStartTime, market.endDate]
+function resolveLifecycleDateCandidates(market) {
+  return [
+    market.endDate,
+    market.events?.[0]?.endDate,
+    market.gameStartTime,
+    market.events?.[0]?.gameStartTime,
+  ]
     .map((value) => (value ? new Date(value).getTime() : NaN))
     .filter((value) => Number.isFinite(value));
+}
+
+function resolveLifecycleBaseDate(market) {
+  const preferred = [
+    market.endDate,
+    market.events?.[0]?.endDate,
+    market.gameStartTime,
+    market.events?.[0]?.gameStartTime,
+  ];
+
+  for (const value of preferred) {
+    const timestamp = value ? new Date(value).getTime() : NaN;
+    if (Number.isFinite(timestamp)) {
+      return new Date(timestamp);
+    }
+  }
+
+  return null;
+}
+
+function isShortTermMarket(market) {
+  const now = Date.now();
+  const candidates = resolveLifecycleDateCandidates(market);
 
   return candidates.some((timestamp) => {
     const hours = (timestamp - now) / 3600000;
@@ -116,8 +146,7 @@ function toTradingDay(date = new Date()) {
 }
 
 function getExpiryDate(market) {
-  const base = market.endDate || market.gameStartTime;
-  const baseDate = base ? new Date(base) : new Date();
+  const baseDate = resolveLifecycleBaseDate(market) || new Date();
   return new Date(baseDate.getTime() + RETENTION_HOURS * 3600000);
 }
 
@@ -195,6 +224,7 @@ class Collector {
     this.flushTimer = null;
     this.refreshTimer = null;
     this.reconnectTimer = null;
+    this.heartbeatTimer = null;
     this.trackedTokens = new Map();
     this.stateByToken = new Map();
     this.latestSecond = null;
@@ -204,6 +234,9 @@ class Collector {
 
   async start() {
     await this.safeRefreshTrackedTokens();
+    await this.cleanupExpiredBars().catch((error) => {
+      console.error("[collector] startup cleanupExpiredBars error", error);
+    });
     this.connect();
 
     this.flushTimer = setInterval(() => {
@@ -428,23 +461,24 @@ class Collector {
 
     for (const [tokenId, meta] of this.trackedTokens.entries()) {
       const state = this.ensureState(tokenId);
-      if (!Number.isFinite(state.lastMid)) continue;
-
-      let open = state.lastMid;
-      let high = state.lastMid;
-      let low = state.lastMid;
-      let close = state.lastMid;
-      let sampleCount = 0;
-
-      if (state.activeSecond === flushSecond && Number.isFinite(state.open)) {
-        open = state.open;
-        high = state.high;
-        low = state.low;
-        close = state.close;
-        sampleCount = state.sampleCount;
-        state.lastMid = close;
-        state.activeSecond = null;
+      if (meta.expiresAt instanceof Date && meta.expiresAt.getTime() <= nowSecond * 1000) {
+        this.trackedTokens.delete(tokenId);
+        this.stateByToken.delete(tokenId);
+        continue;
       }
+
+      if (state.activeSecond !== flushSecond || !Number.isFinite(state.open)) continue;
+
+      const open = state.open;
+      const high = state.high;
+      const low = state.low;
+      const close = state.close;
+      const sampleCount = state.sampleCount;
+
+      if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) continue;
+
+      state.lastMid = close;
+      state.activeSecond = null;
 
       rows.push({
         tokenId,
@@ -547,16 +581,32 @@ class Collector {
   }
 
   async cleanupExpiredBars() {
-    await pool.query(`
-      DELETE FROM intraday_market_bars
-      WHERE ctid IN (
-        SELECT ctid
-        FROM intraday_market_bars
-        WHERE expires_at IS NOT NULL AND expires_at < NOW()
-        LIMIT 5000
-      )
-    `);
-    console.log("[collector] cleaned expired intraday bars");
+    const startedAt = Date.now();
+    let totalDeleted = 0;
+    let passes = 0;
+
+    while (passes < CLEANUP_MAX_PASSES && Date.now() - startedAt < CLEANUP_MAX_DURATION_MS) {
+      const result = await pool.query(`
+        WITH expired_batch AS (
+          SELECT ctid
+          FROM intraday_market_bars
+          WHERE expires_at IS NOT NULL AND expires_at < NOW()
+          LIMIT ${CLEANUP_BATCH_SIZE}
+        )
+        DELETE FROM intraday_market_bars
+        WHERE ctid IN (SELECT ctid FROM expired_batch)
+      `);
+
+      const deleted = typeof result.rowCount === "number" ? result.rowCount : 0;
+      totalDeleted += deleted;
+      passes += 1;
+
+      if (deleted < CLEANUP_BATCH_SIZE) break;
+    }
+
+    if (totalDeleted > 0) {
+      console.log(`[collector] cleaned expired intraday bars rows=${totalDeleted} passes=${passes}`);
+    }
   }
 }
 

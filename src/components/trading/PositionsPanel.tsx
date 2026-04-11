@@ -11,39 +11,32 @@ export function PositionsPanel() {
 
   if (!address) {
     return (
-      <div className="glass rounded-xl p-5">
-        <h3 className="font-['Space_Grotesk'] font-semibold mb-3">Your Portfolio</h3>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          Connect wallet to view your positions and orders.
-        </p>
+      <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">持仓 / 订单</h3>
+        <p className="text-xs text-[#8b8d98]">连接钱包后查看当前持仓与挂单。</p>
       </div>
     );
   }
 
   return (
-    <div className="glass rounded-xl p-5 space-y-4">
-      {/* Tabs */}
-      <div className="flex items-center justify-between">
-        <div className="flex rounded-lg overflow-hidden border border-[hsl(var(--border))]">
+    <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex rounded-2xl bg-[#0f1015] p-1 text-xs">
           <button
             onClick={() => setActiveTab("positions")}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === "positions"
-                ? "bg-[hsl(var(--primary))] text-white"
-                : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+            className={`rounded-xl px-3 py-2 font-medium transition ${
+              activeTab === "positions" ? "bg-[#1d2028] text-white" : "text-[#7d818d]"
             }`}
           >
-            Positions ({positions.length})
+            持仓 ({positions.length})
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === "orders"
-                ? "bg-[hsl(var(--primary))] text-white"
-                : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+            className={`rounded-xl px-3 py-2 font-medium transition ${
+              activeTab === "orders" ? "bg-[#1d2028] text-white" : "text-[#7d818d]"
             }`}
           >
-            Orders ({orders.length})
+            订单 ({orders.length})
           </button>
         </div>
         <button
@@ -51,140 +44,82 @@ export function PositionsPanel() {
             refetchPositions();
             refetchOrders();
           }}
-          className="p-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
-          title="Refresh"
+          className="rounded-full p-2 text-[#7d818d] hover:bg-[#1d2028] hover:text-white transition-colors"
+          title="刷新"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
 
-      {/* Positions Tab */}
       {activeTab === "positions" && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {positionsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[hsl(var(--primary))]" />
+            <div className="flex justify-center py-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
             </div>
           ) : positions.length === 0 ? (
-            <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-8">
-              No positions yet
-            </p>
+            <p className="py-3 text-center text-xs text-[#8b8d98]">暂无持仓</p>
           ) : (
-            positions.map((position) => (
-              <div
-                key={position.asset}
-                className="p-3 rounded-lg bg-[hsl(var(--muted))] space-y-2"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{position.title}</p>
-                    <p className={`text-xs ${position.outcome === "Yes" ? "text-[var(--up)]" : "text-[var(--down)]"}`}>
-                      {position.outcome}
-                    </p>
+            positions.map((pos) => (
+              <div key={pos.asset} className="rounded-2xl bg-[#0f1015] p-3 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-white">{pos.title}</div>
+                    <div className={pos.outcome === "Yes" ? "text-[#0ECB81]" : "text-[#F6465D]"}>{pos.outcome}</div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-mono text-sm">{position.size.toFixed(2)} shares</p>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                      @ ${position.avgPrice.toFixed(3)}
-                    </p>
+                  <div className="text-right text-[#c9ccd5]">
+                    <div className="font-mono">{pos.size.toFixed(2)}</div>
+                    <div className="text-[#757985]">@ ${pos.avgPrice.toFixed(3)}</div>
                   </div>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-[hsl(var(--muted-foreground))]">Current Value</span>
-                  <span className="font-mono">${position.currentValue.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-[hsl(var(--muted-foreground))]">P&L</span>
-                  <span className={`font-mono ${position.cashPnl >= 0 ? "text-[var(--up)]" : "text-[var(--down)]"}`}>
-                    {position.cashPnl >= 0 ? "+" : ""}${position.cashPnl.toFixed(2)} ({position.percentPnl.toFixed(1)}%)
+                <div className="mt-2 flex items-center justify-between text-[#757985]">
+                  <span>P&L</span>
+                  <span className={pos.cashPnl >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                    {pos.cashPnl >= 0 ? "+" : ""}${pos.cashPnl.toFixed(2)}
                   </span>
                 </div>
-                {position.redeemable && (
-                  <div className="pt-2 border-t border-[hsl(var(--border))]">
-                    <span className="text-xs text-[var(--up)]">✓ Redeemable</span>
-                  </div>
-                )}
               </div>
             ))
           )}
         </div>
       )}
 
-      {/* Orders Tab */}
       {activeTab === "orders" && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {!isAuthenticated ? (
-            <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-8">
-              Authenticate to view orders
-            </p>
+            <p className="py-3 text-center text-xs text-[#8b8d98]">需要先签名验证</p>
           ) : ordersLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[hsl(var(--primary))]" />
+            <div className="flex justify-center py-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
             </div>
           ) : orders.length === 0 ? (
-            <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-8">
-              No open orders
-            </p>
+            <p className="py-3 text-center text-xs text-[#8b8d98]">暂无挂单</p>
           ) : (
             <>
               {orders.length > 1 && (
                 <button
                   onClick={cancelAllOrders}
-                  className="w-full py-2 text-sm rounded-lg border border-[var(--down)]/30 text-[var(--down)] hover:bg-[var(--down)]/10 transition-colors"
+                  className="w-full rounded-2xl border border-[#F6465D]/30 py-2 text-xs text-[#F6465D] hover:bg-[#F6465D]/10 transition"
                 >
-                  Cancel All Orders
+                  取消所有订单
                 </button>
               )}
               {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="p-3 rounded-lg bg-[hsl(var(--muted))] space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        order.side === "BUY" 
-                          ? "bg-[var(--up)]/20 text-[var(--up)]" 
-                          : "bg-[var(--down)]/20 text-[var(--down)]"
-                      }`}>
-                        {order.side}
-                      </span>
-                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                        {order.outcome}
-                      </span>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded bg-[hsl(var(--background))]">
-                      {order.order_type}
+                <div key={order.id} className="rounded-2xl bg-[#0f1015] p-3 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={order.side === "BUY" ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                      {order.side} {order.outcome}
                     </span>
+                    <button onClick={() => cancelOrder(order.id)} className="text-[#F6465D]">
+                      取消
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-[hsl(var(--muted-foreground))]">Price: </span>
-                      <span className="font-mono">${order.price}</span>
-                    </div>
-                    <div>
-                      <span className="text-[hsl(var(--muted-foreground))]">Size: </span>
-                      <span className="font-mono">{(parseFloat(order.original_size) / 1e6).toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[hsl(var(--muted-foreground))]">Filled: </span>
-                      <span className="font-mono">{(parseFloat(order.size_matched) / 1e6).toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[hsl(var(--muted-foreground))]">Status: </span>
-                      <span className="text-[var(--up)]">
-                        {order.status.replace("ORDER_STATUS_", "")}
-                      </span>
-                    </div>
+                  <div className="mt-2 flex items-center justify-between text-[#757985]">
+                    <span>${order.price}</span>
+                    <span>{(parseFloat(order.original_size) / 1e6).toFixed(2)}</span>
                   </div>
-                  <button
-                    onClick={() => cancelOrder(order.id)}
-                    className="w-full py-1.5 text-xs rounded border border-[var(--down)]/30 text-[var(--down)] hover:bg-[var(--down)]/10 transition-colors"
-                  >
-                    Cancel Order
-                  </button>
                 </div>
               ))}
             </>

@@ -88,103 +88,87 @@ export function QuickTradePanel({
   };
 
   return (
-    <div className="glass rounded-xl p-5 space-y-4">
-      <h3 className="font-['Space_Grotesk'] font-semibold">快速交易</h3>
-
-      {/* Authentication Status */}
-      {!isConnected ? (
-        <div className="space-y-3">
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            先连接钱包，再完成一次签名验证即可开始交易
-          </p>
-          <WalletButton className="w-full py-3 text-center" />
+    <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-white">交易</h3>
+          <p className="mt-1 truncate text-xs text-[#8b8d98]">{marketTitle}</p>
         </div>
+        <div className="rounded-full border border-[#2a2d38] bg-[#0f1015] px-2.5 py-1 text-[11px] text-[#a9adb8]">
+          Tick {tickSize}
+        </div>
+      </div>
+
+      {!isConnected ? (
+        <WalletButton className="w-full rounded-2xl px-4 py-3 text-center text-sm" />
       ) : !isAuthenticated ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 rounded-full bg-yellow-500" />
-            <span className="text-[hsl(var(--muted-foreground))]">钱包已连接，还需签名验证才能交易</span>
+        <div className="space-y-2">
+          <div className="rounded-2xl border border-[#2a2d38] bg-[#0f1015] px-3 py-2 text-xs text-[#8b8d98]">
+            钱包已连接，还需签名验证才能下单。
           </div>
           <button
             onClick={authenticate}
             disabled={isAuthenticating}
-            className="w-full py-3 rounded-lg bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="w-full rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
           >
             {isAuthenticating ? "签名中..." : "签名验证"}
           </button>
           <button
             onClick={() => disconnect()}
-            className="w-full py-2 text-sm rounded-lg border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors"
+            className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] px-4 py-2.5 text-xs text-[#a9adb8]"
           >
             断开连接
           </button>
         </div>
       ) : (
-        <>
-          {/* Connected Status */}
-          <div className="flex items-center gap-2 text-sm text-[var(--up)]">
-            <div className="w-2 h-2 rounded-full bg-[var(--up)]" />
-            可以交易
-          </div>
-
-          {/* Order Type Toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-[hsl(var(--border))]">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#0f1015] p-1">
             <button
               onClick={() => setOrderType("market")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                orderType === "market"
-                  ? "bg-[hsl(var(--primary))] text-white"
-                  : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                orderType === "market" ? "bg-[#1d2028] text-white" : "text-[#707480]"
               }`}
             >
               市价单
             </button>
             <button
               onClick={() => setOrderType("limit")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                orderType === "limit"
-                  ? "bg-[hsl(var(--primary))] text-white"
-                  : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                orderType === "limit" ? "bg-[#1d2028] text-white" : "text-[#707480]"
               }`}
             >
               限价单
             </button>
           </div>
 
-          {/* Side Selection */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setSelectedSide("yes")}
-              className={`py-3 rounded-lg font-semibold transition-all ${
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                 selectedSide === "yes"
-                  ? "bg-[var(--up)] text-black"
-                  : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:bg-[var(--up)]/20"
+                  ? "bg-[#0ECB81] text-black"
+                  : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#0ECB81]/15"
               }`}
             >
-              {yesLabel} ${yesPrice.toFixed(2)}
+              买 {yesLabel} {yesPrice.toFixed(2)}
             </button>
             <button
               onClick={() => setSelectedSide("no")}
-              className={`py-3 rounded-lg font-semibold transition-all ${
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                 selectedSide === "no"
-                  ? "bg-[var(--down)] text-black"
-                  : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:bg-[var(--down)]/20"
+                  ? "bg-[#F6465D] text-white"
+                  : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#F6465D]/15"
               }`}
             >
-              {noLabel} ${noPrice.toFixed(2)}
+              买 {noLabel} {noPrice.toFixed(2)}
             </button>
           </div>
 
-          {/* Limit Price Input */}
           {orderType === "limit" && (
-            <div className="space-y-2">
-              <label className="text-sm text-[hsl(var(--muted-foreground))]">
-                限价
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-xs text-[#7b7f8a]">限价</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]">
-                  $
-                </span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666b76]">$</span>
                 <input
                   type="number"
                   value={limitPrice}
@@ -193,35 +177,30 @@ export function QuickTradePanel({
                   step="0.001"
                   min="0.001"
                   max="0.999"
-                  className="w-full pl-8 pr-4 py-3 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-lg font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
+                  className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#0ECB81]"
                 />
               </div>
             </div>
           )}
 
-      {/* Amount Input */}
-      <div className="space-y-2">
-        <label className="text-sm text-[hsl(var(--muted-foreground))]">
-          金额 (USDC)
-        </label>
+          <div className="space-y-1.5">
+            <label className="text-xs text-[#7b7f8a]">金额 (USDC)</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]">
-                $
-              </span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666b76]">$</span>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-8 pr-4 py-3 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-lg font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
+                className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#0ECB81]"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {[10, 50, 100, 500].map((preset) => (
                 <button
                   key={preset}
                   onClick={() => setAmount(preset.toString())}
-                  className="flex-1 py-1.5 text-xs rounded bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted)/0.8)] transition-colors"
+                  className="rounded-xl border border-[#242733] bg-[#111319] px-2 py-2 text-[11px] text-[#b1b5c0] hover:bg-[#242733]"
                 >
                   ${preset}
                 </button>
@@ -229,58 +208,44 @@ export function QuickTradePanel({
             </div>
           </div>
 
-      {/* Trade Summary */}
-      {amount && parseFloat(amount) > 0 && (
-        <div className="space-y-2 pt-4 border-t border-[hsl(var(--border))]">
-          <div className="flex justify-between text-sm">
-            <span className="text-[hsl(var(--muted-foreground))]">份额</span>
-            <span className="font-mono">{shares.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-[hsl(var(--muted-foreground))]">均价</span>
-            <span className="font-mono">${price.toFixed(3)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-[hsl(var(--muted-foreground))]">预期收益</span>
-            <span className="font-mono text-[var(--up)]">
-              ${potentialReturn.toFixed(2)} (+{((potentialProfit / parseFloat(amount)) * 100).toFixed(0)}%)
-            </span>
-          </div>
-        </div>
-      )}
-
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="p-3 rounded-lg bg-[var(--down)]/10 border border-[var(--down)]/30">
-              <p className="text-sm text-[var(--down)]">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="p-3 rounded-lg bg-[var(--up)]/10 border border-[var(--up)]/30">
-              <p className="text-sm text-[var(--up)]">{success}</p>
+          {amount && parseFloat(amount) > 0 && (
+            <div className="space-y-2 rounded-2xl bg-[#0f1015] p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#747886]">份额</span>
+                <span className="font-mono text-white">{shares.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#747886]">均价</span>
+                <span className="font-mono text-white">${price.toFixed(3)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#747886]">潜在收益</span>
+                <span className={`font-mono ${potentialProfit >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>
+                  ${potentialReturn.toFixed(2)} (+{((potentialProfit / parseFloat(amount)) * 100).toFixed(0)}%)
+                </span>
+              </div>
             </div>
           )}
 
-          {/* Trade Button */}
+          {error && <p className="text-xs text-[#F6465D]">{error}</p>}
+          {success && <p className="text-xs text-[#0ECB81]">{success}</p>}
+
           <button
             onClick={handleTrade}
             disabled={!amount || parseFloat(amount) <= 0 || isSubmitting || !isReady || (orderType === "limit" && !limitPrice)}
-            className={`w-full py-4 rounded-lg font-semibold text-lg transition-all ${
-              selectedSide === "yes"
-                ? "bg-[var(--up)] hover:bg-[var(--up)]/90 text-black"
-                : "bg-[var(--down)] hover:bg-[var(--down)]/90 text-black"
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+              selectedSide === "yes" ? "bg-[#0ECB81] text-black hover:bg-[#0ECB81]/90" : "bg-[#F6465D] text-white hover:bg-[#F6465D]/90"
+            } disabled:opacity-50`}
           >
             {isSubmitting ? "提交中..." : `买入 ${selectedSide === "yes" ? compactYesLabel : compactNoLabel}`}
           </button>
 
-          {/* Warning for missing token IDs */}
           {!(selectedSide === "yes" ? yesTokenId : noTokenId) && (
-            <p className="text-xs text-center text-yellow-500">
+            <p className="text-xs text-center text-[#f59e0b]">
               该市场未配置 Token ID
             </p>
           )}
-        </>
+        </div>
       )}
     </div>
   );

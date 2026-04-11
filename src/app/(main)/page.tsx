@@ -51,33 +51,6 @@ function setCache(events: EventGroup[], hasMore: boolean, nextOffset: number | n
     localStorage.setItem(CACHE_KEY, JSON.stringify({ events, hasMore, nextOffset, timestamp: Date.now() }));
     for (const ev of events) {
       localStorage.setItem(`event_${ev.id}`, JSON.stringify(ev));
-      for (const m of ev.markets) {
-        if (m.conditionId) {
-          localStorage.setItem(
-            `market_${m.conditionId}`,
-            JSON.stringify({
-              id: m.conditionId,
-              conditionId: m.conditionId,
-              title: m.question,
-              description: ev.description,
-              slug: m.slug,
-              category: ev.category,
-              endDate: m.endDate,
-              image: ev.image,
-              yesPrice: m.yesPrice,
-              noPrice: m.noPrice,
-              yesLabel: m.yesLabel,
-              noLabel: m.noLabel,
-              volume24h: ev.volume24h,
-              totalVolume: ev.totalVolume,
-              liquidity: ev.liquidity,
-              daysLeft: m.daysLeft,
-              yesTokenId: m.yesTokenId,
-              noTokenId: m.noTokenId,
-            })
-          );
-        }
-      }
     }
   } catch {}
 }

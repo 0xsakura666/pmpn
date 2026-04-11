@@ -3,19 +3,13 @@
 import { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { WalletButton } from "@/components/auth/ConnectWallet";
-import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { RecentTradesPanel } from "@/components/trading/RecentTradesPanel";
 import { MarketAnalyticsPanel } from "@/components/trading/MarketAnalyticsPanel";
+import { QuickTradePanel } from "@/components/trading/QuickTradePanel";
+import { PositionsPanel } from "@/components/trading/PositionsPanel";
+import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { Time, CandlestickData } from "lightweight-charts";
-import {
-  usePolymarket,
-  usePolymarketTrade,
-  usePolymarketPositions,
-  usePolymarketOrders,
-} from "@/hooks/usePolymarket";
-import { useAccount, useDisconnect } from "wagmi";
 import {
   getHistoryParamsForTimeframe,
   type CandleInterval,
@@ -99,356 +93,6 @@ function formatPriceInt(value: number) {
   if (!Number.isFinite(value)) return "--";
   const cents = value * 100;
   return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
-}
-
-function QuickTradePanelCompact({
-  marketTitle,
-  yesPrice,
-  noPrice,
-  yesLabel = "Yes",
-  noLabel = "No",
-  yesTokenId,
-  noTokenId,
-  tickSize = "0.01",
-  negRisk = false,
-  selectedSide: controlledSelectedSide,
-  onSelectedSideChange,
-}: {
-  marketTitle: string;
-  yesPrice: number;
-  noPrice: number;
-  yesLabel?: string;
-  noLabel?: string;
-  yesTokenId?: string;
-  noTokenId?: string;
-  tickSize?: string;
-  negRisk?: boolean;
-  selectedSide?: "yes" | "no";
-  onSelectedSideChange?: (side: "yes" | "no") => void;
-}) {
-  const [internalSelectedSide, setInternalSelectedSide] = useState<"yes" | "no">("yes");
-  const [amount, setAmount] = useState("");
-  const [orderType, setOrderType] = useState<"market" | "limit">("market");
-  const [limitPrice, setLimitPrice] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const selectedSide = controlledSelectedSide ?? internalSelectedSide;
-  const setSelectedSide = (side: "yes" | "no") => {
-    if (controlledSelectedSide === undefined) {
-      setInternalSelectedSide(side);
-    }
-    onSelectedSideChange?.(side);
-  };
-
-  const { isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
-  const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
-
-  const normalizedYesLabel = normalizeOutcomeLabel(yesLabel, "Yes");
-  const normalizedNoLabel = normalizeOutcomeLabel(noLabel, "No");
-  const compactYesLabel = getCompactOutcomeLabel(normalizedYesLabel, 9);
-  const compactNoLabel = getCompactOutcomeLabel(normalizedNoLabel, 9);
-
-  const price =
-    orderType === "limit" && limitPrice
-      ? parseFloat(limitPrice)
-      : selectedSide === "yes"
-        ? yesPrice
-        : noPrice;
-  const shares = amount && price ? parseFloat(amount) / price : 0;
-  const potentialReturn = shares * 1;
-  const potentialProfit = potentialReturn - parseFloat(amount || "0");
-
-  const handleTrade = async () => {
-    if (!amount || parseFloat(amount) <= 0) return;
-    setError(null);
-    setSuccess(null);
-    const tokenId = selectedSide === "yes" ? yesTokenId : noTokenId;
-    if (!tokenId) {
-      setError("Token ID not available");
-      return;
-    }
-    const result = await placeOrder({
-      tokenId,
-      price: orderType === "limit" ? parseFloat(limitPrice) : price,
-      size: shares,
-      side: "BUY",
-      tickSize,
-      negRisk,
-      orderType: orderType === "market" ? "FOK" : "GTC",
-    });
-    if (result.success) {
-      setSuccess("下单成功");
-      setAmount("");
-    } else {
-      setError(result.errorMsg || "下单失败");
-    }
-  };
-
-  return (
-    <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-white">交易</h3>
-          <p className="mt-1 truncate text-xs text-[#8b8d98]">{marketTitle}</p>
-        </div>
-        <div className="rounded-full border border-[#2a2d38] bg-[#0f1015] px-2.5 py-1 text-[11px] text-[#a9adb8]">
-          Tick {tickSize}
-        </div>
-      </div>
-
-      {!isConnected ? (
-        <WalletButton className="w-full rounded-2xl px-4 py-3 text-center text-sm" />
-      ) : !isAuthenticated ? (
-        <div className="space-y-2">
-          <div className="rounded-2xl border border-[#2a2d38] bg-[#0f1015] px-3 py-2 text-xs text-[#8b8d98]">
-            钱包已连接，还需签名验证才能下单。
-          </div>
-          <button
-            onClick={authenticate}
-            disabled={isAuthenticating}
-            className="w-full rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
-          >
-            {isAuthenticating ? "签名中..." : "签名验证"}
-          </button>
-          <button
-            onClick={() => disconnect()}
-            className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] px-4 py-2.5 text-xs text-[#a9adb8]"
-          >
-            断开连接
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#0f1015] p-1">
-            <button
-              onClick={() => setOrderType("market")}
-              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                orderType === "market" ? "bg-[#1d2028] text-white" : "text-[#707480]"
-              }`}
-            >
-              市价
-            </button>
-            <button
-              onClick={() => setOrderType("limit")}
-              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                orderType === "limit" ? "bg-[#1d2028] text-white" : "text-[#707480]"
-              }`}
-            >
-              限价
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setSelectedSide("yes")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                selectedSide === "yes"
-                  ? "bg-[#0ECB81] text-black"
-                  : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#0ECB81]/15"
-              }`}
-            >
-              买 {yesLabel} {formatPriceInt(yesPrice)}
-            </button>
-            <button
-              onClick={() => setSelectedSide("no")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                selectedSide === "no"
-                  ? "bg-[#F6465D] text-white"
-                  : "bg-[#1b1d25] text-[#a9adb8] hover:bg-[#F6465D]/15"
-              }`}
-            >
-              买 {compactNoLabel} {formatPriceInt(noPrice)}
-            </button>
-          </div>
-
-          {orderType === "limit" && (
-            <div className="space-y-1.5">
-              <label className="text-xs text-[#7b7f8a]">限价</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666b76]">$</span>
-                <input
-                  type="number"
-                  value={limitPrice}
-                  onChange={(e) => setLimitPrice(e.target.value)}
-                  placeholder={price.toFixed(3)}
-                  className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#0ECB81]"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <label className="text-xs text-[#7b7f8a]">金额 (USDC)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666b76]">$</span>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="金额"
-                className="w-full rounded-2xl border border-[#2a2d38] bg-[#0f1015] py-3 pl-8 pr-3 text-sm font-mono text-white outline-none transition focus:border-[#0ECB81]"
-              />
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {[10, 50, 100, 500].map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setAmount(v.toString())}
-                  className="rounded-xl border border-[#242733] bg-[#111319] px-2 py-2 text-[11px] text-[#b1b5c0]"
-                >
-                  ${v}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {amount && parseFloat(amount) > 0 && (
-            <div className="space-y-2 rounded-2xl bg-[#0f1015] p-3 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[#747886]">份额</span>
-                <span className="font-mono text-white">{shares.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#747886]">均价</span>
-                <span className="font-mono text-white">${price.toFixed(3)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#747886]">潜在收益</span>
-                <span className={`font-mono ${potentialProfit >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>
-                  ${potentialReturn.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {error && <p className="text-xs text-[#F6465D]">{error}</p>}
-          {success && <p className="text-xs text-[#0ECB81]">{success}</p>}
-
-          <button
-            onClick={handleTrade}
-            disabled={!amount || parseFloat(amount) <= 0 || isSubmitting || !isReady}
-            className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-              selectedSide === "yes" ? "bg-[#0ECB81] text-black" : "bg-[#F6465D] text-white"
-            } disabled:opacity-50`}
-          >
-            {isSubmitting ? "提交中..." : `买入 ${selectedSide === "yes" ? yesLabel : noLabel}`}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PositionsPanelCompact() {
-  const [activeTab, setActiveTab] = useState<"positions" | "orders">("positions");
-  const { isAuthenticated, address } = usePolymarket();
-  const { positions, isLoading: positionsLoading } = usePolymarketPositions();
-  const { orders, isLoading: ordersLoading, cancelOrder } = usePolymarketOrders();
-
-  if (!address) {
-    return (
-      <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
-        <h3 className="text-sm font-semibold text-white">持仓 / 订单</h3>
-        <p className="mt-2 text-xs text-[#8b8d98]">连接钱包后查看当前持仓与挂单。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
-      <div className="mb-3 flex rounded-2xl bg-[#0f1015] p-1 text-xs">
-        <button
-          onClick={() => setActiveTab("positions")}
-          className={`flex-1 rounded-xl px-3 py-2 font-medium transition ${
-            activeTab === "positions" ? "bg-[#1d2028] text-white" : "text-[#7d818d]"
-          }`}
-        >
-          持仓 ({positions.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("orders")}
-          className={`flex-1 rounded-xl px-3 py-2 font-medium transition ${
-            activeTab === "orders" ? "bg-[#1d2028] text-white" : "text-[#7d818d]"
-          }`}
-        >
-          订单 ({orders.length})
-        </button>
-      </div>
-
-      {activeTab === "positions" && (
-        <div className="space-y-2">
-          {positionsLoading ? (
-            <div className="flex justify-center py-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
-            </div>
-          ) : positions.length === 0 ? (
-            <p className="py-3 text-center text-xs text-[#8b8d98]">暂无持仓</p>
-          ) : (
-            positions.slice(0, 4).map((pos) => (
-              <div key={pos.asset} className="rounded-2xl bg-[#0f1015] p-3 text-xs">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-white">{pos.title}</div>
-                    <div className={pos.outcome === "Yes" ? "text-[#0ECB81]" : "text-[#F6465D]"}>{pos.outcome}</div>
-                  </div>
-                  <div className="text-right text-[#c9ccd5]">
-                    <div className="font-mono">{pos.size.toFixed(2)}</div>
-                    <div className="text-[#757985]">@ ${pos.avgPrice.toFixed(3)}</div>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[#757985]">
-                  <span>P&L</span>
-                  <span className={pos.cashPnl >= 0 ? "text-[#0ECB81]" : "text-[#F6465D]"}>
-                    {pos.cashPnl >= 0 ? "+" : ""}${pos.cashPnl.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {activeTab === "orders" && (
-        <div className="space-y-2">
-          {!isAuthenticated ? (
-            <p className="py-3 text-center text-xs text-[#8b8d98]">需要先签名验证</p>
-          ) : ordersLoading ? (
-            <div className="flex justify-center py-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
-            </div>
-          ) : orders.length === 0 ? (
-            <p className="py-3 text-center text-xs text-[#8b8d98]">暂无挂单</p>
-          ) : (
-            orders.slice(0, 4).map((order) => (
-              <div key={order.id} className="rounded-2xl bg-[#0f1015] p-3 text-xs">
-                <div className="flex items-center justify-between gap-3">
-                  <span className={order.side === "BUY" ? "text-[#0ECB81]" : "text-[#F6465D]"}>
-                    {order.side} {order.outcome}
-                  </span>
-                  <button onClick={() => cancelOrder(order.id)} className="text-[#F6465D]">
-                    取消
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[#757985]">
-                  <span>${order.price}</span>
-                  <span>{(parseFloat(order.original_size) / 1e6).toFixed(2)}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function normalizeCandleTime(raw: number): number | null {
-  if (!Number.isFinite(raw)) return null;
-  const normalized = raw > 10_000_000_000 ? Math.floor(raw / 1000) : Math.floor(raw);
-  return normalized > 0 ? normalized : null;
 }
 
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -1000,7 +644,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
             {mobileTab === "trade" && (
               <div className="h-full overflow-y-auto p-3 pb-28">
-                <QuickTradePanelCompact
+                <QuickTradePanel
                   marketTitle={market.title}
                   yesPrice={yesPrice}
                   noPrice={noPrice}
@@ -1010,8 +654,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   noTokenId={noToken?.token_id}
                   tickSize={market.tickSize || "0.01"}
                   negRisk={market.negRisk || false}
-                  selectedSide={mobileTradeSide}
-                  onSelectedSideChange={setMobileTradeSide}
                 />
               </div>
             )}
@@ -1097,7 +739,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   )}
                 </div>
 
-                <QuickTradePanelCompact
+                <QuickTradePanel
                   marketTitle={market.title}
                   yesPrice={yesPrice}
                   noPrice={noPrice}
@@ -1107,11 +749,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   noTokenId={noToken?.token_id}
                   tickSize={market.tickSize || "0.01"}
                   negRisk={market.negRisk || false}
-                  selectedSide={mobileTradeSide}
-                  onSelectedSideChange={setMobileTradeSide}
                 />
 
-                <PositionsPanelCompact />
+                <PositionsPanel />
 
                 <div className="rounded-[24px] border border-[#22252f] bg-[#15161c] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white">市场信息</h3>
