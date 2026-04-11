@@ -39,6 +39,8 @@ export interface MultiTimeframeCandlesOptions {
   wsUrl?: string;
 }
 
+type RealtimeTransportMode = "idle" | "connecting" | "ws" | "polling";
+
 interface CandleStore {
   candles: Map<number, CandleData>;
   currentCandle: CandleData | null;
@@ -118,9 +120,11 @@ export function useMultiTimeframeCandles({
   const [lastPrice, setLastPrice] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
   const [activeInterval, setActiveInterval] = useState<IntervalType>("1s");
+  const [transportMode, setTransportMode] = useState<RealtimeTransportMode>(tokenId ? "connecting" : "idle");
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const ticksRef = useRef<TickData[]>([]);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());
@@ -157,6 +161,7 @@ export function useMultiTimeframeCandles({
     lastPriceRef.current = null;
     setLastPrice(null);
     setLastUpdate(Date.now());
+    setTransportMode(tokenId ? "connecting" : "idle");
 
     ALL_INTERVALS.forEach((interval) => {
       candleStoresRef.current.set(interval, {
@@ -252,11 +257,14 @@ export function useMultiTimeframeCandles({
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     if (!tokenId) return;
 
+    setTransportMode((current) => (current === "polling" || current === "ws" ? current : "connecting"));
+
     try {
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
         setIsConnected(true);
+        setTransportMode("ws");
         wsRef.current?.send(
           JSON.stringify({
             type: "market",
@@ -323,6 +331,7 @@ export function useMultiTimeframeCandles({
 
       wsRef.current.onclose = () => {
         setIsConnected(false);
+        setTransportMode((current) => (current === "polling" ? "polling" : tokenId ? "connecting" : "idle"));
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectRef.current();
         }, 3000);
@@ -344,11 +353,16 @@ export function useMultiTimeframeCandles({
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
     setIsConnected(false);
+    setTransportMode("idle");
   }, []);
 
   useEffect(() => {
@@ -357,6 +371,64 @@ export function useMultiTimeframeCandles({
     }
     return () => disconnect();
   }, [tokenId, connect, disconnect]);
+
+  useEffect(() => {
+    if (!tokenId) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      return;
+    }
+
+    let cancelled = false;
+
+    const pollOrderBook = async () => {
+      if (isConnected) return;
+
+      try {
+        const response = await fetch(`/api/orderbook?token_id=${encodeURIComponent(tokenId)}&_ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as {
+          bids?: Array<{ price?: string }>;
+          asks?: Array<{ price?: string }>;
+          last_trade_price?: string;
+        };
+
+        if (cancelled) return;
+
+        const lastTradePrice = parseUnitPrice(data.last_trade_price);
+        const bestBid = getTopBookPrice(data.bids, "bestBid");
+        const bestAsk = getTopBookPrice(data.asks, "bestAsk");
+        const midpoint =
+          bestBid !== null && bestAsk !== null && bestAsk >= bestBid && bestAsk - bestBid <= 0.03
+            ? (bestBid + bestAsk) / 2
+            : null;
+
+        const fallbackPrice = lastTradePrice ?? midpoint;
+        if (fallbackPrice === null) return;
+
+        setTransportMode("polling");
+        processTradePrice(fallbackPrice, Date.now());
+      } catch {
+        // Keep silent; websocket reconnect loop remains the primary transport.
+      }
+    };
+
+    pollOrderBook();
+    pollIntervalRef.current = setInterval(pollOrderBook, 3000);
+
+    return () => {
+      cancelled = true;
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [tokenId, isConnected, processTradePrice]);
 
   const getCandles = useCallback((interval: IntervalType): CandleData[] => {
     const store = candleStoresRef.current.get(interval);
@@ -428,6 +500,7 @@ export function useMultiTimeframeCandles({
     reconnect: connect,
     aggregateFromTicks,
     tickCount: ticksRef.current.length,
+    transportMode,
   };
 }
 

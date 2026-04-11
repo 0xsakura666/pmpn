@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { WalletButton } from "@/components/auth/ConnectWallet";
 import { usePolymarket, usePolymarketTrade } from "@/hooks/usePolymarket";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { Button, Card, Input, Badge } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -42,7 +43,6 @@ export function UnifiedTradePanel({
   const [limitPrice, setLimitPrice] = useState("");
 
   const { isConnected } = useAccount();
-  const { connectors, connect, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
@@ -100,21 +100,14 @@ export function UnifiedTradePanel({
 
       {!isConnected ? (
         <div className="space-y-2">
-          <p className="text-sm text-[var(--text-muted)]">连接钱包开始交易</p>
-          <Button
-            onClick={() => connect({ connector: connectors[0] })}
-            isLoading={isConnecting}
-            fullWidth
-            size={buttonSize}
-          >
-            连接钱包
-          </Button>
+          <p className="text-sm text-[var(--text-muted)]">先连接钱包，再签名验证交易身份</p>
+          <WalletButton className="w-full py-2 text-center" />
         </div>
       ) : !isAuthenticated ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <div className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
-            <span className="text-[var(--text-muted)]">需要签名验证</span>
+            <span className="text-[var(--text-muted)]">钱包已连接，还需签名验证</span>
           </div>
           <Button
             onClick={authenticate}

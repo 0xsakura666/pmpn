@@ -32,9 +32,11 @@ export function Providers({ children }: { children: ReactNode }) {
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider
+            locale="zh-CN"
             appInfo={{
               appName: "Tectonic",
-              learnMoreUrl: "https://learn.rainbow.me/understanding-web3?utm_source=rainbowkit&utm_campaign=learnmore",
+              learnMoreUrl: "https://rainbowkit.com/docs/introduction",
+              disclaimer: () => "连接钱包仅用于链上身份识别；想下单还需要完成一次 Polymarket 签名验证。",
             }}
             modalSize="compact"
             showRecentTransactions

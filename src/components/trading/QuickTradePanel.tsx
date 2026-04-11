@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { WalletButton } from "@/components/auth/ConnectWallet";
 import { usePolymarket, usePolymarketTrade } from "@/hooks/usePolymarket";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
 
 interface QuickTradePanelProps {
@@ -38,7 +39,6 @@ export function QuickTradePanel({
   const [success, setSuccess] = useState<string | null>(null);
 
   const { isConnected } = useAccount();
-  const { connectors, connect, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
@@ -95,21 +95,15 @@ export function QuickTradePanel({
       {!isConnected ? (
         <div className="space-y-3">
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            连接钱包开始交易
+            先连接钱包，再完成一次签名验证即可开始交易
           </p>
-          <button
-            onClick={() => connect({ connector: connectors[0] })}
-            disabled={isConnecting}
-            className="w-full py-3 rounded-lg bg-gradient-to-r from-[hsl(var(--primary))] to-[var(--whale)] text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {isConnecting ? "连接中..." : "连接钱包"}
-          </button>
+          <WalletButton className="w-full py-3 text-center" />
         </div>
       ) : !isAuthenticated ? (
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm">
             <div className="w-2 h-2 rounded-full bg-yellow-500" />
-            <span className="text-[hsl(var(--muted-foreground))]">钱包已连接，需要身份验证</span>
+            <span className="text-[hsl(var(--muted-foreground))]">钱包已连接，还需签名验证才能交易</span>
           </div>
           <button
             onClick={authenticate}

@@ -3,13 +3,14 @@
 import { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { WalletButton } from "@/components/auth/ConnectWallet";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { RecentTradesPanel } from "@/components/trading/RecentTradesPanel";
 import { MarketAnalyticsPanel } from "@/components/trading/MarketAnalyticsPanel";
 import { Time, CandlestickData } from "lightweight-charts";
 import { usePolymarket, usePolymarketTrade, usePolymarketPositions, usePolymarketOrders } from "@/hooks/usePolymarket";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import {
   getHistoryParamsForTimeframe,
   type CandleInterval,
@@ -113,7 +114,6 @@ function QuickTradePanelCompact({
   };
 
   const { isConnected } = useAccount();
-  const { connectors, connect, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { isAuthenticated, isAuthenticating, authenticate } = usePolymarket();
   const { placeOrder, isSubmitting, isReady } = usePolymarketTrade();
@@ -172,15 +172,12 @@ function QuickTradePanelCompact({
       </div>
 
       {!isConnected ? (
-        <button
-          onClick={() => connectors[0] && connect({ connector: connectors[0] })}
-          disabled={isConnecting || connectors.length === 0}
-          className="w-full rounded-2xl bg-[#0ECB81] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
-        >
-          {isConnecting ? "连接中..." : "连接钱包"}
-        </button>
+        <WalletButton className="w-full rounded-2xl px-4 py-3 text-center text-sm" />
       ) : !isAuthenticated ? (
         <div className="space-y-2">
+          <div className="rounded-2xl border border-[#2a2d38] bg-[#0f1015] px-3 py-2 text-xs text-[#8b8d98]">
+            钱包已连接，还需签名验证才能下单。
+          </div>
           <button
             onClick={authenticate}
             disabled={isAuthenticating}
@@ -852,7 +849,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                           onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                           defaultChartMode="candle"
                           allowedTimeframes={allowedTimeframes}
-                          enableRealtime={false}
+                          enableRealtime={Boolean(selectedMarket?.yesTokenId)}
                           compactMobile
                         />
                       )}
@@ -1022,7 +1019,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                         defaultChartMode="candle"
                         allowedTimeframes={allowedTimeframes}
-                        enableRealtime={false}
+                          enableRealtime={Boolean(selectedMarket?.yesTokenId)}
                         compactMobile
                       />
                     )}
@@ -1120,4 +1117,3 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     </div>
   );
 }
-

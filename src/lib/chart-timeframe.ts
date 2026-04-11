@@ -24,15 +24,15 @@ interface TimeframeHistoryConfig {
 }
 
 const TIMEFRAME_HISTORY_CONFIG: Record<TimeframeType, TimeframeHistoryConfig> = {
-  "1S": { interval: "max", fidelity: 60, historyInterval: "1m", lookbackSeconds: 5 * 24 * 60 * 60 },
-  "5S": { interval: "max", fidelity: 60, historyInterval: "1m", lookbackSeconds: 5 * 24 * 60 * 60 },
-  "15S": { interval: "max", fidelity: 60, historyInterval: "1m", lookbackSeconds: 5 * 24 * 60 * 60 },
+  "1S": { interval: "max", fidelity: 1, historyInterval: "1s", lookbackSeconds: 30 * 60 },
+  "5S": { interval: "max", fidelity: 5, historyInterval: "5s", lookbackSeconds: 2 * 60 * 60 },
+  "15S": { interval: "max", fidelity: 5, historyInterval: "5s", lookbackSeconds: 6 * 60 * 60 },
   "1M": { interval: "max", fidelity: 60, historyInterval: "1m", lookbackSeconds: 5 * 24 * 60 * 60 },
-  "5M": { interval: "max", fidelity: 300, historyInterval: "5m", lookbackSeconds: 30 * 24 * 60 * 60 },
-  "15M": { interval: "max", fidelity: 900, historyInterval: "15m", lookbackSeconds: 60 * 24 * 60 * 60 },
-  "1H": { interval: "max", fidelity: 3600, historyInterval: "1h", lookbackSeconds: 180 * 24 * 60 * 60 },
-  "4H": { interval: "max", fidelity: 14400, historyInterval: "4h", lookbackSeconds: 365 * 24 * 60 * 60 },
-  "1D": { interval: "max", fidelity: 86400, historyInterval: "1d", lookbackSeconds: 5 * 365 * 24 * 60 * 60 },
+  "5M": { interval: "max", fidelity: 300, historyInterval: "5m", lookbackSeconds: 14 * 24 * 60 * 60 },
+  "15M": { interval: "max", fidelity: 900, historyInterval: "15m", lookbackSeconds: 14 * 24 * 60 * 60 },
+  "1H": { interval: "max", fidelity: 3600, historyInterval: "1h", lookbackSeconds: 30 * 24 * 60 * 60 },
+  "4H": { interval: "max", fidelity: 14400, historyInterval: "4h", lookbackSeconds: 120 * 24 * 60 * 60 },
+  "1D": { interval: "max", fidelity: 86400, historyInterval: "1d", lookbackSeconds: 365 * 24 * 60 * 60 },
 };
 
 export function normalizeTimeframe(

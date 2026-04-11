@@ -138,10 +138,30 @@ export function RealtimeCandlestickChart({
     lastUpdate,
     getCandles: wsGetCandles,
     getCurrentCandle: wsGetCurrentCandle,
+    transportMode,
   } = useMultiTimeframeCandles({
     tokenId: realtimeTokenId,
     initialData: normalizedInitialData as CandleData[],
   });
+
+  const realtimeStatusLabel = !enableRealtime || !realtimeTokenId
+    ? "静态"
+    : transportMode === "ws"
+      ? "实时"
+      : transportMode === "polling"
+        ? "轮询"
+        : transportMode === "connecting"
+          ? "连接中"
+          : "静态";
+  const realtimeStatusDotClass = !enableRealtime || !realtimeTokenId
+    ? "bg-[#F6465D]"
+    : transportMode === "ws"
+      ? "animate-pulse bg-[#0ECB81]"
+      : transportMode === "polling"
+        ? "bg-[#F0B90B]"
+        : transportMode === "connecting"
+          ? "bg-[#F0B90B]"
+          : "bg-[#F6465D]";
 
   const historicalCandlesForInterval = useMemo(() => {
     if (normalizedInitialData.length === 0) return [];
@@ -197,6 +217,20 @@ export function RealtimeCandlestickChart({
 
     return mergeCandlesByTime(historicalCandlesForInterval, finalizedRealtimeCandles);
   }, [enableRealtime, wsGetCandles, currentInterval, lastUpdate, historicalCandlesForInterval, displayCurrentCandle]);
+
+  const safeDisplayCurrentCandle = useMemo(() => {
+    if (!displayCurrentCandle) return null;
+    if (displayCandles.length === 0) return displayCurrentCandle;
+
+    const latestDisplayTime = Number(displayCandles[displayCandles.length - 1]?.time as unknown);
+    const currentTime = Number(displayCurrentCandle.time as unknown);
+
+    if (!Number.isFinite(latestDisplayTime) || !Number.isFinite(currentTime)) {
+      return null;
+    }
+
+    return currentTime >= latestDisplayTime ? displayCurrentCandle : null;
+  }, [displayCurrentCandle, displayCandles]);
 
   const handleTimeframeChange = (tf: TimeframeType) => {
     setSelectedTimeframe(tf);
@@ -279,10 +313,10 @@ export function RealtimeCandlestickChart({
           <span>H <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.high) : "--"}</span></span>
           <span>L <span className="font-mono text-white">{candleStats ? formatPriceInt(candleStats.low) : "--"}</span></span>
           <span className="ml-auto inline-flex items-center gap-1.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${enableRealtime && isConnected ? "animate-pulse bg-[#0ECB81]" : "bg-[#F6465D]"}`} />
-            {enableRealtime && isConnected ? "实时" : "静态"}
-          </span>
-        </div>
+              <span className={`h-1.5 w-1.5 rounded-full ${realtimeStatusDotClass}`} />
+              {realtimeStatusLabel}
+            </span>
+          </div>
 
         {chartMode === "candle" && (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-[#232632] py-1.5 text-[10px]">
@@ -303,7 +337,7 @@ export function RealtimeCandlestickChart({
           data={displayCandles}
           height={useAutoHeight ? 0 : height}
           autoHeight={useAutoHeight}
-          currentCandle={displayCurrentCandle}
+          currentCandle={safeDisplayCurrentCandle}
           showSeconds={config.showSeconds}
           isRealtime={Boolean(enableRealtime)}
           lastPrice={enableRealtime ? lastPrice : null}
@@ -315,13 +349,13 @@ export function RealtimeCandlestickChart({
         />
       </div>
 
-      {displayCurrentCandle && !compactMobile && (
+      {safeDisplayCurrentCandle && !compactMobile && (
         <div className={`border-t border-[#232632] px-3 py-2.5 ${useAutoHeight ? "shrink-0" : ""}`}>
           <div className="grid grid-cols-4 gap-2 text-[11px] font-mono text-[#8a8e99]">
-            <span>O <span className="ml-1 text-white">{formatPriceInt(displayCurrentCandle.open)}</span></span>
-            <span>H <span className="ml-1 text-[#0ECB81]">{formatPriceInt(displayCurrentCandle.high)}</span></span>
-            <span>L <span className="ml-1 text-[#F6465D]">{formatPriceInt(displayCurrentCandle.low)}</span></span>
-            <span>C <span className="ml-1 text-white">{formatPriceInt(displayCurrentCandle.close)}</span></span>
+            <span>O <span className="ml-1 text-white">{formatPriceInt(safeDisplayCurrentCandle.open)}</span></span>
+            <span>H <span className="ml-1 text-[#0ECB81]">{formatPriceInt(safeDisplayCurrentCandle.high)}</span></span>
+            <span>L <span className="ml-1 text-[#F6465D]">{formatPriceInt(safeDisplayCurrentCandle.low)}</span></span>
+            <span>C <span className="ml-1 text-white">{formatPriceInt(safeDisplayCurrentCandle.close)}</span></span>
           </div>
         </div>
       )}
