@@ -697,7 +697,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                     ) : (
                       <RealtimeCandlestickChart
-                        tokenId={selectedMarket?.yesTokenId}
+                        tokenId={currentTokenId}
                         initialData={priceHistory}
                         historyBaseInterval={historyBaseInterval}
                         height={0}
@@ -705,7 +705,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
                         defaultChartMode="candle"
                         allowedTimeframes={allowedTimeframes}
-                          enableRealtime={Boolean(selectedMarket?.yesTokenId)}
+                        enableRealtime={Boolean(currentTokenId)}
                         compactMobile
                       />
                     )}

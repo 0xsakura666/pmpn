@@ -324,7 +324,7 @@ export function useMultiTimeframeCandles({
               }
             }
 
-            if (msg.event_type === "tick" && msg.price) {
+            if (msg.event_type === "tick" && msg.asset_id === tokenId && msg.price) {
               const price = parseFloat(msg.price);
               if (!isNaN(price) && price > 0) {
                 processPrice(price);
