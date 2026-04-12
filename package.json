@@ -8,6 +8,7 @@
     "start": "NODE_USE_ENV_PROXY=1 HTTP_PROXY=${HTTP_PROXY:-http://127.0.0.1:7890} HTTPS_PROXY=${HTTPS_PROXY:-http://127.0.0.1:7890} next start",
     "lint": "eslint",
     "collector:intraday": "node ./scripts/polymarket-intraday-collector.mjs",
+    "collector:intraday:maintenance": "node ./scripts/polymarket-intraday-maintenance.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "node --env-file=.env.local ./node_modules/.bin/drizzle-kit push",

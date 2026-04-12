@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageContainer } from "@/components/layout";
 import { Button, LoadingOverlay } from "@/components/ui";
@@ -15,44 +16,15 @@ import {
   type ViewMode,
   PAGE_SIZE,
 } from "@/components/market";
+import { clearLegacyPayloadStorage, getHomeEventsCache, setHomeEventsCache } from "@/lib/client-payload-cache";
 
-const CACHE_KEY = "pmpn_events_cache_v9";
-const CACHE_TTL = 3 * 60 * 1000;
 const INITIAL_FETCH_LIMIT = 48;
 const SEARCH_FETCH_LIMIT = 48;
-
-interface CacheData {
-  events: EventGroup[];
-  hasMore: boolean;
-  nextOffset: number | null;
-  timestamp: number;
-}
 
 interface EventsResponse {
   items: EventGroup[];
   hasMore: boolean;
   nextOffset: number | null;
-}
-
-function getCache(): CacheData | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const data: CacheData = JSON.parse(raw);
-    if (Date.now() - data.timestamp > CACHE_TTL) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function setCache(events: EventGroup[], hasMore: boolean, nextOffset: number | null) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ events, hasMore, nextOffset, timestamp: Date.now() }));
-    for (const ev of events) {
-      localStorage.setItem(`event_${ev.id}`, JSON.stringify(ev));
-    }
-  } catch {}
 }
 
 function appendUniqueEvents(current: EventGroup[], incoming: EventGroup[]) {
@@ -64,6 +36,7 @@ function appendUniqueEvents(current: EventGroup[], incoming: EventGroup[]) {
 }
 
 function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
+  const queryClient = useQueryClient();
   const [events, setEvents] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -78,6 +51,10 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    clearLegacyPayloadStorage();
+  }, []);
 
   const fetchWithTimeout = useCallback(async (url: string, timeout = 12000): Promise<Response> => {
     const controller = new AbortController();
@@ -127,7 +104,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     async (query: string, scope: "all" | "short-term", useCache = true) => {
       const normalizedQuery = query.trim();
       const shouldUseCache = useCache && normalizedQuery === "" && scope === "all";
-      const cached = shouldUseCache ? getCache() : null;
+      const cached = shouldUseCache ? getHomeEventsCache(queryClient) : null;
 
       if (cached && cached.events.length > 0) {
         setEvents(cached.events);
@@ -141,7 +118,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
           setEvents(fresh.items);
           setHasMore(fresh.hasMore);
           setNextOffset(fresh.nextOffset);
-          setCache(fresh.items, fresh.hasMore, fresh.nextOffset);
+          setHomeEventsCache(queryClient, fresh.items, fresh.hasMore, fresh.nextOffset);
         } catch {}
         setIsRefreshing(false);
         return;
@@ -155,7 +132,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
         setHasMore(fresh.hasMore);
         setNextOffset(fresh.nextOffset);
         if (normalizedQuery === "" && scope === "all") {
-          setCache(fresh.items, fresh.hasMore, fresh.nextOffset);
+          setHomeEventsCache(queryClient, fresh.items, fresh.hasMore, fresh.nextOffset);
         }
       } catch {
         setError("无法连接到 Polymarket API，请检查网络或稍后重试");
@@ -167,7 +144,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
         setIsRefreshing(false);
       }
     },
-    [fetchFromAPI]
+    [fetchFromAPI, queryClient]
   );
 
   const loadMore = useCallback(async () => {
@@ -179,7 +156,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
       setEvents((prev) => {
         const merged = appendUniqueEvents(prev, response.items);
         if (searchQuery.trim() === "" && marketScope === "all") {
-          setCache(merged, response.hasMore, response.nextOffset);
+          setHomeEventsCache(queryClient, merged, response.hasMore, response.nextOffset);
         }
         return merged;
       });
@@ -191,7 +168,7 @@ function MarketsPageContent({ initialSearch }: { initialSearch: string }) {
     } finally {
       setLoadingMore(false);
     }
-  }, [loading, loadingMore, hasMore, nextOffset, fetchFromAPI, searchQuery, marketScope]);
+  }, [loading, loadingMore, hasMore, nextOffset, fetchFromAPI, searchQuery, marketScope, queryClient]);
 
   useEffect(() => {
     setSearchQuery(initialSearch);

@@ -25,6 +25,7 @@ interface RealtimeCandlestickChartProps {
   allowedTimeframes?: TimeframeType[];
   enableRealtime?: boolean;
   compactMobile?: boolean;
+  displayPrice?: number | null;
 }
 
 const TIMEFRAME_CONFIG: Record<TimeframeType, { showSeconds: boolean; label: string }> = {
@@ -112,6 +113,7 @@ export function RealtimeCandlestickChart({
   allowedTimeframes,
   enableRealtime = true,
   compactMobile = false,
+  displayPrice,
 }: RealtimeCandlestickChartProps) {
   const useAutoHeight = autoHeight || height === 0;
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>(defaultTimeframe);
@@ -340,7 +342,7 @@ export function RealtimeCandlestickChart({
           currentCandle={safeDisplayCurrentCandle}
           showSeconds={config.showSeconds}
           isRealtime={Boolean(enableRealtime)}
-          lastPrice={enableRealtime ? lastPrice : null}
+          lastPrice={enableRealtime ? (displayPrice ?? lastPrice) : null}
           chartMode={chartMode}
           resetViewKey={`${selectedTimeframe}-${chartMode}`}
           accentColor="#0ECB81"

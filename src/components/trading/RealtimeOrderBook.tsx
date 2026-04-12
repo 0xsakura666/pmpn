@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { getSafeMarketDisplayPrice } from "@/lib/market-display-price";
 
 interface OrderLevel {
   price: string;
@@ -37,38 +38,6 @@ function formatCents(price: number | null) {
   return Number.isInteger(cents) ? `${cents}` : cents.toFixed(1).replace(/\.0$/, "");
 }
 
-
-function sanitizeOrderBookQuote(bestBid: number | null, bestAsk: number | null, lastTradePrice: number | null) {
-  const normalizedBid = bestBid != null && Number.isFinite(bestBid) && bestBid > 0 && bestBid < 1 ? bestBid : null;
-  const normalizedAsk = bestAsk != null && Number.isFinite(bestAsk) && bestAsk > 0 && bestAsk < 1 ? bestAsk : null;
-
-  const bookLooksBroken =
-    normalizedBid != null &&
-    normalizedAsk != null &&
-    (
-      normalizedBid >= normalizedAsk ||
-      (normalizedBid <= 0.02 && normalizedAsk >= 0.98) ||
-      normalizedAsk - normalizedBid >= 0.9
-    );
-
-  const safeBid = bookLooksBroken ? null : normalizedBid;
-  const safeAsk = bookLooksBroken ? null : normalizedAsk;
-
-  const safeLastTrade =
-    lastTradePrice != null &&
-    Number.isFinite(lastTradePrice) &&
-    lastTradePrice > 0 &&
-    lastTradePrice < 1 &&
-    !bookLooksBroken
-      ? lastTradePrice
-      : null;
-
-  return {
-    bestBid: safeBid,
-    bestAsk: safeAsk,
-    lastTradePrice: safeLastTrade,
-  };
-}
 
 function normalizeLevels(levels: OrderLevel[] | undefined, descending: boolean, maxDepth: number) {
   return (levels || [])
@@ -145,13 +114,17 @@ export function RealtimeOrderBook({
   const rawBestBidPrice = bids.length > 0 ? bids[0].price : null;
   const rawBestAskPrice = asks.length > 0 ? asks[0].price : null;
   const rawLastPrice = orderBook?.last_trade_price ? parseFloat(orderBook.last_trade_price) : null;
-  const sanitizedQuote = useMemo(
-    () => sanitizeOrderBookQuote(rawBestBidPrice, rawBestAskPrice, rawLastPrice),
-    [rawBestBidPrice, rawBestAskPrice, rawLastPrice]
-  );
+  const tickSize = orderBook?.tick_size ?? null;
+  const sanitizedQuote = useMemo(() => getSafeMarketDisplayPrice({
+    bestBid: rawBestBidPrice,
+    bestAsk: rawBestAskPrice,
+    lastTradePrice: rawLastPrice,
+    tickSize,
+  }), [rawBestBidPrice, rawBestAskPrice, rawLastPrice, tickSize]);
   const bestBidPrice = sanitizedQuote.bestBid;
   const bestAskPrice = sanitizedQuote.bestAsk;
   const lastPrice = sanitizedQuote.lastTradePrice;
+  const displayPrice = sanitizedQuote.displayPrice;
   const spread = bestAskPrice != null && bestBidPrice != null ? bestAskPrice - bestBidPrice : null;
 
   useEffect(() => {
@@ -187,9 +160,9 @@ export function RealtimeOrderBook({
         <div className="mb-2 flex items-center justify-between text-xs text-[#6b6b80]">
           <span className="flex items-center gap-1">
             {error ? <WifiOff className="h-3 w-3 text-[#FF6B6B]" /> : <Wifi className="h-3 w-3 text-[#0ECB81]" />}
-            {error ? "异常" : lastPrice != null || bestBidPrice != null || bestAskPrice != null ? "实时" : "盘口"}
+            {error ? "异常" : displayPrice != null || bestBidPrice != null || bestAskPrice != null ? "实时" : "盘口"}
           </span>
-          <span className="font-mono">最新: {formatCents(lastPrice)}</span>
+          <span className="font-mono">实时价: {formatCents(displayPrice)}</span>
         </div>
       )}
 

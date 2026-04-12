@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { RealtimeCandlestickChart } from "@/components/charts/RealtimeCandlestickChart";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
@@ -21,6 +22,7 @@ import {
   getShortTermStartTs,
 } from "@/lib/short-term-chart";
 import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
+import { clearLegacyPayloadStorage, eventDetailQueryKey } from "@/lib/client-payload-cache";
 
 interface SubMarket {
   conditionId: string;
@@ -74,6 +76,7 @@ function normalizeCandleTime(raw: number): number | null {
 
 export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
+  const queryClient = useQueryClient();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +98,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   );
 
   useEffect(() => {
+    clearLegacyPayloadStorage();
+  }, []);
+
+  useEffect(() => {
     if (!selectedMarket?.endDate) return;
     setSelectedTimeframe((current) => {
       if (current !== "5M") return current;
@@ -106,19 +113,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     let cancelled = false;
     let hasCache = false;
 
-    const cached = localStorage.getItem(`event_${resolvedParams.id}`);
+    const cached = queryClient.getQueryData<EventData>(eventDetailQueryKey(resolvedParams.id));
     if (cached) {
-      try {
-        const data = JSON.parse(cached) as EventData;
-        hasCache = true;
-        setEvent(data);
-        if (data.markets && data.markets.length > 0) {
-          setSelectedMarket(data.markets[0]);
-        }
-        setLoading(false);
-      } catch {
-        localStorage.removeItem(`event_${resolvedParams.id}`);
+      hasCache = true;
+      setEvent(cached);
+      if (cached.markets && cached.markets.length > 0) {
+        setSelectedMarket(cached.markets[0]);
       }
+      setLoading(false);
     }
 
     const fetchFresh = async () => {
@@ -138,7 +140,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             return matched || data.markets[0];
           });
         }
-        localStorage.setItem(`event_${resolvedParams.id}`, JSON.stringify(data));
+        queryClient.setQueryData(eventDetailQueryKey(resolvedParams.id), data);
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -157,7 +159,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     return () => {
       cancelled = true;
     };
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, queryClient]);
 
   const fetchPriceHistory = useCallback(
     async (tokenId: string, timeframe: TimeframeType, signal?: AbortSignal) => {

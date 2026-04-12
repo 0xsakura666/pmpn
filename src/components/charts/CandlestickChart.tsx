@@ -324,11 +324,11 @@ export function CandlestickChart({
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full min-h-0 overflow-hidden">
-      {isRealtime && lastPrice !== null && lastPrice !== undefined && (
+      {isRealtime && Number.isFinite(lastPrice ?? null) && (
         <div className="absolute right-2 top-2 z-10 flex items-center gap-2 rounded border border-[#333] bg-[#1a1a1f]/90 px-2 py-1">
           <div className="h-2 w-2 animate-pulse rounded-full bg-[#0ECB81]" />
           <span className="text-xs text-[#888]">实时</span>
-          <span className="font-mono text-sm font-bold text-white">{formatPriceInt(lastPrice)}</span>
+          <span className="font-mono text-sm font-bold text-white">{formatPriceInt(lastPrice as number)}</span>
         </div>
       )}
       <div ref={chartContainerRef} className="h-full w-full" style={{ ...containerStyle, touchAction: "none" }} />

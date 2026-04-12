@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { RealtimeOrderBook } from "@/components/trading/RealtimeOrderBook";
 import { RecentTradesPanel } from "@/components/trading/RecentTradesPanel";
@@ -21,6 +22,8 @@ import {
   getShortTermStartTs,
 } from "@/lib/short-term-chart";
 import { getCompactOutcomeLabel, normalizeOutcomeLabel } from "@/lib/outcome-label";
+import { getSafeMarketDisplayPrice } from "@/lib/market-display-price";
+import { clearLegacyPayloadStorage, marketDetailQueryKey } from "@/lib/client-payload-cache";
 
 interface MarketToken {
   token_id: string;
@@ -103,6 +106,7 @@ function normalizeCandleTime(raw: number): number | null {
 
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
+  const queryClient = useQueryClient();
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeType>("1M");
   const [market, setMarket] = useState<MarketData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,6 +127,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   );
 
   useEffect(() => {
+    clearLegacyPayloadStorage();
+  }, []);
+
+  useEffect(() => {
     fetchMarket();
   }, [resolvedParams.id]);
 
@@ -139,33 +147,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     setError(null);
     let hasCache = false;
     try {
-      const cached = localStorage.getItem(`market_${resolvedParams.id}`);
+      const cached = queryClient.getQueryData<MarketData>(marketDetailQueryKey(resolvedParams.id));
       if (cached) {
-        try {
-          const cachedMarket = JSON.parse(cached);
-          const yesTokenId = cachedMarket.yesTokenId || "";
-          const noTokenId = cachedMarket.noTokenId || "";
-          hasCache = true;
-          setMarket(
-            normalizeMarketData({
-              id: cachedMarket.conditionId,
-              title: cachedMarket.title,
-              titleOriginal: cachedMarket.title,
-              description: cachedMarket.description || "",
-              slug: cachedMarket.slug,
-              endDate: cachedMarket.endDate,
-              image: cachedMarket.image || "",
-              tokens: [
-                { token_id: yesTokenId, outcome: cachedMarket.yesLabel || "Yes", price: cachedMarket.yesPrice, winner: false },
-                { token_id: noTokenId, outcome: cachedMarket.noLabel || "No", price: cachedMarket.noPrice, winner: false },
-              ],
-              orderBooks: [],
-            })
-          );
-          setLoading(false);
-        } catch {
-          localStorage.removeItem(`market_${resolvedParams.id}`);
-        }
+        hasCache = true;
+        setMarket(cached);
+        setLoading(false);
       }
 
       const res = await fetch(`/api/markets/${resolvedParams.id}`, { cache: "no-store" });
@@ -185,25 +171,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       }
 
       setMarket(normalizedData);
-      const yesToken = normalizedData.tokens[0];
-      const noToken = normalizedData.tokens[1];
-      localStorage.setItem(
-        `market_${resolvedParams.id}`,
-        JSON.stringify({
-          conditionId: normalizedData.id,
-          title: normalizedData.titleOriginal || normalizedData.title || "",
-          description: data.descriptionOriginal || normalizedData.description || "",
-          slug: normalizedData.slug || "",
-          endDate: normalizedData.endDate || "",
-          image: normalizedData.image || "",
-          yesPrice: yesToken?.price ?? 0.5,
-          noPrice: noToken?.price ?? 0.5,
-          yesLabel: yesToken?.outcome || "Yes",
-          noLabel: noToken?.outcome || "No",
-          yesTokenId: yesToken?.token_id || "",
-          noTokenId: noToken?.token_id || "",
-        })
-      );
+      queryClient.setQueryData(marketDetailQueryKey(resolvedParams.id), normalizedData);
     } catch (err) {
       if (!hasCache) {
         setError(err instanceof Error ? err.message : "Failed to load market");
@@ -371,11 +339,13 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   }, [priceHistory, currentStaticPrice]);
 
   const heroSide = mobileTradeSide;
-  const midFromBook =
-    liveQuote.bestBid != null && liveQuote.bestAsk != null
-      ? (liveQuote.bestBid + liveQuote.bestAsk) / 2
-      : null;
-  const orderBookDrivenPrice = liveQuote.lastTradePrice ?? midFromBook ?? priceStats.last ?? currentStaticPrice;
+  const safeLiveDisplay = useMemo(() => getSafeMarketDisplayPrice({
+    bestBid: liveQuote.bestBid,
+    bestAsk: liveQuote.bestAsk,
+    lastTradePrice: liveQuote.lastTradePrice,
+    tickSize: market?.tickSize,
+  }), [liveQuote.bestBid, liveQuote.bestAsk, liveQuote.lastTradePrice, market?.tickSize]);
+  const orderBookDrivenPrice = safeLiveDisplay.displayPrice ?? priceStats.last ?? currentStaticPrice;
   const heroPrice = orderBookDrivenPrice;
   const displayYesPrice = heroSide === "yes" ? orderBookDrivenPrice : 1 - orderBookDrivenPrice;
   const displayNoPrice = heroSide === "no" ? orderBookDrivenPrice : 1 - orderBookDrivenPrice;
@@ -569,6 +539,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           defaultChartMode="candle"
                           allowedTimeframes={allowedTimeframes}
                           enableRealtime={Boolean(currentToken?.token_id)}
+                          displayPrice={orderBookDrivenPrice}
                           compactMobile
                         />
                       )}
@@ -695,18 +666,19 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0ECB81]" />
                       </div>
                     ) : (
-                      <RealtimeCandlestickChart
-                        tokenId={currentToken?.token_id}
-                        initialData={priceHistory}
-                        historyBaseInterval={historyBaseInterval}
-                        height={0}
+                        <RealtimeCandlestickChart
+                          tokenId={currentToken?.token_id}
+                          initialData={priceHistory}
+                          historyBaseInterval={historyBaseInterval}
+                          height={0}
                         defaultTimeframe={selectedTimeframe}
                         onTimeframeChange={(tf) => setSelectedTimeframe(tf)}
-                        defaultChartMode="candle"
-                        allowedTimeframes={allowedTimeframes}
+                          defaultChartMode="candle"
+                          allowedTimeframes={allowedTimeframes}
                           enableRealtime={Boolean(currentToken?.token_id)}
-                        compactMobile
-                      />
+                          displayPrice={orderBookDrivenPrice}
+                          compactMobile
+                        />
                     )}
                   </div>
                 </div>

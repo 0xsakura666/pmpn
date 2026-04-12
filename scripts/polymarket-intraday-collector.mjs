@@ -148,6 +148,29 @@ function getLifecycleDate(market) {
   return resolveLifecycleBaseDate(market);
 }
 
+function normalizeConditionId(market) {
+  const value = market?.conditionId || market?.condition_id;
+  return value == null ? "" : String(value);
+}
+
+function isResolvedMarket(market) {
+  if (!market || typeof market !== "object") return false;
+  if (market.closed === true) return true;
+  if (market.active === false) return true;
+  if (Array.isArray(market.tokens) && market.tokens.some((token) => token?.winner === true)) {
+    return true;
+  }
+  return false;
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 async function fetchJson(url) {
   const candidates = [
     url,
@@ -292,12 +315,29 @@ class Collector {
     const nextMap = new Map(tracked.map((item) => [item.tokenId, item]));
 
     const settledTokenIds = [];
+    const settlementCandidates = new Map();
     const nowMs = Date.now();
     for (const [tokenId, meta] of previousTracked.entries()) {
       if (nextMap.has(tokenId)) continue;
       const lifecycleMs = meta.lifecycleAt instanceof Date ? meta.lifecycleAt.getTime() : NaN;
       if (Number.isFinite(lifecycleMs) && lifecycleMs <= nowMs) {
-        settledTokenIds.push(tokenId);
+        if (meta.conditionId) {
+          settlementCandidates.set(meta.conditionId, true);
+        } else {
+          settledTokenIds.push(tokenId);
+        }
+      }
+    }
+
+    if (settlementCandidates.size > 0) {
+      const settledConditionIds = await this.fetchResolvedConditionIds(Array.from(settlementCandidates.keys()));
+      for (const [tokenId, meta] of previousTracked.entries()) {
+        if (nextMap.has(tokenId)) continue;
+        const lifecycleMs = meta.lifecycleAt instanceof Date ? meta.lifecycleAt.getTime() : NaN;
+        if (!Number.isFinite(lifecycleMs) || lifecycleMs > nowMs) continue;
+        if (meta.conditionId && settledConditionIds.has(meta.conditionId)) {
+          settledTokenIds.push(tokenId);
+        }
       }
     }
 
@@ -318,6 +358,34 @@ class Collector {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.subscribe();
     }
+  }
+
+  async fetchResolvedConditionIds(conditionIds) {
+    const resolved = new Set();
+    const uniqueIds = Array.from(new Set(conditionIds.filter(Boolean)));
+    const chunks = chunkArray(uniqueIds, 10);
+
+    for (const chunk of chunks) {
+      const results = await Promise.all(
+        chunk.map(async (conditionId) => {
+          try {
+            const markets = await fetchJson(`${GAMMA_API}/markets?condition_id=${encodeURIComponent(conditionId)}`);
+            if (!Array.isArray(markets) || markets.length === 0) return null;
+            const market = markets.find((item) => normalizeConditionId(item) === conditionId) || markets[0];
+            return isResolvedMarket(market) ? conditionId : null;
+          } catch (error) {
+            console.warn(`[collector] failed to verify resolved market conditionId=${conditionId}`, error);
+            return null;
+          }
+        })
+      );
+
+      for (const conditionId of results) {
+        if (conditionId) resolved.add(conditionId);
+      }
+    }
+
+    return resolved;
   }
 
   async expireSettledTokenBars(tokenIds) {
@@ -681,7 +749,7 @@ class Collector {
         WITH expired_batch AS (
           SELECT ctid
           FROM intraday_market_bars
-          WHERE expires_at IS NULL OR expires_at < NOW()
+          WHERE expires_at IS NOT NULL AND expires_at < NOW()
           LIMIT ${CLEANUP_BATCH_SIZE}
         )
         DELETE FROM intraday_market_bars

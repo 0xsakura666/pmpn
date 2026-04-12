@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNull, lt, lte, or } from "drizzle-orm";
+import { and, asc, eq, gte, lt, lte } from "drizzle-orm";
 import { db, hasDatabase } from "@/db";
 import { intradayMarketBars } from "@/db/schema";
 import type { CandlePoint } from "@/lib/candle-aggregation";
@@ -22,7 +22,7 @@ async function purgeStaleIntradayBars(tokenId: string, now: Date) {
         and(
           eq(intradayMarketBars.tokenId, tokenId),
           eq(intradayMarketBars.interval, "1s"),
-          or(isNull(intradayMarketBars.expiresAt), lt(intradayMarketBars.expiresAt, now))
+          lt(intradayMarketBars.expiresAt, now)
         )
       );
   } catch (error) {
