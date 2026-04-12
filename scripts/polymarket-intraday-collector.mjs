@@ -222,6 +222,14 @@ class Collector {
     this.trackedTokens = new Map();
     this.stateByToken = new Map();
     this.pendingRows = [];
+    this.statsTimer = null;
+    this.stats = {
+      quotes: 0,
+      trades: 0,
+      skippedLateTrades: 0,
+      flushedRows: 0,
+      upsertBatches: 0,
+    };
     this.latestSecond = null;
     this.reconnectAttempts = 0;
     this.cleanupTimer = null;
@@ -249,6 +257,20 @@ class Collector {
         console.error("[collector] cleanupExpiredBars error", error);
       });
     }, 10 * 60 * 1000);
+
+    this.statsTimer = setInterval(() => {
+      const { quotes, trades, skippedLateTrades, flushedRows, upsertBatches } = this.stats;
+      console.log(
+        `[collector] stats tracked=${this.trackedTokens.size} quotes=${quotes} trades=${trades} late_skips=${skippedLateTrades} flushed_rows=${flushedRows} upsert_batches=${upsertBatches}`
+      );
+      this.stats = {
+        quotes: 0,
+        trades: 0,
+        skippedLateTrades: 0,
+        flushedRows: 0,
+        upsertBatches: 0,
+      };
+    }, 60_000);
   }
 
   async safeRefreshTrackedTokens() {
@@ -365,6 +387,13 @@ class Collector {
     }
   }
 
+  stopStats() {
+    if (this.statsTimer) {
+      clearInterval(this.statsTimer);
+      this.statsTimer = null;
+    }
+  }
+
   ensureState(tokenId) {
     if (!this.stateByToken.has(tokenId)) {
       this.stateByToken.set(tokenId, {
@@ -435,6 +464,7 @@ class Collector {
 
   updateQuote(tokenId, { bestBid, bestAsk }) {
     const state = this.ensureState(tokenId);
+    this.stats.quotes += 1;
 
     const parsedBid = parseUnitPrice(bestBid);
     const parsedAsk = parseUnitPrice(bestAsk);
@@ -449,6 +479,7 @@ class Collector {
     if (parsedTrade === null) return;
 
     if (Number.isFinite(state.activeSecond) && second < state.activeSecond) {
+      this.stats.skippedLateTrades += 1;
       return;
     }
 
@@ -456,6 +487,7 @@ class Collector {
       this.queueActiveState(tokenId, state.activeSecond, state);
     }
 
+    this.stats.trades += 1;
     state.lastTrade = parsedTrade;
     state.lastBarClose = parsedTrade;
 
@@ -524,11 +556,13 @@ class Collector {
     }
 
     if (rows.length) {
+      this.stats.flushedRows += rows.length;
       await this.upsertRows(rows);
     }
   }
 
   async upsertRows(rows) {
+    this.stats.upsertBatches += 1;
     const columns = [
       "token_id",
       "interval",
@@ -612,7 +646,7 @@ class Collector {
         WITH expired_batch AS (
           SELECT ctid
           FROM intraday_market_bars
-          WHERE expires_at IS NOT NULL AND expires_at < NOW()
+          WHERE expires_at IS NULL OR expires_at < NOW()
           LIMIT ${CLEANUP_BATCH_SIZE}
         )
         DELETE FROM intraday_market_bars
@@ -649,6 +683,7 @@ process.on("uncaughtException", (error) => {
 process.on("SIGTERM", async () => {
   console.log("[collector] SIGTERM");
   collector.stopHeartbeat();
+  collector.stopStats();
   await pool.end();
   process.exit(0);
 });
@@ -656,6 +691,7 @@ process.on("SIGTERM", async () => {
 process.on("SIGINT", async () => {
   console.log("[collector] SIGINT");
   collector.stopHeartbeat();
+  collector.stopStats();
   await pool.end();
   process.exit(0);
 });

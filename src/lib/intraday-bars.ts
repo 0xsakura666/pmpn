@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lt, lte, or } from "drizzle-orm";
 import { db, hasDatabase } from "@/db";
 import { intradayMarketBars } from "@/db/schema";
 import type { CandlePoint } from "@/lib/candle-aggregation";
@@ -12,6 +12,22 @@ interface IntradayFetchOptions {
   timeframe: TimeframeType;
   startTs?: number;
   endTs?: number;
+}
+
+async function purgeStaleIntradayBars(tokenId: string, now: Date) {
+  try {
+    await db
+      .delete(intradayMarketBars)
+      .where(
+        and(
+          eq(intradayMarketBars.tokenId, tokenId),
+          eq(intradayMarketBars.interval, "1s"),
+          or(isNull(intradayMarketBars.expiresAt), lt(intradayMarketBars.expiresAt, now))
+        )
+      );
+  } catch (error) {
+    console.warn("[intraday-bars] failed to purge stale rows", { tokenId, error });
+  }
 }
 
 function toEpochSeconds(value: Date | string | number | null | undefined): number | null {
@@ -93,6 +109,8 @@ export async function getIntradayCandles(
   const resolvedStartTs = startTs ?? Math.max(nowSec - historyConfig.lookbackSeconds, nowSec - 36 * 60 * 60);
   const now = new Date();
 
+  await purgeStaleIntradayBars(tokenId, now);
+
   const rows = await db
     .select({
       bucketStart: intradayMarketBars.bucketStart,
@@ -106,7 +124,7 @@ export async function getIntradayCandles(
       and(
         eq(intradayMarketBars.tokenId, tokenId),
         eq(intradayMarketBars.interval, "1s"),
-        or(isNull(intradayMarketBars.expiresAt), gte(intradayMarketBars.expiresAt, now)),
+        gte(intradayMarketBars.expiresAt, now),
         gte(intradayMarketBars.bucketStart, new Date(resolvedStartTs * 1000)),
         lte(intradayMarketBars.bucketStart, new Date(resolvedEndTs * 1000))
       )

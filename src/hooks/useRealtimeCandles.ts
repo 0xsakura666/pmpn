@@ -46,8 +46,39 @@ interface CandleStore {
   currentCandle: CandleData | null;
 }
 
+type CandleSnapshot = Record<IntervalType, CandleData[]>;
+type CurrentCandleSnapshot = Record<IntervalType, CandleData | null>;
+
 interface ProcessPriceOptions {
   recordTick?: boolean;
+}
+
+function createEmptyCandleSnapshot(): CandleSnapshot {
+  return {
+    "1s": [],
+    "5s": [],
+    "15s": [],
+    "1m": [],
+    "5m": [],
+    "15m": [],
+    "1h": [],
+    "4h": [],
+    "1d": [],
+  };
+}
+
+function createEmptyCurrentCandleSnapshot(): CurrentCandleSnapshot {
+  return {
+    "1s": null,
+    "5s": null,
+    "15s": null,
+    "1m": null,
+    "5m": null,
+    "15m": null,
+    "1h": null,
+    "4h": null,
+    "1d": null,
+  };
 }
 
 function parseUnitPrice(value: unknown): number | null {
@@ -94,6 +125,9 @@ export function useMultiTimeframeCandles({
   const [lastUpdate, setLastUpdate] = useState<number>(() => Date.now());
   const [activeInterval, setActiveInterval] = useState<IntervalType>("1s");
   const [transportMode, setTransportMode] = useState<RealtimeTransportMode>(tokenId ? "connecting" : "idle");
+  const [tickCount, setTickCount] = useState(0);
+  const [candlesSnapshot, setCandlesSnapshot] = useState<CandleSnapshot>(() => createEmptyCandleSnapshot());
+  const [currentCandlesSnapshot, setCurrentCandlesSnapshot] = useState<CurrentCandleSnapshot>(() => createEmptyCurrentCandleSnapshot());
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -116,9 +150,28 @@ export function useMultiTimeframeCandles({
     });
   }, []);
 
+  const syncSnapshots = useCallback(() => {
+    const nextCandles = createEmptyCandleSnapshot();
+    const nextCurrentCandles = createEmptyCurrentCandleSnapshot();
+
+    ALL_INTERVALS.forEach((interval) => {
+      const store = candleStoresRef.current.get(interval);
+      if (!store) return;
+      nextCandles[interval] = Array.from(store.candles.values()).sort(
+        (a, b) => (a.time as number) - (b.time as number)
+      );
+      nextCurrentCandles[interval] = store.currentCandle ? { ...store.currentCandle } : null;
+    });
+
+    setCandlesSnapshot(nextCandles);
+    setCurrentCandlesSnapshot(nextCurrentCandles);
+    setTickCount(ticksRef.current.length);
+  }, []);
+
   useEffect(() => {
     initializeStores();
-  }, [initializeStores]);
+    syncSnapshots();
+  }, [initializeStores, syncSnapshots]);
 
   useEffect(() => {
     if (lastPriceRef.current !== null) return;
@@ -136,6 +189,9 @@ export function useMultiTimeframeCandles({
     setLastPrice(null);
     setLastUpdate(Date.now());
     setTransportMode(tokenId ? "connecting" : "idle");
+    setTickCount(0);
+    setCandlesSnapshot(createEmptyCandleSnapshot());
+    setCurrentCandlesSnapshot(createEmptyCurrentCandleSnapshot());
 
     ALL_INTERVALS.forEach((interval) => {
       candleStoresRef.current.set(interval, {
@@ -213,9 +269,10 @@ export function useMultiTimeframeCandles({
         updateCandleForInterval(interval, price, timestamp);
       });
 
+      syncSnapshots();
       setLastUpdate(Date.now());
     },
-    [updateCandleForInterval]
+    [syncSnapshots, updateCandleForInterval]
   );
 
   const processTradePrice = useCallback(
@@ -381,17 +438,12 @@ export function useMultiTimeframeCandles({
   }, [tokenId, isConnected, processTradePrice]);
 
   const getCandles = useCallback((interval: IntervalType): CandleData[] => {
-    const store = candleStoresRef.current.get(interval);
-    if (!store) return [];
-    return Array.from(store.candles.values()).sort(
-      (a, b) => (a.time as number) - (b.time as number)
-    );
-  }, []);
+    return candlesSnapshot[interval] ?? [];
+  }, [candlesSnapshot]);
 
   const getCurrentCandle = useCallback((interval: IntervalType): CandleData | null => {
-    const store = candleStoresRef.current.get(interval);
-    return store?.currentCandle || null;
-  }, []);
+    return currentCandlesSnapshot[interval] ?? null;
+  }, [currentCandlesSnapshot]);
 
   const addPrice = useCallback(
     (price: number) => {
@@ -449,7 +501,7 @@ export function useMultiTimeframeCandles({
     disconnect,
     reconnect: connect,
     aggregateFromTicks,
-    tickCount: ticksRef.current.length,
+    tickCount,
     transportMode,
   };
 }
@@ -500,6 +552,9 @@ export function useSimulatedMultiTimeframeCandles({
 }: SimulatedMultiTimeframeOptions = {}) {
   const [lastPrice, setLastPrice] = useState(initialPrice);
   const [lastUpdate, setLastUpdate] = useState(() => Date.now());
+  const [tickCount, setTickCount] = useState(0);
+  const [candlesSnapshot, setCandlesSnapshot] = useState<CandleSnapshot>(() => createEmptyCandleSnapshot());
+  const [currentCandlesSnapshot, setCurrentCandlesSnapshot] = useState<CurrentCandleSnapshot>(() => createEmptyCurrentCandleSnapshot());
 
   const priceRef = useRef(initialPrice);
   const candleStoresRef = useRef<Map<IntervalType, CandleStore>>(new Map());
@@ -514,6 +569,24 @@ export function useSimulatedMultiTimeframeCandles({
         });
       }
     });
+  }, []);
+
+  const syncSnapshots = useCallback(() => {
+    const nextCandles = createEmptyCandleSnapshot();
+    const nextCurrentCandles = createEmptyCurrentCandleSnapshot();
+
+    ALL_INTERVALS.forEach((interval) => {
+      const store = candleStoresRef.current.get(interval);
+      if (!store) return;
+      nextCandles[interval] = Array.from(store.candles.values()).sort(
+        (a, b) => (a.time as number) - (b.time as number)
+      );
+      nextCurrentCandles[interval] = store.currentCandle ? { ...store.currentCandle } : null;
+    });
+
+    setCandlesSnapshot(nextCandles);
+    setCurrentCandlesSnapshot(nextCurrentCandles);
+    setTickCount(ticksRef.current.length);
   }, []);
 
   const getTimeKey = useCallback((timestamp: number, intervalSeconds: number) => {
@@ -577,8 +650,9 @@ export function useSimulatedMultiTimeframeCandles({
       ticksRef.current.push({ price: priceRef.current, timestamp: t });
     }
 
+    syncSnapshots();
     setLastUpdate(Date.now());
-  }, [initializeStores, updateAllIntervals, volatility]);
+  }, [initializeStores, syncSnapshots, updateAllIntervals, volatility]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -594,24 +668,20 @@ export function useSimulatedMultiTimeframeCandles({
       }
 
       updateAllIntervals(priceRef.current, timestamp);
+      syncSnapshots();
       setLastUpdate(timestamp);
     }, updateInterval);
 
     return () => clearInterval(timer);
-  }, [volatility, updateInterval, updateAllIntervals]);
+  }, [volatility, updateInterval, updateAllIntervals, syncSnapshots]);
 
   const getCandles = useCallback((interval: IntervalType): CandleData[] => {
-    const store = candleStoresRef.current.get(interval);
-    if (!store) return [];
-    return Array.from(store.candles.values()).sort(
-      (a, b) => (a.time as number) - (b.time as number)
-    );
-  }, []);
+    return candlesSnapshot[interval] ?? [];
+  }, [candlesSnapshot]);
 
   const getCurrentCandle = useCallback((interval: IntervalType): CandleData | null => {
-    const store = candleStoresRef.current.get(interval);
-    return store?.currentCandle || null;
-  }, []);
+    return currentCandlesSnapshot[interval] ?? null;
+  }, [currentCandlesSnapshot]);
 
   return {
     isConnected: true,
@@ -619,7 +689,7 @@ export function useSimulatedMultiTimeframeCandles({
     lastUpdate,
     getCandles,
     getCurrentCandle,
-    tickCount: ticksRef.current.length,
+    tickCount,
   };
 }
 
@@ -635,7 +705,6 @@ export function aggregateCandlesToHigherTimeframe(
     return sourceCandles;
   }
 
-  const ratio = targetSeconds / sourceSeconds;
   const aggregatedMap = new Map<number, CandleData>();
 
   sourceCandles.forEach((candle) => {
