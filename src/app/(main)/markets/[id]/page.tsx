@@ -411,10 +411,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
             <div className="flex items-center gap-2 rounded-xl border border-[#252833] bg-[#14161d] px-3.5 py-1.5 text-sm shadow-sm">
               <span className="text-[#8a8f9c]">{yesLabel}</span>
-              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(yesPrice)}</span>
+              <span className="font-semibold text-[#0ECB81]">{formatPriceInt(displayYesPrice)}</span>
               <span className="text-[#333845]">/</span>
               <span className="text-[#8a8f9c]">{noLabel}</span>
-              <span className="font-semibold text-[#F6465D]">{formatPriceInt(noPrice)}</span>
+              <span className="font-semibold text-[#F6465D]">{formatPriceInt(displayNoPrice)}</span>
             </div>
           </div>
 
@@ -504,7 +504,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     >
                       <div className="text-[11px] text-[#79808d]">{yesLabel}</div>
                       <div className="mt-1 flex items-baseline justify-between">
-                        <div className="text-[20px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(yesPrice)}¢</div>
+                        <div className="text-[20px] font-semibold leading-none text-[#0ECB81]">{formatPriceInt(displayYesPrice)}¢</div>
                         <div className="text-[10px] text-[#0ECB81]/60">Buy</div>
                       </div>
                     </button>
@@ -514,7 +514,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     >
                       <div className="text-[11px] text-[#79808d]">{noLabel}</div>
                       <div className="mt-1 flex items-baseline justify-between">
-                        <div className="text-[20px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(noPrice)}¢</div>
+                        <div className="text-[20px] font-semibold leading-none text-[#F6465D]">{formatPriceInt(displayNoPrice)}¢</div>
                         <div className="text-[10px] text-[#F6465D]/60">Buy</div>
                       </div>
                     </button>
