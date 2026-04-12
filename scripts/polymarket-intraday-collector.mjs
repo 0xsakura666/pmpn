@@ -144,6 +144,10 @@ function getExpiryDate(market) {
   return new Date(baseDate.getTime() + RETENTION_HOURS * 3600000);
 }
 
+function getLifecycleDate(market) {
+  return resolveLifecycleBaseDate(market);
+}
+
 async function fetchJson(url) {
   const candidates = [
     url,
@@ -198,6 +202,7 @@ async function fetchTrackedTokens() {
           conditionId: safeText(market.conditionId || market.condition_id),
           marketTitle: safeText(market.question || market.title),
           eventSlug: safeText(market.events?.[0]?.slug || market.slug),
+          lifecycleAt: getLifecycleDate(market),
           expiresAt: getExpiryDate(market),
         });
         if (tracked.length >= MAX_MARKETS) break;
@@ -282,8 +287,24 @@ class Collector {
   }
 
   async refreshTrackedTokens() {
+    const previousTracked = this.trackedTokens;
     const tracked = await fetchTrackedTokens();
     const nextMap = new Map(tracked.map((item) => [item.tokenId, item]));
+
+    const settledTokenIds = [];
+    const nowMs = Date.now();
+    for (const [tokenId, meta] of previousTracked.entries()) {
+      if (nextMap.has(tokenId)) continue;
+      const lifecycleMs = meta.lifecycleAt instanceof Date ? meta.lifecycleAt.getTime() : NaN;
+      if (Number.isFinite(lifecycleMs) && lifecycleMs <= nowMs) {
+        settledTokenIds.push(tokenId);
+      }
+    }
+
+    if (settledTokenIds.length > 0) {
+      await this.expireSettledTokenBars(settledTokenIds);
+    }
+
     this.trackedTokens = nextMap;
 
     for (const tokenId of this.stateByToken.keys()) {
@@ -297,6 +318,20 @@ class Collector {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.subscribe();
     }
+  }
+
+  async expireSettledTokenBars(tokenIds) {
+    if (!Array.isArray(tokenIds) || tokenIds.length === 0) return;
+    await pool.query(
+      `
+        UPDATE intraday_market_bars
+        SET expires_at = NOW(), updated_at = NOW()
+        WHERE token_id = ANY($1::text[])
+          AND (expires_at IS NULL OR expires_at > NOW())
+      `,
+      [tokenIds]
+    );
+    console.log(`[collector] marked settled token bars for cleanup count=${tokenIds.length}`);
   }
 
   connect() {
