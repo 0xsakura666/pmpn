@@ -1,5 +1,7 @@
 # 配置清单（本地 → Vercel + Neon）
 
+> 注意：这份文档偏旧。当前仓库的最新部署说明、Railway collector 配置和环境变量分级，请以 [DEPLOY.md](/Users/0xsakura/Documents/GitHub/pmpn/DEPLOY.md) 为准。
+
 按顺序做即可。
 
 ---
